@@ -1,0 +1,326 @@
+<title>libzpool Programming Guide</title>
+<style>
+:root {
+  --bg: #f5f3ed; --bg-el: #eae8e1; --text: #1c1b18; --muted: #6d6960;
+  --accent: #2b5a8c; --border: #cdc9be; --code-bg: #e6e3db;
+  --danger: #9c3a2e; --danger-bg: #f5e6e4;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #19181d; --bg-el: #23222a; --text: #dcd9d3; --muted: #8d8a83;
+    --accent: #5b9fd4; --border: #3c3a42; --code-bg: #28272f;
+    --danger: #e06050; --danger-bg: #2e2022;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #19181d; --bg-el: #23222a; --text: #dcd9d3; --muted: #8d8a83;
+  --accent: #5b9fd4; --border: #3c3a42; --code-bg: #28272f;
+  --danger: #e06050; --danger-bg: #2e2022;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--text);
+  font-family: -apple-system, "Segoe UI", system-ui, sans-serif;
+  font-size: 16px; line-height: 1.7; -webkit-font-smoothing: antialiased;
+}
+.page { max-width: 700px; margin: 0 auto; padding: 3rem 1.5rem 5rem; }
+h1 {
+  font-family: Georgia, serif; font-size: 1.8rem; font-weight: 700;
+  letter-spacing: -0.02em; margin-bottom: 0.2rem;
+}
+.sub { color: var(--muted); font-style: italic; margin-bottom: 2rem; }
+h2 {
+  font-family: Georgia, serif; font-size: 1.3rem; font-weight: 700;
+  margin-top: 2.5rem; margin-bottom: 0.8rem;
+}
+h3 {
+  font-size: 1.05rem; font-weight: 700;
+  margin-top: 1.8rem; margin-bottom: 0.5rem;
+}
+p { margin-bottom: 1rem; }
+code {
+  font-family: "SF Mono", Menlo, monospace; font-size: 0.88em;
+  background: var(--code-bg); padding: 0.12em 0.35em; border-radius: 3px;
+}
+pre {
+  font-family: "SF Mono", Menlo, monospace; font-size: 0.82rem;
+  line-height: 1.5; background: var(--code-bg); border: 1px solid var(--border);
+  border-radius: 4px; padding: 1rem 1.2rem; overflow-x: auto; margin-bottom: 1rem;
+}
+pre code { background: none; padding: 0; font-size: inherit; }
+ul, ol { margin: 0.3rem 0 1rem 1.2rem; }
+li { margin-bottom: 0.3rem; }
+hr { border: none; border-top: 1px solid var(--border); margin: 2.5rem 0; }
+.note {
+  border-left: 3px solid var(--accent); padding: 0.8rem 1.2rem;
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+  border-radius: 0 4px 4px 0; margin: 1.2rem 0;
+}
+.note p:last-child { margin-bottom: 0; }
+.warn {
+  border-left: 3px solid var(--danger); padding: 0.8rem 1.2rem;
+  background: var(--danger-bg);
+  border-radius: 0 4px 4px 0; margin: 1.2rem 0;
+}
+.warn p:last-child { margin-bottom: 0; }
+table {
+  width: 100%; border-collapse: collapse; margin-bottom: 1rem;
+  font-size: 0.92rem;
+}
+th, td {
+  text-align: left; padding: 0.5rem 0.8rem;
+  border-bottom: 1px solid var(--border);
+}
+th { font-weight: 700; background: var(--bg-el); }
+</style>
+
+<div class="page">
+
+<h1>libzpool Programming Guide</h1>
+<p class="sub">Patterns, pitfalls, and crash-to-fix recipes for userspace ZFS code</p>
+
+<p>This document records the hard-won lessons from building and debugging the <code>rebase_test</code> harness against <code>libzpool</code>. Every section corresponds to a real crash we hit and diagnosed. The canonical upstream reference is <code>cmd/ztest.c</code> in the OpenZFS tree.</p>
+
+<h2>1. FTAG is __func__</h2>
+
+<p><code>FTAG</code> is defined in <code>include/sys/zfs_refcount.h</code> as:</p>
+
+<pre><code>#define FTAG ((char *)(uintptr_t)__func__)</code></pre>
+
+<p>Every function that uses <code>FTAG</code> gets a different pointer value. This matters because <code>dmu_objset_own()</code> stores the tag as the dataset owner, and <code>dmu_objset_disown()</code> checks it with pointer equality.</p>
+
+<div class="warn">
+<p><strong>Crash signature.</strong> <code>VERIFY3P(ds->ds_owner, ==, tag) failed</code> in <code>dsl_dataset_disown()</code>. The two hex values in the assertion are the string addresses of two different function names.</p>
+</div>
+
+<h3>The bug</h3>
+
+<p>A helper function calls <code>dmu_objset_own(..., FTAG, &os)</code>, which records the tag as the helper's <code>__func__</code> string. The caller later calls <code>dmu_objset_disown(os, B_FALSE, FTAG)</code>, but <em>its</em> <code>FTAG</code> points to a different <code>__func__</code> string.</p>
+
+<h3>The fix</h3>
+
+<p>Pass the tag as a parameter through any helper that calls <code>dmu_objset_own</code>. This is exactly what <code>ztest_dmu_objset_own()</code> does in <code>ztest.c</code>:</p>
+
+<pre><code>/* Helper accepts tag from caller */
+static int
+open_dataset(const char *dsname, objset_t **osp,
+    const void *tag)
+{
+    err = dmu_objset_own(dsname, DMU_OST_ZFS,
+        B_FALSE, B_FALSE, tag, osp);
+    ...
+}
+
+/* Caller uses same FTAG for both */
+err = open_dataset(name, &os, FTAG);
+...
+dmu_objset_disown(os, B_FALSE, FTAG);</code></pre>
+
+<hr>
+
+<h2>2. SA handle lifecycle</h2>
+
+<p>The system attribute (SA) subsystem has two ways to get a handle. Only one of them adds a buffer hold. <code>sa_handle_destroy()</code> always releases one. Getting this wrong causes a refcount double-release.</p>
+
+<div class="warn">
+<p><strong>Crash signature.</strong> <code>VERIFY3S(count, >=, 0) failed (-1 >= 0x0)</code> in <code>zfs_refcount_remove_many()</code>, typically on the <code>dp_sync_taskq</code> thread during <code>dbuf_sync_bonus</code>.</p>
+</div>
+
+<h3>How the functions work</h3>
+
+<table>
+<tr>
+  <th>Function</th>
+  <th>Adds buffer hold?</th>
+</tr>
+<tr>
+  <td><code>sa_handle_get(os, obj, NULL, SA_HDL_SHARED, &hdl)</code></td>
+  <td>Yes &mdash; calls <code>dmu_bonus_hold()</code> internally</td>
+</tr>
+<tr>
+  <td><code>sa_handle_get_from_db(os, db, NULL, SA_HDL_SHARED, &hdl)</code></td>
+  <td>No &mdash; wraps an existing buffer, adds no hold</td>
+</tr>
+<tr>
+  <td><code>sa_handle_destroy(hdl)</code></td>
+  <td>Always releases &mdash; calls <code>dmu_buf_rele(hdl->sa_bonus, NULL)</code></td>
+</tr>
+</table>
+
+<h3>Correct pattern</h3>
+
+<pre><code>sa_handle_t *hdl;
+VERIFY0(sa_handle_get(os, obj, NULL, SA_HDL_SHARED, &hdl));
+/* ... use hdl ... */
+sa_handle_destroy(hdl);</code></pre>
+
+<p>This is balanced: one hold from <code>sa_handle_get</code>, one release from <code>sa_handle_destroy</code>.</p>
+
+<h3>Wrong pattern</h3>
+
+<pre><code>dmu_buf_t *db;
+sa_handle_t *hdl;
+VERIFY0(sa_buf_hold(os, obj, FTAG, &db));        /* hold #1 */
+VERIFY0(sa_handle_get_from_db(os, db, NULL,
+    SA_HDL_SHARED, &hdl));                        /* no hold */
+/* ... use hdl ... */
+sa_handle_destroy(hdl);                           /* release #1 */
+sa_buf_rele(db, FTAG);                            /* release #2 -- BOOM */</code></pre>
+
+<p>Two releases against one hold. The refcount goes to &minus;1 and triggers an assertion in the sync task that later touches the buffer.</p>
+
+<hr>
+
+<h2>3. Dataset opening: own vs. hold</h2>
+
+<p>There are two ways to open a dataset. They have different locking behavior that matters when you need to run transactions.</p>
+
+<table>
+<tr>
+  <th>Function pair</th>
+  <th>Config lock behavior</th>
+</tr>
+<tr>
+  <td><code>dmu_objset_hold</code> / <code>dmu_objset_rele</code></td>
+  <td>Keeps the DSL pool config lock as a reader for the duration</td>
+</tr>
+<tr>
+  <td><code>dmu_objset_own</code> / <code>dmu_objset_disown</code></td>
+  <td>Acquires ownership, releases the config lock after setup</td>
+</tr>
+</table>
+
+<div class="warn">
+<p><strong>Crash signature.</strong> <code>((flags & DMU_TX_WAIT)) implies (!dsl_pool_config_held(tx->tx_pool))</code> assertion failure in <code>dmu_tx_assign()</code>.</p>
+</div>
+
+<h3>The rule</h3>
+
+<p><code>dmu_tx_assign(tx, DMU_TX_WAIT)</code> asserts that the config lock is <strong>not</strong> held, because it may need to wait for sync and re-acquire it. If you opened the dataset with <code>dmu_objset_hold</code>, the lock is still held and the assertion fires.</p>
+
+<ul>
+  <li>Use <code>own</code>/<code>disown</code> when the code needs to create and commit transactions.</li>
+  <li>Use <code>hold</code>/<code>rele</code> for read-only access (lookups, comparisons, iteration).</li>
+</ul>
+
+<hr>
+
+<h2>4. Transaction holds</h2>
+
+<p>Before calling <code>dmu_tx_assign()</code>, every block that will be dirtied must have a corresponding <code>dmu_tx_hold_*</code> call. Missing a hold causes a panic at dirty time, not at hold time, which makes the error message point at the wrong place.</p>
+
+<div class="warn">
+<p><strong>Crash signature.</strong> <code>PANIC: dirtying dbuf obj=N lvl=0 blkid=0 but not tx_held</code> &mdash; the object number tells you which hold is missing.</p>
+</div>
+
+<h3>Hold recipes by operation</h3>
+
+<table>
+<tr>
+  <th>Operation</th>
+  <th>Required holds</th>
+</tr>
+<tr>
+  <td>Create a regular file (<code>dmu_object_alloc</code>)</td>
+  <td><code>dmu_tx_hold_sa_create(tx, bonuslen)</code><br><code>dmu_tx_hold_write(tx, DMU_NEW_OBJECT, 0, len)</code> (if writing data)<br><code>dmu_tx_hold_zap(tx, dir_obj, B_TRUE, name)</code> (parent dir entry)</td>
+</tr>
+<tr>
+  <td>Create a directory (<code>zap_create_norm</code>)</td>
+  <td><code>dmu_tx_hold_zap(tx, DMU_NEW_OBJECT, B_TRUE, NULL)</code> (new ZAP data block)<br><code>dmu_tx_hold_sa_create(tx, bonuslen)</code> (bonus buffer)<br><code>dmu_tx_hold_zap(tx, parent_obj, B_TRUE, name)</code> (parent dir entry)</td>
+</tr>
+<tr>
+  <td>Edit file data</td>
+  <td><code>dmu_tx_hold_write(tx, obj, offset, len)</code></td>
+</tr>
+<tr>
+  <td>Modify SA attributes</td>
+  <td><code>dmu_tx_hold_bonus(tx, obj)</code></td>
+</tr>
+<tr>
+  <td>Add/remove ZAP entry</td>
+  <td><code>dmu_tx_hold_zap(tx, dir_obj, adding, name)</code></td>
+</tr>
+</table>
+
+<div class="note">
+<p><strong>Why directories need an extra hold.</strong> <code>zap_create_norm()</code> calls <code>mzap_create_impl()</code> which initializes the micro-ZAP header in data block 0. Without <code>dmu_tx_hold_zap(tx, DMU_NEW_OBJECT, ...)</code>, the data block has no space reservation and the dirty triggers a panic. Regular files created with <code>dmu_object_alloc()</code> don't initialize a data block at creation time, so they don't need this hold.</p>
+</div>
+
+<hr>
+
+<h2>5. Sync task callbacks</h2>
+
+<p>The callback passed to <code>dmu_objset_create()</code> (e.g., <code>zpl_create_cb</code>) runs inside a sync task. The transaction <code>tx</code> passed to the callback has broader permissions than a normal transaction:</p>
+
+<ul>
+  <li>Explicit <code>dmu_tx_hold_*</code> calls are not needed for objects created within the callback.</li>
+  <li>The callback runs in the syncer context after the objset is already created on disk.</li>
+  <li>You can freely call <code>zap_create_claim()</code>, <code>zap_create()</code>, <code>zap_add()</code>, <code>sa_setup()</code>, <code>sa_replace_all_by_template()</code>, etc.</li>
+</ul>
+
+<p>This is how our <code>zpl_create_cb</code> creates the MASTER_NODE, SA registration, delete queue, and root directory all in one callback without any hold declarations.</p>
+
+<hr>
+
+<h2>6. Quick reference: common hold/release pairs</h2>
+
+<table>
+<tr>
+  <th>Acquire</th>
+  <th>Release</th>
+  <th>Notes</th>
+</tr>
+<tr>
+  <td><code>dmu_objset_own()</code></td>
+  <td><code>dmu_objset_disown()</code></td>
+  <td>Same tag required (see section 1)</td>
+</tr>
+<tr>
+  <td><code>dmu_objset_hold()</code></td>
+  <td><code>dmu_objset_rele()</code></td>
+  <td>Read-only; holds config lock</td>
+</tr>
+<tr>
+  <td><code>sa_handle_get()</code></td>
+  <td><code>sa_handle_destroy()</code></td>
+  <td>Balanced pair (see section 2)</td>
+</tr>
+<tr>
+  <td><code>spa_open()</code></td>
+  <td><code>spa_close()</code></td>
+  <td>Same tag; fine with FTAG in same function</td>
+</tr>
+<tr>
+  <td><code>dsl_pool_hold()</code></td>
+  <td><code>dsl_pool_rele()</code></td>
+  <td>Same tag</td>
+</tr>
+<tr>
+  <td><code>dsl_dataset_hold()</code></td>
+  <td><code>dsl_dataset_rele()</code></td>
+  <td>Same tag</td>
+</tr>
+<tr>
+  <td><code>dmu_tx_create()</code></td>
+  <td><code>dmu_tx_commit()</code> or <code>dmu_tx_abort()</code></td>
+  <td>Abort on <code>dmu_tx_assign</code> failure</td>
+</tr>
+</table>
+
+<hr>
+
+<h2>7. Debugging tips</h2>
+
+<ul>
+  <li><strong>Build with <code>-O0 -g</code></strong> so GDB can show local variables and you get accurate line numbers in assertions.</li>
+  <li><strong>Always run as root</strong> (<code>sudo ./rebase_test</code>) &mdash; <code>kernel_init()</code> opens <code>/dev/zfs</code>.</li>
+  <li><strong>Clean up stale pools.</strong> Call <code>spa_destroy()</code> and <code>unlink()</code> at the start of your test scaffold, not just at the end. A prior crash leaves the pool imported.</li>
+  <li><strong>Read the assertion message carefully.</strong> ZFS VERIFY/PANIC messages print the exact expression and values. The object number in a "not tx_held" panic tells you which hold is missing. The thread name tells you if it crashed in the sync task vs. the calling thread.</li>
+  <li><strong>clangd diagnostics on macOS are noise.</strong> Kernel headers don't resolve outside FreeBSD/Linux. The build uses <code>-include</code> flags that clangd doesn't see.</li>
+</ul>
+
+<div class="note">
+<p><strong>Reference code.</strong> <code>cmd/ztest.c</code> in the OpenZFS tree is the canonical example of userspace libzpool programming. When in doubt about a pattern, check how ztest does it. Key functions: <code>ztest_dmu_objset_own()</code> (tag forwarding), <code>ztest_objset_create_cb()</code> (create callback), <code>ztest_dmu_objset_create_destroy()</code> (full lifecycle).</p>
+</div>
+
+</div>
