@@ -1,8 +1,26 @@
 # zfs-rebase-testing
 
 Userspace test harness for `dsl_rebase()`. Links against `libzpool` to
-exercise the kernel rebase code (diff + collapse phases) without booting
-a kernel or mounting a filesystem.
+exercise the kernel rebase code without booting a kernel or mounting a
+filesystem.
+
+## Layout
+
+| File | Contents |
+|------|----------|
+| `rebase_test.h` | shared declarations, TEST/RT_CHECK macros |
+| `rebase_test_main.c` | `main()`, section table, result summary |
+| `rt_harness.c` | counters, `rt_open`/`rt_close`, `rt_run_rebase`, manifest inspection |
+| `rt_scaffold.c` | pool/vdev lifecycle, scaffolds, snapshots, clones |
+| `rt_zpl.c` | raw DMU/ZAP/SA object manipulation helpers |
+| `test_basic.c` | walk, single-side standalone changes, error cases (13 tests) |
+| `test_hysteria.c` | rename-on-save and identical-change suppression (8 tests) |
+| `test_moves.c` | rename detection and move conflicts (12 tests) |
+| `test_linkpool.c` | hardlink cases; the sprint-2 catalog lands here (4 tests) |
+| `test_crossref.c` | conflict types, benign cases, clean merges (11 tests) |
+
+48 tests total. Section names double as command-line arguments (see
+Running below).
 
 ## Prerequisites
 
@@ -63,62 +81,33 @@ The Makefile auto-detects which mode to use based on whether
 ## Running
 
 ```sh
-sudo ./rebase_test
+sudo ./rebase_test                 # all sections
+sudo ./rebase_test moves           # one section
+sudo ./rebase_test basic linkpool  # several sections
 ```
 
 The harness must be run as root (it calls `kernel_init` which
 opens `/dev/zfs`).  Each test creates a pool on a file vdev at
 `/tmp/rtest_vdev`, runs the test, and destroys the pool.
 
-Expected output when all tests pass:
+Sections: `basic`, `hysteria`, `moves`, `linkpool`, `crossref`.
+
+A full run ends with:
 
 ```
-zfs rebase test suite
 =====================
-
-  smoke: no changes on either side                      PASS
-  left adds a file, right unchanged                     PASS
-  right adds a file, left unchanged                     PASS
-  left deletes a file                                   PASS
-  left edits a file in-place                            PASS
-  hysterical edit (nvim-style, same content)            PASS
-  left moves (renames) a file                           PASS
-  left adds a hardlink                                  PASS
-  both sides add different files                        PASS
-  both sides edit same file                             PASS
-  nested: edit file inside subdirectory                 PASS
-  mixed: add + delete + edit on left                    PASS
-  move + edit on left                                   PASS
-  error: left == right (same dataset)                   PASS
-  error: left is a snapshot                             PASS
-
-=====================
-Results: 15/15 passed
+Results: 48/48 passed
 ```
 
-All passing tests return ENOSYS — this is the expected sentinel
-after a successful diff + collapse, because the apply phase is
-not yet implemented.
+A test failure prints `FAIL: <reason>` on its line and the program
+exits with status 1.
 
-## What the tests exercise
-
-| Test | Operation | What it verifies |
-|------|-----------|------------------|
-| T1  | No changes | Empty changelists, collapse is no-op |
-| T2  | Left adds file | Single-side ADD in left changelist |
-| T3  | Right adds file | Single-side ADD in right changelist |
-| T4  | Left deletes file | Single-side DELETE in left changelist |
-| T5  | Left edits file | Same-dnode COW'd EDIT detection |
-| T6  | Hysterical edit | Different dnode, same content → not EDIT |
-| T7  | Left renames file | ADD+DELETE same obj → collapses to MOVE |
-| T8  | Left adds hardlink | ADD for existing base obj → HARDLINK_ADD |
-| T9  | Both add different files | Independent ADDs on both sides |
-| T10 | Both edit same file | EDIT on both changelists (conflict detection is issue 9) |
-| T11 | Nested edit | File EDIT inside subdirectory |
-| T12 | Mixed operations | ADD + DELETE + nested EDIT in one changelist |
-| T13 | Move + edit | Rename + content change → MOVE_EDIT |
-| T14 | Same dataset error | left == right → EINVAL |
-| T15 | Left is snapshot | Snapshot as left → EINVAL |
+Tests that end in a bare `dsl_rebase(..., NULL)` assert only the
+ENOSYS success sentinel (the apply phase is not implemented, so
+ENOSYS after a successful diff is the expected result). Tests that
+call `rt_run_rebase()` also inspect the conflict manifest from the
+output nvlist: conflict types and paths, hardlink alt-path dedup,
+and changelist counts.
 
 ## How it works
 
@@ -138,49 +127,51 @@ The harness uses `libzpool` to run ZFS kernel code in userspace
   to extract the object number.
 
 - **SA setup**: `sa_setup()` is called after opening each dataset
-  to register the ZPL attribute table (same approach as the main
-  rebase code's `rebase_sa_setup()`).
+  to register the ZPL attribute table (`rt_open()` handles this).
 
-- **Hysterical edits**: `test_hysterical_edit()` simulates nvim-style
+- **Hysterical edits**: `rt_hysterical_edit()` simulates nvim-style
   rename-on-save by allocating a new dnode, copying data, removing
   the old ZAP entry, and adding a new one with the same name.
 
+- **The standard scaffold**: `rt_scaffold_basic()` builds src with
+  one file ("hello") and one subdirectory ("subdir/inner"),
+  snapshots it as `src@base`, and clones left + right from the
+  snapshot.  For custom base layouts use `rt_scaffold_empty_base()`,
+  populate src, then `rt_scaffold_snap_and_clone()`.
+
 ## Adding new tests
 
-1. Write a `static int test_your_thing(void)` function following the
-   existing pattern: `TEST_START`, scaffold, modify datasets,
-   `sync_pool`, call `dsl_rebase`, `scaffold_teardown`, `TEST_EXPECT`,
-   `TEST_PASS`.
+1. Pick the section file that matches the pipeline stage under test
+   (or add a new `test_<stage>.c`: add it to `SRCS` in the Makefile,
+   declare its runner in `rebase_test.h`, and register it in the
+   section table in `rebase_test_main.c`).
 
-2. Add the call to `run_tests()`.
+2. Write a `static int test_your_thing(void)` following the house
+   pattern: `TEST_START`, `RT_CHECK(rt_scaffold_basic(), ...)`,
+   mutate datasets through an `rt_ds_t` opened with `rt_open()` and
+   released with `rt_close()`, then `rt_sync_pool()`, run the
+   rebase, `rt_scaffold_teardown()`, `TEST_EXPECT`, `TEST_PASS()`.
 
-3. Use the helpers: `test_create_file`, `test_create_dir`,
-   `test_remove_entry`, `test_edit_file`, `test_add_hardlink`,
-   `test_hysterical_edit`, `dir_lookup_obj`.
+3. Add the call to the file's `run_*_tests()`.
 
-4. Always call `sync_pool()` before `dsl_rebase()` to flush
-   pending transactions to disk.
+4. Use the helpers: `rt_create_file`, `rt_create_dir`,
+   `rt_remove_entry`, `rt_edit_file`, `rt_add_hardlink`,
+   `rt_hysterical_edit`, `rt_rename_file`, `rt_dir_lookup`, and the
+   `rt_manifest_*` inspectors.
 
-5. Always call `scaffold_teardown()` before returning, even on
-   failure, to clean up the pool and vdev file.
+5. Always call `rt_sync_pool()` before running the rebase, and
+   `rt_close()` before any `RT_CHECK` so a failure never leaks a
+   held dataset.
 
-## Verifying changes to dsl_rebase.c
+## Sprint-2 notes
 
-After modifying the rebase code:
-
-```sh
-# Option A: Reinstall the system library
-cd /usr/src/cddl/lib/libzpool && make && sudo make install
-
-# Option B: Rebuild the autotools tree
-cd /path/to/openzfs && make -j$(sysctl -n hw.ncpu)
-
-# Then rebuild and run the test harness
-cd /path/to/zfs-rebase-testing
-make clean && make ZFS_SRC=/path/to/openzfs
-sudo ./rebase_test
-```
-
-A test failure prints `FAIL: <reason>` and the program exits with
-status 1.  The failure message identifies which assertion or
-operation failed.
+The suite currently asserts sprint-1 engine behavior. The sprint-2
+rewrite (two-axis change records, linkpool tables; see
+`sprints/sprint-2/diff-engine-rewrite-full.md`) keeps these manifest
+shapes for standalone paths, and its 14-test catalog
+(sever-vs-nothing, phantom-conflict dissolution, index recycling,
+linkpool completeness, novel overlap, warnings) will land in
+`test_linkpool.c` and a new warnings section with the
+testing-framework issue. Known gap: `rt_add_hardlink()` does not
+bump ZPL_LINKS, which the sprint-2 walker reads to build linkpool
+tables -- fix the helper before wiring up those tests.

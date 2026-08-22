@@ -36,7 +36,15 @@ CPPFLAGS += -I$(ZFS_SRC)/lib/libspl/include/os/freebsd
 CPPFLAGS += -I$(ZFS_SRC)/lib/libzpool/include
 
 PROG	= rebase_test
-SRCS	= rebase_test.c
+SRCS	= rebase_test_main.c \
+	  rt_harness.c \
+	  rt_scaffold.c \
+	  rt_zpl.c \
+	  test_basic.c \
+	  test_hysteria.c \
+	  test_moves.c \
+	  test_linkpool.c \
+	  test_crossref.c
 
 .PHONY: all clean
 
@@ -59,15 +67,18 @@ LIBS += $(ZFS_SRC)/lib/libzfs_core/libzfs_core.la
 LIBS += $(ZFS_SRC)/lib/libnvpair/libnvpair.la
 LIBS += -lm
 
-OBJS	= rebase_test.lo
+OBJS	= $(SRCS:.c=.lo)
 
 all: $(PROG)
 
-$(OBJS): $(SRCS)
+.SUFFIXES: .c .lo
+.c.lo:
 	$(COMPILE) $(CFLAGS) $(CPPFLAGS) -c -o $@ $<
 
+$(OBJS): rebase_test.h
+
 $(PROG): $(OBJS)
-	$(LINK) $(CFLAGS) -o $@ $< $(LIBS)
+	$(LINK) $(CFLAGS) -o $@ $(OBJS) $(LIBS)
 
 clean:
 	rm -rf $(PROG) *.o *.lo .libs
@@ -87,7 +98,7 @@ LIBS = -lzpool -lzutil -lnvpair -lavl -lspl -lumem -lmd -lz -lpthread
 
 all: $(PROG)
 
-$(PROG): $(SRCS)
+$(PROG): $(SRCS) rebase_test.h
 	$(CC) $(CFLAGS) $(CPPFLAGS) -o $@ $(SRCS) $(LIBS)
 
 clean:
