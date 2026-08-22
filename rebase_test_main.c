@@ -20,6 +20,8 @@ static const struct {
 	void		(*s_run)(void);
 } sections[] = {
 	{ "basic",	run_basic_tests },
+	{ "setup",	run_setup_tests },
+	{ "walk",	run_walk_tests },
 	{ "hysteria",	run_hysteria_tests },
 	{ "moves",	run_moves_tests },
 	{ "linkpool",	run_linkpool_tests },

@@ -154,6 +154,7 @@ int rt_scaffold_empty_base(void);
 int rt_scaffold_snap_and_clone(void);
 void rt_scaffold_teardown(void);
 int rt_snapshot(const char *dsname, const char *snapname);
+int rt_create_zpl_dataset(const char *dsname);
 
 /* rt_zpl.c */
 void rt_zpl_create_cb(objset_t *os, void *arg, cred_t *cr, dmu_tx_t *tx);
@@ -173,9 +174,15 @@ int rt_hysterical_edit(objset_t *os, uint64_t dir_obj, const char *name,
     const void *data, uint64_t datalen, uint64_t *new_objp);
 int rt_rename_file(objset_t *os, uint64_t src_dir, const char *old_name,
     uint64_t dst_dir, const char *new_name);
+int rt_set_nlink(objset_t *os, uint64_t obj, uint64_t nlink);
+int rt_set_zplprop(objset_t *os, const char *name, uint64_t value);
+int rt_add_dangling_entry(objset_t *os, uint64_t dir_obj,
+    const char *name);
 
 /* section runners */
 void run_basic_tests(void);
+void run_setup_tests(void);
+void run_walk_tests(void);
 void run_hysteria_tests(void);
 void run_moves_tests(void);
 void run_linkpool_tests(void);

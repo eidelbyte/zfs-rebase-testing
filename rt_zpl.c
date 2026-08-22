@@ -334,16 +334,51 @@ rt_create_dir(objset_t *os, uint64_t parent_obj, const char *name,
 }
 
 /*
- * Remove a directory entry.
+ * Adjust ZPL_LINKS on an object by delta within an open tx.
+ */
+static void
+adjust_nlink(objset_t *os, uint64_t obj, int64_t delta, dmu_tx_t *tx)
+{
+	sa_attr_type_t *sa_tbl = get_sa_table(os);
+	sa_handle_t *hdl;
+	uint64_t links;
+
+	VERIFY0(sa_handle_get(os, obj, NULL, SA_HDL_SHARED, &hdl));
+	VERIFY0(sa_lookup(hdl, sa_tbl[ZPL_LINKS], &links, 8));
+	links += delta;
+	VERIFY0(sa_update(hdl, sa_tbl[ZPL_LINKS], &links, 8, tx));
+	sa_handle_destroy(hdl);
+}
+
+/*
+ * Remove a directory entry with real ZPL semantics: unlinking a
+ * plain file decrements its ZPL_LINKS (possibly to 0 -- the object
+ * then lingers pathless, like a delete-queue orphan; the harness
+ * never frees dnodes). Directory entries are removed without a
+ * decrement: the harness does not maintain directory link counts,
+ * and the rebase engine never reads them.
  */
 int
 rt_remove_entry(objset_t *os, uint64_t dir_obj, const char *name)
 {
+	uint64_t obj;
+	dmu_object_info_t doi;
 	dmu_tx_t *tx;
+	boolean_t isfile;
 	int err;
+
+	err = rt_dir_lookup(os, dir_obj, name, &obj);
+	if (err != 0)
+		return (err);
+	err = dmu_object_info(os, obj, &doi);
+	if (err != 0)
+		return (err);
+	isfile = (doi.doi_type == DMU_OT_PLAIN_FILE_CONTENTS);
 
 	tx = dmu_tx_create(os);
 	dmu_tx_hold_zap(tx, dir_obj, B_FALSE, name);
+	if (isfile)
+		dmu_tx_hold_bonus(tx, obj);
 
 	err = dmu_tx_assign(tx, DMU_TX_WAIT);
 	if (err != 0) {
@@ -352,6 +387,8 @@ rt_remove_entry(objset_t *os, uint64_t dir_obj, const char *name)
 	}
 
 	err = zap_remove(os, dir_obj, name, tx);
+	if (err == 0 && isfile)
+		adjust_nlink(os, obj, -1, tx);
 	dmu_tx_commit(tx);
 
 	return (err);
@@ -397,11 +434,10 @@ rt_edit_file(objset_t *os, uint64_t obj, const void *data,
 }
 
 /*
- * Add a hardlink: add a ZAP entry pointing to an existing object.
- * (Note: does not bump ZPL_LINKS; the sprint-1 engine never read
- * it. The sprint-2 walker builds linkpool tables from ZPL_LINKS,
- * so this helper will need a link-count update when the rewrite's
- * walker lands.)
+ * Add a hardlink with real ZPL semantics: a new ZAP entry pointing
+ * at an existing object, and the object's ZPL_LINKS bumped. The
+ * sprint-2 walker builds linkpool tables from ZPL_LINKS, so link
+ * fixtures are invisible to it without the bump.
  */
 int
 rt_add_hardlink(objset_t *os, uint64_t dir_obj, const char *name,
@@ -412,6 +448,7 @@ rt_add_hardlink(objset_t *os, uint64_t dir_obj, const char *name,
 
 	tx = dmu_tx_create(os);
 	dmu_tx_hold_zap(tx, dir_obj, B_TRUE, name);
+	dmu_tx_hold_bonus(tx, target_obj);
 
 	err = dmu_tx_assign(tx, DMU_TX_WAIT);
 	if (err != 0) {
@@ -422,6 +459,94 @@ rt_add_hardlink(objset_t *os, uint64_t dir_obj, const char *name,
 	{
 		uint64_t dirent = ZFS_DIRENT_MAKE(IFTODT(S_IFREG),
 		    target_obj);
+		err = zap_add(os, dir_obj, name, 8, 1, &dirent, tx);
+	}
+	if (err == 0)
+		adjust_nlink(os, target_obj, 1, tx);
+	dmu_tx_commit(tx);
+
+	return (err);
+}
+
+/*
+ * Corruption injector: set ZPL_LINKS to an arbitrary value without
+ * touching directory entries. Used by the linkpool completeness
+ * (LV) matrix cells to force rlp_nfound != rlp_nlink. NOTE: against
+ * a DEBUG libzpool the engine ASSERTs on the mismatch instead of
+ * returning EIO -- the LV tests expect the production behavior of
+ * the FreeBSD system library.
+ */
+int
+rt_set_nlink(objset_t *os, uint64_t obj, uint64_t nlink)
+{
+	sa_attr_type_t *sa_tbl = get_sa_table(os);
+	sa_handle_t *hdl;
+	dmu_tx_t *tx;
+	int err;
+
+	tx = dmu_tx_create(os);
+	dmu_tx_hold_bonus(tx, obj);
+	err = dmu_tx_assign(tx, DMU_TX_WAIT);
+	if (err != 0) {
+		dmu_tx_abort(tx);
+		return (err);
+	}
+
+	VERIFY0(sa_handle_get(os, obj, NULL, SA_HDL_SHARED, &hdl));
+	VERIFY0(sa_update(hdl, sa_tbl[ZPL_LINKS], &nlink, 8, tx));
+	sa_handle_destroy(hdl);
+	dmu_tx_commit(tx);
+
+	return (0);
+}
+
+/*
+ * Set a ZPL property key in the MASTER_NODE ZAP (e.g.
+ * "casesensitivity", "normalization"), the same store
+ * zfs_get_zplprop() reads. Used by the setup (S) matrix cells.
+ */
+int
+rt_set_zplprop(objset_t *os, const char *name, uint64_t value)
+{
+	dmu_tx_t *tx;
+	int err;
+
+	tx = dmu_tx_create(os);
+	dmu_tx_hold_zap(tx, MASTER_NODE_OBJ, B_TRUE, name);
+	err = dmu_tx_assign(tx, DMU_TX_WAIT);
+	if (err != 0) {
+		dmu_tx_abort(tx);
+		return (err);
+	}
+
+	err = zap_update(os, MASTER_NODE_OBJ, name, 8, 1, &value, tx);
+	dmu_tx_commit(tx);
+
+	return (err);
+}
+
+/*
+ * Corruption injector: a directory entry pointing at an object
+ * number that was never allocated. The walk's dmu_object_info()
+ * on it must fail with ENOENT and abort the rebase cleanly.
+ */
+int
+rt_add_dangling_entry(objset_t *os, uint64_t dir_obj, const char *name)
+{
+	dmu_tx_t *tx;
+	int err;
+
+	tx = dmu_tx_create(os);
+	dmu_tx_hold_zap(tx, dir_obj, B_TRUE, name);
+	err = dmu_tx_assign(tx, DMU_TX_WAIT);
+	if (err != 0) {
+		dmu_tx_abort(tx);
+		return (err);
+	}
+
+	{
+		uint64_t dirent = ZFS_DIRENT_MAKE(IFTODT(S_IFREG),
+		    999999ULL);
 		err = zap_add(os, dir_obj, name, 8, 1, &dirent, tx);
 	}
 	dmu_tx_commit(tx);
@@ -450,6 +575,7 @@ rt_hysterical_edit(objset_t *os, uint64_t dir_obj,
 	tx = dmu_tx_create(os);
 	dmu_tx_hold_zap(tx, dir_obj, B_TRUE, name);
 	dmu_tx_hold_zap(tx, dir_obj, B_FALSE, name);
+	dmu_tx_hold_bonus(tx, old_obj);
 	dmu_tx_hold_sa_create(tx, DN_BONUS_SIZE(DNODE_MIN_SIZE));
 	if (datalen > 0)
 		dmu_tx_hold_write(tx, DMU_NEW_OBJECT, 0, datalen);
@@ -474,6 +600,8 @@ rt_hysterical_edit(objset_t *os, uint64_t dir_obj,
 		dmu_write(os, new_obj, 0, datalen, data, tx, 0);
 
 	VERIFY0(zap_remove(os, dir_obj, name, tx));
+	/* The replaced dnode loses this link, like a real unlink. */
+	adjust_nlink(os, old_obj, -1, tx);
 	{
 		uint64_t dirent = ZFS_DIRENT_MAKE(IFTODT(S_IFREG),
 		    new_obj);

@@ -13,14 +13,20 @@ filesystem.
 | `rt_harness.c` | counters, `rt_open`/`rt_close`, `rt_run_rebase`, manifest inspection |
 | `rt_scaffold.c` | pool/vdev lifecycle, scaffolds, snapshots, clones |
 | `rt_zpl.c` | raw DMU/ZAP/SA object manipulation helpers |
-| `test_basic.c` | walk, single-side standalone changes, error cases (13 tests) |
+| `test_basic.c` | single-side standalone changes, error cases (13 tests) |
+| `test_setup.c` | setup matrix: discovery, preconditions, fences (8 tests) |
+| `test_walk.c` | walk matrix: union iteration, recursion, faults (8 tests) |
 | `test_hysteria.c` | rename-on-save and identical-change suppression (8 tests) |
 | `test_moves.c` | rename detection and move conflicts (12 tests) |
-| `test_linkpool.c` | hardlink cases; the sprint-2 catalog lands here (4 tests) |
+| `test_linkpool.c` | linkpool discovery/membership/verify matrix + crossref-era hardlink cases (10 tests) |
 | `test_crossref.c` | conflict types, benign cases, clean merges (11 tests) |
 
-48 tests total. Section names double as command-line arguments (see
+70 tests total. Section names double as command-line arguments (see
 Running below).
+
+Tests are planned by problem-space matrix: see `TEST-MATRIX.md` for
+the methodology, the per-phase matrices, and the cell-to-test
+mapping. Each test's comment names the matrix cells it covers.
 
 ## Prerequisites
 
@@ -90,14 +96,21 @@ The harness must be run as root (it calls `kernel_init` which
 opens `/dev/zfs`).  Each test creates a pool on a file vdev at
 `/tmp/rtest_vdev`, runs the test, and destroys the pool.
 
-Sections: `basic`, `hysteria`, `moves`, `linkpool`, `crossref`.
+Sections: `basic`, `setup`, `walk`, `hysteria`, `moves`, `linkpool`,
+`crossref`.
 
-A full run ends with:
+A full run against a finished engine ends with:
 
 ```
 =====================
-Results: 48/48 passed
+Results: 70/70 passed
 ```
+
+Against the current v2 branch (engine built through zap-walk-basic),
+the sections meaningful today are `basic` (ENOSYS-sentinel tests),
+`setup`, `walk`, and the matrix half of `linkpool`; tests that
+inspect the conflict manifest fail cleanly (the accessors return
+sentinels instead of aborting) until the emit issues land.
 
 A test failure prints `FAIL: <reason>` on its line and the program
 exits with status 1.
@@ -165,13 +178,16 @@ The harness uses `libzpool` to run ZFS kernel code in userspace
 
 ## Sprint-2 notes
 
-The suite currently asserts sprint-1 engine behavior. The sprint-2
-rewrite (two-axis change records, linkpool tables; see
-`sprints/sprint-2/diff-engine-rewrite-full.md`) keeps these manifest
-shapes for standalone paths, and its 14-test catalog
-(sever-vs-nothing, phantom-conflict dissolution, index recycling,
-linkpool completeness, novel overlap, warnings) will land in
-`test_linkpool.c` and a new warnings section with the
-testing-framework issue. Known gap: `rt_add_hardlink()` does not
-bump ZPL_LINKS, which the sprint-2 walker reads to build linkpool
-tables -- fix the helper before wiring up those tests.
+The `setup`, `walk`, and matrix-`linkpool` sections target the
+sprint-2 engine and are green from zap-walk-basic onward. The
+`hysteria`, `moves`, and `crossref` sections still assert sprint-1
+manifest behavior; the sprint-2 rewrite (two-axis change records,
+linkpool tables; see `sprints/sprint-2/diff-engine-rewrite-full.md`)
+keeps those manifest shapes for standalone paths, and each section
+gets re-plotted into its own matrix as the corresponding engine
+phase lands. The 14-test catalog (sever-vs-nothing, phantom-conflict
+dissolution, index recycling, novel overlap, warnings) arrives with
+the testing-framework issue. The ZPL helpers maintain real link
+semantics: `rt_add_hardlink` bumps ZPL_LINKS, `rt_remove_entry` and
+`rt_hysterical_edit` decrement it (to 0 for a last unlink -- the
+pathless dnode then models a delete-queue orphan).

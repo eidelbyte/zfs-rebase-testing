@@ -83,22 +83,42 @@ rt_run_rebase(nvlist_t **nvlp)
 	return (err);
 }
 
+/*
+ * Manifest accessors are defensive: a missing key returns
+ * UINT64_MAX instead of aborting the harness, so a test asserting
+ * against an engine that does not emit that key yet FAILs cleanly
+ * rather than killing the whole run. (The v2 engine grows manifest
+ * emission with the emit issues; until then crossref-era tests are
+ * expected to fail, not crash.)
+ */
 uint64_t
 rt_manifest_nconflicts(nvlist_t *nvl)
 {
-	return (fnvlist_lookup_uint64(nvl, "nconflicts"));
+	uint64_t v;
+
+	if (nvlist_lookup_uint64(nvl, "nconflicts", &v) != 0)
+		return (UINT64_MAX);
+	return (v);
 }
 
 uint64_t
 rt_manifest_left_nchanges(nvlist_t *nvl)
 {
-	return (fnvlist_lookup_uint64(nvl, "left_nchanges"));
+	uint64_t v;
+
+	if (nvlist_lookup_uint64(nvl, "left_nchanges", &v) != 0)
+		return (UINT64_MAX);
+	return (v);
 }
 
 uint64_t
 rt_manifest_right_nchanges(nvlist_t *nvl)
 {
-	return (fnvlist_lookup_uint64(nvl, "right_nchanges"));
+	uint64_t v;
+
+	if (nvlist_lookup_uint64(nvl, "right_nchanges", &v) != 0)
+		return (UINT64_MAX);
+	return (v);
 }
 
 /*
@@ -146,8 +166,14 @@ rt_manifest_conflict_nalt(nvlist_t *nvl, const char *path)
 
 	for (uint_t i = 0; i < n; i++) {
 		const char *cp = fnvlist_lookup_string(arr[i], "path");
-		if (path_match(cp, path))
-			return (fnvlist_lookup_uint64(arr[i], "nalt"));
+		if (path_match(cp, path)) {
+			uint64_t nalt;
+
+			if (nvlist_lookup_uint64(arr[i], "nalt",
+			    &nalt) != 0)
+				return (0);
+			return (nalt);
+		}
 	}
 	return (0);
 }
@@ -157,9 +183,15 @@ rt_manifest_dump(nvlist_t *nvl)
 {
 	uint64_t nc, lc, rc;
 
-	nc = fnvlist_lookup_uint64(nvl, "nconflicts");
-	lc = fnvlist_lookup_uint64(nvl, "left_nchanges");
-	rc = fnvlist_lookup_uint64(nvl, "right_nchanges");
+	nc = rt_manifest_nconflicts(nvl);
+	lc = rt_manifest_left_nchanges(nvl);
+	rc = rt_manifest_right_nchanges(nvl);
+
+	if (nc == UINT64_MAX && lc == UINT64_MAX && rc == UINT64_MAX) {
+		(void) printf("\n    [manifest] absent (engine does "
+		    "not emit yet)\n");
+		return;
+	}
 
 	(void) printf("\n    [manifest] nconflicts=%llu "
 	    "left_nchanges=%llu right_nchanges=%llu\n",
@@ -167,7 +199,7 @@ rt_manifest_dump(nvlist_t *nvl)
 	    (unsigned long long)lc,
 	    (unsigned long long)rc);
 
-	if (nc > 0) {
+	if (nc > 0 && nc != UINT64_MAX) {
 		nvlist_t **arr;
 		uint_t n;
 		if (nvlist_lookup_nvlist_array(nvl,

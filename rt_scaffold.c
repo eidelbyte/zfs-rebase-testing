@@ -64,8 +64,8 @@ create_pool(void)
 	return (err);
 }
 
-static int
-create_zpl_dataset(const char *dsname)
+int
+rt_create_zpl_dataset(const char *dsname)
 {
 	return (dmu_objset_create(dsname, DMU_OST_ZFS, 0, NULL,
 	    rt_zpl_create_cb, NULL));
@@ -121,7 +121,7 @@ rt_scaffold_empty_base(void)
 	err = create_pool();
 	VERIFY_OK(err, "create_pool");
 
-	err = create_zpl_dataset(RT_DS_SRC);
+	err = rt_create_zpl_dataset(RT_DS_SRC);
 	VERIFY_OK(err, "create src dataset");
 
 	return (0);
