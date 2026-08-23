@@ -526,8 +526,10 @@ rt_set_zplprop(objset_t *os, const char *name, uint64_t value)
 
 /*
  * Corruption injector: a directory entry pointing at an object
- * number that was never allocated. The walk's dmu_object_info()
- * on it must fail with ENOENT and abort the rebase cleanly.
+ * number that was never allocated. The walk detects the dangling
+ * reference and aborts the rebase cleanly with EIO (the engine
+ * converts the underlying ENOENT at the visit boundary; a leaked
+ * ENOENT would read as "no common ancestor").
  */
 int
 rt_add_dangling_entry(objset_t *os, uint64_t dir_obj, const char *name)

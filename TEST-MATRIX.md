@@ -76,7 +76,7 @@ Dimension 3, tree shape. Dimension 4, faults and non-files.
 | W15 | deep nesting (6 levels), leaf edited | ENOSYS | covered: test_walk_deep_nesting |
 | W16 | empty filesystems everywhere | ENOSYS | covered: test_walk_empty_filesystems |
 | W17 | pathless nlink-0 orphan in all snapshots (delete-queue sim, catalog test 13's walk half) | ENOSYS | covered: test_walk_orphan_skipped |
-| W18 | dangling dirent (entry to unallocated obj) | ENOENT | covered: test_walk_dangling_dirent |
+| W18 | dangling dirent (entry to unallocated obj) | EIO | covered: test_walk_dangling_dirent (was ENOENT until the first real run, 2026-08-22: the walk swallowed visit-level ENOENT as end-of-cursor, and a dangling reference is corruption anyway -- EIO like every corruption the walk detects) |
 | W19 | hardlinked symlink / device node in a linkpool | ENOSYS | covered: test_walk_hardlinked_specials (helpers landed with hysteria cells H26/H28) |
 | W20 | name at ZFS_MAX name length; huge directory (fat ZAP) | ENOSYS | deferred: fat-ZAP fixture is slow; add when a perf pass runs on the FreeBSD box |
 

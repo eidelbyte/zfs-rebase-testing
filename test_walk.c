@@ -371,10 +371,11 @@ test_walk_orphan_skipped(void)
 
 /*
  * W18: error propagation -- a directory entry pointing at an
- * object that was never allocated. The walk's dmu_object_info()
- * fails ENOENT and the rebase aborts with it, cleanly (fence-post
- * snapshots destroyed on the way out; a rerun in the same pool
- * would not hit EEXIST -- teardown covers that implicitly here).
+ * object that was never allocated. A dangling reference is
+ * corruption, so the rebase aborts with EIO (never a leaked
+ * ENOENT, which callers read as "no common ancestor" -- and which
+ * the walk's own phase loops would swallow as end-of-cursor). The
+ * abort is clean: fence-post snapshots destroyed on the way out.
  */
 static int
 test_walk_dangling_dirent(void)
@@ -382,7 +383,7 @@ test_walk_dangling_dirent(void)
 	rt_ds_t d;
 	int err;
 
-	TEST_START("walk: dangling dirent -> ENOENT");
+	TEST_START("walk: dangling dirent -> EIO");
 	RT_CHECK(rt_scaffold_basic(), "scaffold failed");
 
 	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
@@ -394,7 +395,7 @@ test_walk_dangling_dirent(void)
 	err = dsl_rebase(RT_DS_LEFT, RT_DS_RIGHT, NULL);
 	rt_scaffold_teardown();
 
-	TEST_EXPECT(err == ENOENT, "expected ENOENT");
+	TEST_EXPECT(err == EIO, "expected EIO");
 	TEST_PASS();
 }
 
