@@ -170,7 +170,9 @@ int rt_scaffold_empty_base(void);
 int rt_scaffold_snap_and_clone(void);
 void rt_scaffold_teardown(void);
 int rt_snapshot(const char *dsname, const char *snapname);
+int rt_clone(const char *clone_name, const char *snap_name);
 int rt_create_zpl_dataset(const char *dsname);
+int rt_create_zvol_dataset(const char *dsname);
 
 /* rt_zpl.c */
 void rt_zpl_create_cb(objset_t *os, void *arg, cred_t *cr, dmu_tx_t *tx);

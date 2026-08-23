@@ -3,7 +3,7 @@
  * Copyright (c) 2026, Eidel Solomon. All rights reserved.
  *
  * Setup-phase matrix: ancestor discovery, preconditions, and the
- * fence-post snapshots. Cells S1-S12 in TEST-MATRIX.md; each test
+ * fence-post snapshots. Cells S1-S16 in TEST-MATRIX.md; each test
  * names the cells it covers. S1 (the all-defaults happy path) is
  * covered by every smoke test in the basic section; S3/S4 (left is
  * a snapshot, left == right) live in test_basic.c's error tests.
@@ -209,6 +209,129 @@ test_setup_missing_left(void)
 	TEST_PASS();
 }
 
+/*
+ * S12: an active scrub must reject the rebase with EBUSY. A scrub
+ * on a near-empty 128M pool can finish between transactions, so
+ * the fixture PAUSES it -- dsl_scan_active() still counts a paused
+ * scrub, and the pause pins the state deterministically. The
+ * start-then-pause pair retries because the scrub can complete in
+ * the gap (pause then returns ENOENT).
+ */
+static int
+test_setup_scrub_busy(void)
+{
+	spa_t *spa;
+	int err, perr;
+
+	TEST_START("setup: active (paused) scrub");
+	RT_CHECK(rt_scaffold_basic(), "scaffold failed");
+
+	RT_CHECK(spa_open(POOL_NAME, &spa, FTAG), "open spa");
+	perr = ENOENT;
+	for (int try = 0; try < 5 && perr != 0; try++) {
+		err = spa_scan(spa, POOL_SCAN_SCRUB, 0);
+		if (err != 0 && err != EBUSY)
+			break;
+		perr = dsl_scrub_set_pause_resume(spa_get_dsl(spa),
+		    POOL_SCRUB_PAUSE);
+	}
+	spa_close(spa, FTAG);
+	RT_CHECK(perr, "could not hold a scrub open");
+
+	err = dsl_rebase(RT_DS_LEFT, RT_DS_RIGHT, NULL);
+	rt_scaffold_teardown();
+
+	TEST_EXPECT(err == EBUSY, "expected EBUSY");
+	TEST_PASS();
+}
+
+/*
+ * S14: a zvol as a side. The lineage is built entirely of zvols
+ * (a zvol head and its clone) so ancestor discovery FINDS a common
+ * base and the all-ZPL precondition is what fires -- an unrelated
+ * zvol would die earlier with ENOENT in discovery. The empty zvol
+ * objset never trips the master-node reads because the type check
+ * runs first, in pass 1, before any fence snapshot exists.
+ */
+static int
+test_setup_zvol_side(void)
+{
+	int err;
+
+	TEST_START("setup: zvol lineage rejected");
+	RT_CHECK(rt_scaffold_empty_base(), "scaffold failed");
+
+	RT_CHECK(rt_create_zvol_dataset(POOL_NAME "/zsrc"),
+	    "create zvol");
+	rt_sync_pool();
+	RT_CHECK(rt_snapshot(POOL_NAME "/zsrc", "zbase"),
+	    "snapshot zvol");
+	RT_CHECK(rt_clone(POOL_NAME "/zclone",
+	    POOL_NAME "/zsrc@zbase"), "clone zvol");
+
+	rt_sync_pool();
+	err = dsl_rebase(POOL_NAME "/zsrc", POOL_NAME "/zclone", NULL);
+	rt_scaffold_teardown();
+
+	TEST_EXPECT(err == ENOTSUP, "expected ENOTSUP");
+	TEST_PASS();
+}
+
+/*
+ * S15: ZPL version below SA support on one side. The version is
+ * read through zfs_get_zplprop from the MASTER_NODE key, the same
+ * store the case/normalization cells exercise.
+ */
+static int
+test_setup_zpl_version_low(void)
+{
+	rt_ds_t d;
+	int err;
+
+	TEST_START("setup: ZPL version < SA rejected");
+	RT_CHECK(rt_scaffold_basic(), "scaffold failed");
+
+	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	err = rt_set_zplprop(d.rtd_os, ZPL_VERSION_STR,
+	    ZPL_VERSION_SA - 1);
+	rt_close(&d);
+	RT_CHECK(err, "downgrade version");
+
+	rt_sync_pool();
+	err = dsl_rebase(RT_DS_LEFT, RT_DS_RIGHT, NULL);
+	rt_scaffold_teardown();
+
+	TEST_EXPECT(err == ENOTSUP, "expected ENOTSUP");
+	TEST_PASS();
+}
+
+/*
+ * S16: FUID table object mismatch across the three read sources.
+ * Any differing value does -- the check compares the MASTER_NODE
+ * key, not the table contents.
+ */
+static int
+test_setup_fuid_mismatch(void)
+{
+	rt_ds_t d;
+	int err;
+
+	TEST_START("setup: FUID table mismatch");
+	RT_CHECK(rt_scaffold_basic(), "scaffold failed");
+
+	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	err = rt_set_zplprop(d.rtd_os, ZFS_FUID_TABLES, 12345);
+	rt_close(&d);
+	RT_CHECK(err, "inject FUID key");
+
+	rt_sync_pool();
+	err = dsl_rebase(RT_DS_LEFT, RT_DS_RIGHT, NULL);
+	rt_scaffold_teardown();
+
+	TEST_EXPECT(err == ENOTSUP, "expected ENOTSUP");
+	TEST_PASS();
+}
+
 void
 run_setup_tests(void)
 {
@@ -221,4 +344,8 @@ run_setup_tests(void)
 	(void) test_setup_case_insensitive_rejected();
 	(void) test_setup_normalization_rejected();
 	(void) test_setup_missing_left();
+	(void) test_setup_scrub_busy();
+	(void) test_setup_zvol_side();
+	(void) test_setup_zpl_version_low();
+	(void) test_setup_fuid_mismatch();
 }

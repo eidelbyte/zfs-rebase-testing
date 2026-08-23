@@ -79,10 +79,23 @@ rt_snapshot(const char *dsname, const char *snapname)
 	return (dmu_objset_snapshot_one(dsname, snapname));
 }
 
-static int
-clone_dataset(const char *clone_name, const char *snap_name)
+int
+rt_clone(const char *clone_name, const char *snap_name)
 {
 	return (dsl_dataset_clone(clone_name, snap_name));
+}
+
+/*
+ * Create a zvol-typed dataset with no contents (no creation
+ * callback): setup cell S14 only needs the objset TYPE, and the
+ * engine's all-ZPL precondition fires before anything would read
+ * the (absent) master node.
+ */
+int
+rt_create_zvol_dataset(const char *dsname)
+{
+	return (dmu_objset_create(dsname, DMU_OST_ZVOL, 0, NULL,
+	    NULL, NULL));
 }
 
 /*
@@ -99,10 +112,10 @@ rt_scaffold_snap_and_clone(void)
 	err = rt_snapshot(RT_DS_SRC, "base");
 	VERIFY_OK(err, "snapshot src@base");
 
-	err = clone_dataset(RT_DS_LEFT, RT_DS_SRC "@base");
+	err = rt_clone(RT_DS_LEFT, RT_DS_SRC "@base");
 	VERIFY_OK(err, "clone left");
 
-	err = clone_dataset(RT_DS_RIGHT, RT_DS_SRC "@base");
+	err = rt_clone(RT_DS_RIGHT, RT_DS_SRC "@base");
 	VERIFY_OK(err, "clone right");
 
 	return (0);

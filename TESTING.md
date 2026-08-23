@@ -14,7 +14,7 @@ filesystem.
 | `rt_scaffold.c` | pool/vdev lifecycle, scaffolds, snapshots, clones |
 | `rt_zpl.c` | raw DMU/ZAP/SA object manipulation helpers |
 | `test_basic.c` | single-side standalone changes, error cases (13 tests) |
-| `test_setup.c` | setup matrix: discovery, preconditions, fences (8 tests) |
+| `test_setup.c` | setup matrix: discovery, preconditions, fences (12 tests) |
 | `test_walk.c` | walk matrix: union iteration, recursion, faults (9 tests) |
 | `test_hysteria.c` | hysteria matrix via walk-stats counters (30 tests) + crossref-era suppression (7 tests) |
 | `test_diff.c` | standalone-diff matrix: two-axis records via changelist counts (19 tests) |
@@ -22,7 +22,7 @@ filesystem.
 | `test_linkpool.c` | linkpool discovery/membership/verify matrix + crossref-era hardlink cases (10 tests) |
 | `test_crossref.c` | conflict types, benign cases, clean merges (11 tests) |
 
-119 tests total. Section names double as command-line arguments (see
+123 tests total. Section names double as command-line arguments (see
 Running below).
 
 Tests are planned by problem-space matrix: see `TEST-MATRIX.md` for
@@ -112,7 +112,7 @@ A full run against a finished engine ends with:
 
 ```
 =====================
-Results: 119/119 passed
+Results: 123/123 passed
 ```
 
 Against the current v2 branch (engine built through

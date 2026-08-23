@@ -44,11 +44,11 @@ Illegal combinations collapse; the surviving cells:
 | S9  | all three agree on case-insensitive | ENOTSUP | covered: test_setup_case_insensitive_rejected |
 | S10 | all three agree on a normalization | ENOTSUP | covered: test_setup_normalization_rejected |
 | S11 | nonexistent left dataset | ENOENT | covered: test_setup_missing_left |
-| S12 | active scrub/resilver | EBUSY | deferred: needs a way to start and hold a scan from the harness |
+| S12 | active scrub/resilver | EBUSY | covered: test_setup_scrub_busy (spa_scan + POOL_SCRUB_PAUSE with a start/pause retry -- a paused scrub still counts as active, and pausing pins the tiny pool's scrub deterministically) |
 | S13 | encryption mismatch left/right | EACCES | deferred: harness datasets are unencrypted; needs encrypted scaffold |
-| S14 | non-ZPL dataset (zvol) as a side | ENOTSUP | deferred: needs a DMU_OST_ZVOL creation helper |
-| S15 | ZPL version < 5 on a side | ENOTSUP | deferred: harness writes ZPL_VERSION current; needs a downgrade injector |
-| S16 | FUID table mismatch | ENOTSUP | deferred: needs a FUID table injector (write ZFS_FUID_TABLES key on one clone) -- cheap, do with the next setup pass |
+| S14 | non-ZPL dataset (zvol) as a side, SHARED lineage | ENOTSUP | covered: test_setup_zvol_side (rt_create_zvol_dataset + rt_clone build a zvol head and its clone so discovery finds a base and the type check fires; an UNRELATED zvol dies earlier with ENOENT in discovery -- the reachable-path analysis that first made this cell precise) |
+| S15 | ZPL version < 5 on a side | ENOTSUP | covered: test_setup_zpl_version_low (rt_set_zplprop on the VERSION master-node key) |
+| S16 | FUID table mismatch | ENOTSUP | covered: test_setup_fuid_mismatch (rt_set_zplprop writes the ZFS_FUID_TABLES key on one clone) |
 
 ## Walk matrix (W) -- union iteration, recursion, faults
 
