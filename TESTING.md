@@ -10,18 +10,18 @@ filesystem.
 |------|----------|
 | `rebase_test.h` | shared declarations, TEST/RT_CHECK macros |
 | `rebase_test_main.c` | `main()`, section table, result summary |
-| `rt_harness.c` | counters, `rt_open`/`rt_close`, `rt_run_rebase`, manifest inspection |
+| `rt_harness.c` | counters, `rt_open`/`rt_close`, `rt_run_rebase`, walk-stats scraper, manifest inspection |
 | `rt_scaffold.c` | pool/vdev lifecycle, scaffolds, snapshots, clones |
 | `rt_zpl.c` | raw DMU/ZAP/SA object manipulation helpers |
 | `test_basic.c` | single-side standalone changes, error cases (13 tests) |
 | `test_setup.c` | setup matrix: discovery, preconditions, fences (8 tests) |
-| `test_walk.c` | walk matrix: union iteration, recursion, faults (8 tests) |
-| `test_hysteria.c` | rename-on-save and identical-change suppression (8 tests) |
+| `test_walk.c` | walk matrix: union iteration, recursion, faults (9 tests) |
+| `test_hysteria.c` | hysteria matrix via walk-stats counters (30 tests) + crossref-era suppression (7 tests) |
 | `test_moves.c` | rename detection and move conflicts (12 tests) |
 | `test_linkpool.c` | linkpool discovery/membership/verify matrix + crossref-era hardlink cases (10 tests) |
 | `test_crossref.c` | conflict types, benign cases, clean merges (11 tests) |
 
-70 tests total. Section names double as command-line arguments (see
+100 tests total. Section names double as command-line arguments (see
 Running below).
 
 Tests are planned by problem-space matrix: see `TEST-MATRIX.md` for
@@ -103,12 +103,14 @@ A full run against a finished engine ends with:
 
 ```
 =====================
-Results: 70/70 passed
+Results: 100/100 passed
 ```
 
-Against the current v2 branch (engine built through zap-walk-basic),
-the sections meaningful today are `basic` (ENOSYS-sentinel tests),
-`setup`, `walk`, and the matrix half of `linkpool`; tests that
+Against the current v2 branch (engine built through
+hysterical-detect), the sections meaningful today are `basic`
+(ENOSYS-sentinel tests), `setup`, `walk`, the matrix half of
+`linkpool`, and the H-matrix half of `hysteria` (asserted through
+the walk-summary dbgmsg counters via `rt_walk_stats()`); tests that
 inspect the conflict manifest fail cleanly (the accessors return
 sentinels instead of aborting) until the emit issues land.
 
@@ -179,13 +181,14 @@ The harness uses `libzpool` to run ZFS kernel code in userspace
 ## Sprint-2 notes
 
 The `setup`, `walk`, and matrix-`linkpool` sections target the
-sprint-2 engine and are green from zap-walk-basic onward. The
-`hysteria`, `moves`, and `crossref` sections still assert sprint-1
-manifest behavior; the sprint-2 rewrite (two-axis change records,
-linkpool tables; see `sprints/sprint-2/diff-engine-rewrite-full.md`)
-keeps those manifest shapes for standalone paths, and each section
-gets re-plotted into its own matrix as the corresponding engine
-phase lands. The 14-test catalog (sever-vs-nothing, phantom-conflict
+sprint-2 engine and are green from zap-walk-basic onward; the
+H-matrix `hysteria` tests are green from hysterical-detect onward.
+The crossref-era tail of `hysteria` plus the `moves` and `crossref`
+sections still assert sprint-1 manifest behavior; the sprint-2
+rewrite (two-axis change records, linkpool tables; see
+`sprints/sprint-2/diff-engine-rewrite-full.md`) keeps those manifest
+shapes for standalone paths, and each section gets re-plotted into
+its own matrix as the corresponding engine phase lands. The 14-test catalog (sever-vs-nothing, phantom-conflict
 dissolution, index recycling, novel overlap, warnings) arrives with
 the testing-framework issue. The ZPL helpers maintain real link
 semantics: `rt_add_hardlink` bumps ZPL_LINKS, `rt_remove_entry` and

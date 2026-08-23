@@ -84,6 +84,63 @@ rt_run_rebase(nvlist_t **nvlp)
 }
 
 /*
+ * Scrape the engine's walk-summary counters from the dbgmsg ring:
+ * the only externally visible classification until standalone-diff
+ * emits changelists (H matrix preamble). libzpool records dbgmsgs
+ * unconditionally (zfs_dbgmsg_enable defaults on) and
+ * zfs_dbgmsg_print() dumps the whole ring to any fd; we write it
+ * to a temp file and keep the LAST summary line, so earlier runs
+ * in the same process cannot bleed in. Returns ENOENT if no run
+ * has logged a summary (the walk only logs on success).
+ */
+int
+rt_walk_stats(rt_walk_stats_t *ws)
+{
+	char tmpl[] = "/tmp/rtest_dbgmsg.XXXXXX";
+	char line[512];
+	FILE *f;
+	int fd;
+	boolean_t found = B_FALSE;
+	unsigned long long v, hl, hr, lk;
+
+	fd = mkstemp(tmpl);
+	if (fd < 0)
+		return (errno);
+
+	zfs_dbgmsg_print(fd, "rt");
+	(void) lseek(fd, 0, SEEK_SET);
+
+	f = fdopen(fd, "r");
+	if (f == NULL) {
+		(void) close(fd);
+		(void) unlink(tmpl);
+		return (errno);
+	}
+
+	while (fgets(line, sizeof (line), f) != NULL) {
+		const char *p = strstr(line, "rebase: walk visited");
+
+		if (p == NULL)
+			continue;
+		if (sscanf(p, "rebase: walk visited %llu paths, "
+		    "hysterical left %llu right %llu, "
+		    "linkpool-member paths %llu",
+		    &v, &hl, &hr, &lk) == 4) {
+			ws->rws_visited = v;
+			ws->rws_hyst_left = hl;
+			ws->rws_hyst_right = hr;
+			ws->rws_linked = lk;
+			found = B_TRUE;
+		}
+	}
+
+	(void) fclose(f);
+	(void) unlink(tmpl);
+
+	return (found ? 0 : ENOENT);
+}
+
+/*
  * Manifest accessors are defensive: a missing key returns
  * UINT64_MAX instead of aborting the harness, so a test asserting
  * against an engine that does not emit that key yet FAILs cleanly

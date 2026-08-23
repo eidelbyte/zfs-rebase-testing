@@ -398,6 +398,46 @@ test_walk_dangling_dirent(void)
 	TEST_PASS();
 }
 
+/*
+ * W19: hardlinked symlink and hardlinked device node, each a
+ * two-member linkpool. Non-regular files carry ZPL_LINKS like any
+ * other, so discovery and the completeness verify must treat them
+ * identically; a clean walk exits ENOSYS.
+ */
+static int
+test_walk_hardlinked_specials(void)
+{
+	rt_ds_t d;
+	uint64_t sl_obj, dv_obj;
+	int err;
+
+	TEST_START("W19: hardlinked symlink and device");
+	RT_CHECK(rt_scaffold_empty_base(), "scaffold failed");
+
+	RT_CHECK(rt_open(RT_DS_SRC, &d), "hold src");
+	err = rt_create_symlink(d.rtd_os, d.rtd_root, "sl",
+	    "some/target", &sl_obj);
+	if (err == 0)
+		err = rt_add_hardlink(d.rtd_os, d.rtd_root, "sl2",
+		    sl_obj);
+	if (err == 0)
+		err = rt_create_device(d.rtd_os, d.rtd_root, "dv",
+		    0x77, &dv_obj);
+	if (err == 0)
+		err = rt_add_hardlink(d.rtd_os, d.rtd_root, "dv2",
+		    dv_obj);
+	rt_close(&d);
+	RT_CHECK(err, "populate src");
+	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
+
+	rt_sync_pool();
+	err = dsl_rebase(RT_DS_LEFT, RT_DS_RIGHT, NULL);
+	rt_scaffold_teardown();
+
+	TEST_EXPECT(err == ENOSYS, "expected ENOSYS");
+	TEST_PASS();
+}
+
 void
 run_walk_tests(void)
 {
@@ -410,4 +450,5 @@ run_walk_tests(void)
 	(void) test_walk_empty_filesystems();
 	(void) test_walk_orphan_skipped();
 	(void) test_walk_dangling_dirent();
+	(void) test_walk_hardlinked_specials();
 }

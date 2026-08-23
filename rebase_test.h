@@ -135,11 +135,25 @@ typedef struct rt_ds {
 	uint64_t	rtd_root;	/* root dir obj (MASTER_NODE) */
 } rt_ds_t;
 
+/*
+ * Walk-summary counters scraped from the engine's dbgmsg line, the
+ * only externally visible classification until standalone-diff
+ * emits changelists. See the hysteria (H) matrix preamble.
+ * Member prefix rws_ = "rebase walk stats".
+ */
+typedef struct rt_walk_stats {
+	uint64_t	rws_visited;
+	uint64_t	rws_hyst_left;
+	uint64_t	rws_hyst_right;
+	uint64_t	rws_linked;
+} rt_walk_stats_t;
+
 /* rt_harness.c */
 int rt_open(const char *dsname, rt_ds_t *ds);
 void rt_close(rt_ds_t *ds);
 void rt_sync_pool(void);
 int rt_run_rebase(nvlist_t **nvlp);
+int rt_walk_stats(rt_walk_stats_t *ws);
 uint64_t rt_manifest_nconflicts(nvlist_t *nvl);
 uint64_t rt_manifest_left_nchanges(nvlist_t *nvl);
 uint64_t rt_manifest_right_nchanges(nvlist_t *nvl);
@@ -178,6 +192,21 @@ int rt_set_nlink(objset_t *os, uint64_t obj, uint64_t nlink);
 int rt_set_zplprop(objset_t *os, const char *name, uint64_t value);
 int rt_add_dangling_entry(objset_t *os, uint64_t dir_obj,
     const char *name);
+int rt_set_sa_u64(objset_t *os, uint64_t obj, int zpl_attr,
+    uint64_t value);
+int rt_set_sa_blob(objset_t *os, uint64_t obj, int zpl_attr,
+    const void *buf, uint32_t len);
+int rt_remove_sa_attr(objset_t *os, uint64_t obj, int zpl_attr);
+int rt_touch(objset_t *os, uint64_t obj);
+int rt_write_range(objset_t *os, uint64_t obj, uint64_t offset,
+    const void *data, uint64_t len, uint64_t newsize);
+int rt_set_dxattr(objset_t *os, uint64_t obj, nvlist_t *xattrs);
+int rt_add_xattr_dir_entry(objset_t *os, uint64_t file_obj,
+    const char *name, const void *value, uint64_t vlen);
+int rt_create_symlink(objset_t *os, uint64_t dir_obj, const char *name,
+    const char *target, uint64_t *objp);
+int rt_create_device(objset_t *os, uint64_t dir_obj, const char *name,
+    uint64_t rdev, uint64_t *objp);
 
 /* section runners */
 void run_basic_tests(void);

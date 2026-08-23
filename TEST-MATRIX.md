@@ -77,7 +77,7 @@ Dimension 3, tree shape. Dimension 4, faults and non-files.
 | W16 | empty filesystems everywhere | ENOSYS | covered: test_walk_empty_filesystems |
 | W17 | pathless nlink-0 orphan in all snapshots (delete-queue sim, catalog test 13's walk half) | ENOSYS | covered: test_walk_orphan_skipped |
 | W18 | dangling dirent (entry to unallocated obj) | ENOENT | covered: test_walk_dangling_dirent |
-| W19 | hardlinked symlink / device node in a linkpool | ENOSYS | deferred: needs rt_create_symlink / rt_create_device helpers (S_IFLNK / S_IFCHR modes); those helpers are planned by hysteria cells H26/H28 -- write this test in the same pass |
+| W19 | hardlinked symlink / device node in a linkpool | ENOSYS | covered: test_walk_hardlinked_specials (helpers landed with hysteria cells H26/H28) |
 | W20 | name at ZFS_MAX name length; huge directory (fat ZAP) | ENOSYS | deferred: fat-ZAP fixture is slow; add when a perf pass runs on the FreeBSD box |
 
 ## Linkpool matrix (LP discovery/membership, LV completeness)
@@ -130,9 +130,10 @@ only externally visible classification is the walk-summary dbgmsg
 line ("rebase: walk visited N paths, hysterical left X right Y,
 linkpool-member paths Z"). Tests assert (visited, hyst_left,
 hyst_right, linked) tuples via a planned rt_walk_stats() helper that
-parses the LAST matching line after a run. Open item for the helper:
-confirm how libzpool exposes the dbgmsg ring (zfs_dbgmsg_print vs
-direct list access) and whether a zfs_flags bit must be set. Every H
+parses the LAST matching line after a run. (Resolved while building
+the helper: libzpool records dbgmsgs unconditionally --
+zfs_dbgmsg_enable defaults on, no zfs_flags needed -- and
+zfs_dbgmsg_print(fd, tag) dumps the ring to any fd.) Every H
 cell gets re-asserted against real change records when standalone-
 diff lands and this matrix's Expect column is upgraded; the tuples
 below are the strongest assertion available today. Fixtures edit the
@@ -143,38 +144,38 @@ ASSERTs in debug builds; all are safe on either libzpool.
 
 | Cell | Scenario | Expect | Disposition |
 |------|----------|--------|-------------|
-| H1  | file untouched since fork, same obj both sides (fast path; also pins the visited count) | hysterical on both sides | planned: test_hysteria_untouched_fast_path |
-| H2  | untouched file whose dnode-block NEIGHBOR was edited (fast-path false positive must fall through tiers, not misclassify) | hysterical | planned: test_hysteria_neighbor_churn (create adjacent objs, edit only the neighbor) |
-| H3  | timestamps-only update, data untouched (touch(1) sim; BP_EQUAL tier) | hysterical | planned: test_hysteria_touch_only; needs rt_touch (SA timestamp write) |
-| H4  | mode flip only (chmod) -- guards fast-path soundness: dn_blkptr births never change on a bonus-only edit | NOT hysterical | planned: test_hysteria_sa_identity "mode" |
-| H5  | uid, gid, flags, projid each flipped in turn (rest of the fixed identity table; rdev is H29, size is H13) | NOT hysterical, each | planned: test_hysteria_sa_identity loops the attrs |
-| H6  | DACL_ACES present on one side only / differing bytes | NOT hysterical | planned: test_hysteria_acl (raw SA byte-blob write; memcmp compare needs no valid ACL) |
-| H7  | same obj, identical content, ZPL_GEN flipped (recycled-slot sim) | NOT hysterical | planned: test_hysteria_recycled_gen; needs rt_set_gen injector |
-| H8  | rename-on-save: new obj, same path, same content and identity | hysterical | planned: test_hysteria_rename_on_save (rt_hysterical_edit already exists) |
-| H9  | new obj, same path, different content | NOT hysterical | planned: same test file as H8 |
-| H10 | same obj, rewritten with identical bytes (fletcher pool, so checksum is unprovable: tier 3 byte compare decides) | hysterical | planned: test_hysteria_rewrite_identical |
-| H11 | same obj, rewritten with different bytes, same length | NOT hysterical | planned: test_hysteria_rewrite_differs |
-| H12 | empty file on both sides (size-0 short circuit) | hysterical | planned: test_hysteria_empty_files |
-| H13 | append: size differs, prefix identical | NOT hysterical | planned: test_hysteria_append |
-| H14 | multi-block file (3+ blocks), identical rewrite (slow path crosses chunk boundaries) | hysterical | planned: test_hysteria_multiblock |
-| H15 | hole in base vs explicit zeros on side, same logical bytes (tier 2 falls through on hole-vs-data; tier 3 says equal) | hysterical | planned: test_hysteria_hole_vs_zeros |
+| H1  | file untouched since fork, same obj both sides (fast path; also pins the visited count) | hysterical on both sides | covered: test_hysteria_untouched_fast_path |
+| H2  | untouched file whose dnode-block NEIGHBOR was edited (fast-path false positive must fall through tiers, not misclassify) | hysterical | covered: test_hysteria_neighbor_churn (adjacent objs, only the neighbor edited; the assertion holds whichever tier answers) |
+| H3  | timestamps-only update, data untouched (touch(1) sim; BP_EQUAL tier) | hysterical | covered: test_hysteria_touch_only (rt_touch) |
+| H4  | mode flip only (chmod) -- guards fast-path soundness: dn_blkptr births never change on a bonus-only edit | NOT hysterical | covered: test_hysteria_sa_identity "mode" |
+| H5  | uid, gid, flags, projid each flipped in turn (rest of the fixed identity table; rdev is H29, size is H13) | NOT hysterical, each | covered: test_hysteria_sa_identity loops the attrs |
+| H6  | DACL_ACES present on one side only / differing bytes | NOT hysterical | covered: test_hysteria_acl (raw SA byte blob via rt_set_sa_blob; memcmp compare needs no valid ACL) |
+| H7  | same obj, identical content, ZPL_GEN flipped (recycled-slot sim) | NOT hysterical | covered: test_hysteria_recycled_gen (rt_set_sa_u64 on ZPL_GEN) |
+| H8  | rename-on-save: new obj, same path, same content and identity | hysterical | covered: test_hysteria_rename_on_save |
+| H9  | new obj, same path, different content | NOT hysterical | covered: test_hysteria_recreate_differs |
+| H10 | same obj, rewritten with identical bytes (fletcher pool, so checksum is unprovable: tier 3 byte compare decides) | hysterical | covered: test_hysteria_rewrite_identical |
+| H11 | same obj, rewritten with different bytes, same length | NOT hysterical | covered: test_hysteria_rewrite_differs |
+| H12 | empty file on both sides (size-0 short circuit) | hysterical | covered: test_hysteria_empty_files |
+| H13 | append: size differs, prefix identical | NOT hysterical | covered: test_hysteria_append |
+| H14 | multi-block file (3+ blocks), identical rewrite (slow path crosses chunk boundaries) | hysterical | covered: test_hysteria_multiblock |
+| H15 | hole in base vs explicit zeros on side, same logical bytes (tier 2 falls through on hole-vs-data; tier 3 says equal) | hysterical | covered: test_hysteria_hole_vs_zeros (rt_write_range) |
 | H16 | checksum-provable fast path: sha256 dataset, identical rewrite of shared-nothing blocks | hysterical | deferred: needs a dataset checksum-property helper in the scaffold; add when property plumbing lands |
 | H17 | embedded BP pair (identical and differing payloads) | per content | deferred: harness pool has no compression/embedded_data plumbing; revisit with H16's property helper |
-| H18 | directory untouched since fork | hysterical | planned: test_hysteria_dir_untouched |
-| H19 | directory whose only change is entries added/removed (ZPL_SIZE-skip rule: the dir stays hysterical, the children carry the change) | dir hysterical; child visits counted separately | planned: test_hysteria_dir_entries |
-| H20 | directory chmod | NOT hysterical | planned: test_hysteria_dir_chmod |
-| H21 | SA-form xattrs, same logical set both sides (different pack order) | hysterical | planned: test_hysteria_xattr_sa_equal; needs rt_set_dxattr (packed-nvlist SA write) |
-| H22 | SA-form xattr value differs | NOT hysterical | planned: test_hysteria_xattr_value |
-| H23 | xattr present on one side only | NOT hysterical | planned: test_hysteria_xattr_added |
-| H24 | representation flip: SA form in base, dir form on side, same logical set | hysterical | planned: test_hysteria_xattr_repr_flip; needs rt_make_xattr_dir (hidden dir + xattr file objects + ZPL_XATTR) |
-| H25 | dir-form xattrs equal on both sides | hysterical | planned: test_hysteria_xattr_dir_equal |
-| H26 | symlink recreated with the same target | hysterical | planned: test_hysteria_symlink_same; needs rt_create_symlink (unblocks W19) |
-| H27 | symlink target changed | NOT hysterical | planned: test_hysteria_symlink_differs |
-| H28 | device node, same rdev both sides, untouched-vs-recreated | hysterical | planned: test_hysteria_device_same; needs rt_create_device (unblocks W19) |
-| H29 | device node rdev changed | NOT hysterical | planned: test_hysteria_device_differs |
-| H30 | file replaced by dir (and dir by file) at one path | NOT hysterical | planned: test_hysteria_type_flip |
-| H31 | linkpool member: content hysterical while a link is removed on the side (axis independence; retrospective-2 bug 2 regression) | hysterical AND linkpool counters move independently | planned: test_hysteria_linkpool_axis (counter-level); the full two-axis record assert is re-plotted at standalone-diff |
+| H18 | directory untouched since fork | hysterical | covered: test_hysteria_dir_untouched |
+| H19 | directory whose only change is entries added/removed (ZPL_SIZE-skip rule: the dir stays hysterical, the children carry the change) | dir hysterical; child visits counted separately | covered: test_hysteria_dir_entries (the harness bumps the dir's entry-count size manually, matching real ZPL behavior it does not otherwise maintain) |
+| H20 | directory chmod | NOT hysterical | covered: test_hysteria_dir_chmod |
+| H21 | SA-form xattrs, same logical set both sides (different pack order) | hysterical | covered: test_hysteria_xattr_sa_equal (rt_set_dxattr) |
+| H22 | SA-form xattr value differs | NOT hysterical | covered: test_hysteria_xattr_value |
+| H23 | xattr present on one side only | NOT hysterical | covered: test_hysteria_xattr_added |
+| H24 | representation flip: SA form in base, dir form on side, same logical set | hysterical | covered: test_hysteria_xattr_repr_flip (rt_remove_sa_attr + rt_add_xattr_dir_entry) |
+| H25 | dir-form xattrs equal on both sides | hysterical | covered: test_hysteria_xattr_dir_equal |
+| H26 | symlink recreated with the same target | hysterical | covered: test_hysteria_symlink_same (rt_create_symlink, unblocks W19) |
+| H27 | symlink target changed | NOT hysterical | covered: test_hysteria_symlink_differs |
+| H28 | device node, same rdev both sides, untouched-vs-recreated | hysterical | covered: test_hysteria_device_same (rt_create_device, unblocks W19) |
+| H29 | device node rdev changed | NOT hysterical | covered: test_hysteria_device_differs |
+| H30 | file replaced by dir (and dir by file) at one path | NOT hysterical | covered: test_hysteria_type_flip |
+| H31 | linkpool member: content hysterical while a link is removed on the side (axis independence; retrospective-2 bug 2 regression) | hysterical AND linkpool counters move independently | covered: test_hysteria_linkpool_axis (counter-level); the full two-axis record assert is re-plotted at standalone-diff |
 | H32 | side-vs-side adjacency: both sides made the same novel edit | out of scope for is_hysterical | BY DESIGN: handled by the crossref convergence check (doc, "Convergence check runs first"); row exists so the gap is recorded, not hidden |
-| H33 | ZPL_GEN missing from a compared object | EIO | deferred: needs an SA-attribute removal injector; investigate sa_remove viability in libzpool first |
+| H33 | ZPL_GEN missing from a compared object | EIO | covered: test_hysteria_gen_missing (sa_remove works in libzpool; rt_remove_sa_attr) |
 | H34 | symlink target flips SA-resident vs data-resident, same target | classified EDIT | BY DESIGN (conservative): logical-vs-representational unpacking is implemented for xattrs only; a false EDIT is safe, a false hysterical is not. Documented in the hysterical-detect worklog |
-| H35 | side symmetry: H8's fixture built on the RIGHT side | hysterical counted on right only | planned: test_hysteria_right_side |
+| H35 | side symmetry: H11's fixture (same-length differing rewrite) built on the RIGHT side | only the right counter moves | covered: test_hysteria_right_side (H8's all-hysterical fixture could not distinguish the counters, so the cell pivoted to H11's) |

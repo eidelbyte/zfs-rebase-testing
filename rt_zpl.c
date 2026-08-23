@@ -617,6 +617,360 @@ rt_hysterical_edit(objset_t *os, uint64_t dir_obj,
 }
 
 /*
+ * Set (create or update) one fixed-size uint64 SA attribute. The
+ * hysteria (H) matrix cells use this to flip individual identity
+ * attributes: mode, uid, gid, flags, projid, rdev -- and ZPL_GEN,
+ * which simulates a recycled object number (same obj, new birth
+ * certificate) without having to force real allocator reuse.
+ */
+int
+rt_set_sa_u64(objset_t *os, uint64_t obj, int zpl_attr, uint64_t value)
+{
+	sa_attr_type_t *sa_tbl = get_sa_table(os);
+	sa_handle_t *hdl;
+	dmu_tx_t *tx;
+	int err;
+
+	err = sa_handle_get(os, obj, NULL, SA_HDL_SHARED, &hdl);
+	if (err != 0)
+		return (err);
+
+	tx = dmu_tx_create(os);
+	dmu_tx_hold_sa(tx, hdl, B_TRUE);
+	err = dmu_tx_assign(tx, DMU_TX_WAIT);
+	if (err != 0) {
+		dmu_tx_abort(tx);
+		sa_handle_destroy(hdl);
+		return (err);
+	}
+
+	err = sa_update(hdl, sa_tbl[zpl_attr], &value, 8, tx);
+	dmu_tx_commit(tx);
+	sa_handle_destroy(hdl);
+
+	return (err);
+}
+
+/*
+ * Set (create or update) one variable-length SA attribute from a
+ * byte buffer. Used for DACL_ACES (any differing bytes do -- the
+ * engine compares by memcmp, validity is irrelevant), ZPL_SYMLINK
+ * targets, and packed DXATTR nvlists.
+ */
+int
+rt_set_sa_blob(objset_t *os, uint64_t obj, int zpl_attr,
+    const void *buf, uint32_t len)
+{
+	sa_attr_type_t *sa_tbl = get_sa_table(os);
+	sa_handle_t *hdl;
+	dmu_tx_t *tx;
+	int err;
+
+	err = sa_handle_get(os, obj, NULL, SA_HDL_SHARED, &hdl);
+	if (err != 0)
+		return (err);
+
+	tx = dmu_tx_create(os);
+	dmu_tx_hold_sa(tx, hdl, B_TRUE);
+	err = dmu_tx_assign(tx, DMU_TX_WAIT);
+	if (err != 0) {
+		dmu_tx_abort(tx);
+		sa_handle_destroy(hdl);
+		return (err);
+	}
+
+	err = sa_update(hdl, sa_tbl[zpl_attr], (void *)(uintptr_t)buf,
+	    len, tx);
+	dmu_tx_commit(tx);
+	sa_handle_destroy(hdl);
+
+	return (err);
+}
+
+/*
+ * Corruption injector: remove an SA attribute outright. H33 strips
+ * ZPL_GEN to assert the engine's hard-EIO stance on attributes a
+ * ZPL >= 5 dataset guarantees; H24 strips ZPL_DXATTR to flip an
+ * xattr set from SA-resident to directory form.
+ */
+int
+rt_remove_sa_attr(objset_t *os, uint64_t obj, int zpl_attr)
+{
+	sa_attr_type_t *sa_tbl = get_sa_table(os);
+	sa_handle_t *hdl;
+	dmu_tx_t *tx;
+	int err;
+
+	err = sa_handle_get(os, obj, NULL, SA_HDL_SHARED, &hdl);
+	if (err != 0)
+		return (err);
+
+	tx = dmu_tx_create(os);
+	dmu_tx_hold_sa(tx, hdl, B_TRUE);
+	err = dmu_tx_assign(tx, DMU_TX_WAIT);
+	if (err != 0) {
+		dmu_tx_abort(tx);
+		sa_handle_destroy(hdl);
+		return (err);
+	}
+
+	err = sa_remove(hdl, sa_tbl[zpl_attr], tx);
+	dmu_tx_commit(tx);
+	sa_handle_destroy(hdl);
+
+	return (err);
+}
+
+/*
+ * Simulate touch(1): bump ZPL_MTIME and nothing else. Timestamps
+ * are excluded from the engine's identity compare, and the data
+ * blocks are untouched, so the pair must classify hysterical --
+ * via the BP_EQUAL tier, since the dnode itself was rewritten.
+ */
+int
+rt_touch(objset_t *os, uint64_t obj)
+{
+	static uint64_t stamp = 1000000;
+	sa_attr_type_t *sa_tbl = get_sa_table(os);
+	sa_handle_t *hdl;
+	dmu_tx_t *tx;
+	uint64_t mtime[2];
+	int err;
+
+	mtime[0] = ++stamp;
+	mtime[1] = 0;
+
+	err = sa_handle_get(os, obj, NULL, SA_HDL_SHARED, &hdl);
+	if (err != 0)
+		return (err);
+
+	tx = dmu_tx_create(os);
+	dmu_tx_hold_sa(tx, hdl, B_TRUE);
+	err = dmu_tx_assign(tx, DMU_TX_WAIT);
+	if (err != 0) {
+		dmu_tx_abort(tx);
+		sa_handle_destroy(hdl);
+		return (err);
+	}
+
+	err = sa_update(hdl, sa_tbl[ZPL_MTIME], mtime, 16, tx);
+	dmu_tx_commit(tx);
+	sa_handle_destroy(hdl);
+
+	return (err);
+}
+
+/*
+ * Write a byte range at an arbitrary offset and set ZPL_SIZE to
+ * newsize. Unlike rt_edit_file this can leave holes (create with
+ * datalen 0, then write only past the start) and can fill them in
+ * later with explicit bytes -- the H15 hole-vs-zeros fixture.
+ */
+int
+rt_write_range(objset_t *os, uint64_t obj, uint64_t offset,
+    const void *data, uint64_t len, uint64_t newsize)
+{
+	sa_attr_type_t *sa_tbl = get_sa_table(os);
+	sa_handle_t *hdl;
+	dmu_tx_t *tx;
+	int err;
+
+	err = sa_handle_get(os, obj, NULL, SA_HDL_SHARED, &hdl);
+	if (err != 0)
+		return (err);
+
+	tx = dmu_tx_create(os);
+	dmu_tx_hold_write(tx, obj, offset, len);
+	dmu_tx_hold_sa(tx, hdl, B_FALSE);
+	err = dmu_tx_assign(tx, DMU_TX_WAIT);
+	if (err != 0) {
+		dmu_tx_abort(tx);
+		sa_handle_destroy(hdl);
+		return (err);
+	}
+
+	dmu_write(os, obj, offset, len, data, tx, 0);
+	err = sa_update(hdl, sa_tbl[ZPL_SIZE], &newsize, 8, tx);
+	dmu_tx_commit(tx);
+	sa_handle_destroy(hdl);
+
+	return (err);
+}
+
+/*
+ * Set the SA-resident xattr form: pack a name -> byte-array nvlist
+ * with NV_ENCODE_XDR (the encoding the ZPL uses for ZPL_DXATTR)
+ * and store it. Pack order follows the nvlist's insertion order,
+ * which is exactly what lets H21 build two byte-different packs of
+ * the same logical set.
+ */
+int
+rt_set_dxattr(objset_t *os, uint64_t obj, nvlist_t *xattrs)
+{
+	char *packed = NULL;
+	size_t size = 0;
+	int err;
+
+	err = nvlist_size(xattrs, &size, NV_ENCODE_XDR);
+	if (err != 0)
+		return (err);
+
+	packed = malloc(size);
+	if (packed == NULL)
+		return (ENOMEM);
+
+	err = nvlist_pack(xattrs, &packed, &size, NV_ENCODE_XDR,
+	    KM_SLEEP);
+	if (err == 0)
+		err = rt_set_sa_blob(os, obj, ZPL_DXATTR, packed,
+		    (uint32_t)size);
+
+	free(packed);
+	return (err);
+}
+
+/*
+ * Add one xattr in the hidden-directory form: get or create the
+ * file's xattr directory (ZPL_XATTR points at it; it is a normal
+ * DMU_OT_DIRECTORY_CONTENTS ZAP, unreachable from the root walk),
+ * then store the value as a plain file inside it.
+ */
+int
+rt_add_xattr_dir_entry(objset_t *os, uint64_t file_obj,
+    const char *name, const void *value, uint64_t vlen)
+{
+	sa_attr_type_t *sa_tbl = get_sa_table(os);
+	sa_handle_t *hdl;
+	uint64_t xdir = 0;
+	int err;
+
+	err = sa_handle_get(os, file_obj, NULL, SA_HDL_SHARED, &hdl);
+	if (err != 0)
+		return (err);
+
+	err = sa_lookup(hdl, sa_tbl[ZPL_XATTR], &xdir, 8);
+	if (err == ENOENT) {
+		dmu_tx_t *tx;
+
+		tx = dmu_tx_create(os);
+		dmu_tx_hold_sa(tx, hdl, B_TRUE);
+		dmu_tx_hold_zap(tx, DMU_NEW_OBJECT, B_TRUE, NULL);
+		dmu_tx_hold_sa_create(tx,
+		    DN_BONUS_SIZE(DNODE_MIN_SIZE));
+		err = dmu_tx_assign(tx, DMU_TX_WAIT);
+		if (err != 0) {
+			dmu_tx_abort(tx);
+			sa_handle_destroy(hdl);
+			return (err);
+		}
+
+		xdir = zap_create_norm(os, 0,
+		    DMU_OT_DIRECTORY_CONTENTS, DMU_OT_SA,
+		    DN_BONUS_SIZE(DNODE_MIN_SIZE), tx);
+		err = set_sa_attrs(os, xdir, file_obj,
+		    S_IFDIR | 0777, 2, tx);
+		if (err == 0)
+			err = sa_update(hdl, sa_tbl[ZPL_XATTR],
+			    &xdir, 8, tx);
+		dmu_tx_commit(tx);
+	}
+	sa_handle_destroy(hdl);
+	if (err != 0)
+		return (err);
+
+	return (rt_create_file(os, xdir, name, value, vlen, NULL));
+}
+
+/*
+ * Create a symlink: a plain-file dnode with S_IFLNK mode, the
+ * target stored SA-resident in ZPL_SYMLINK (no NUL, matching the
+ * ZPL), size = target length, no data blocks.
+ */
+int
+rt_create_symlink(objset_t *os, uint64_t dir_obj, const char *name,
+    const char *target, uint64_t *objp)
+{
+	dmu_tx_t *tx;
+	uint64_t obj;
+	uint64_t tlen = strlen(target);
+	int err;
+
+	tx = dmu_tx_create(os);
+	dmu_tx_hold_zap(tx, dir_obj, B_TRUE, name);
+	dmu_tx_hold_sa_create(tx, DN_BONUS_SIZE(DNODE_MIN_SIZE));
+
+	err = dmu_tx_assign(tx, DMU_TX_WAIT);
+	if (err != 0) {
+		dmu_tx_abort(tx);
+		return (err);
+	}
+
+	obj = dmu_object_alloc(os, DMU_OT_PLAIN_FILE_CONTENTS, 0,
+	    DMU_OT_SA, DN_BONUS_SIZE(DNODE_MIN_SIZE), tx);
+
+	err = set_sa_attrs(os, obj, dir_obj, S_IFLNK | 0777, tlen, tx);
+	if (err == 0) {
+		uint64_t dirent = ZFS_DIRENT_MAKE(IFTODT(S_IFLNK), obj);
+		err = zap_add(os, dir_obj, name, 8, 1, &dirent, tx);
+	}
+	dmu_tx_commit(tx);
+	if (err != 0)
+		return (err);
+
+	err = rt_set_sa_blob(os, obj, ZPL_SYMLINK, target,
+	    (uint32_t)tlen);
+	if (err != 0)
+		return (err);
+
+	if (objp != NULL)
+		*objp = obj;
+	return (0);
+}
+
+/*
+ * Create a character-device node: S_IFCHR mode, ZPL_RDEV carrying
+ * the device number, size 0, no data blocks.
+ */
+int
+rt_create_device(objset_t *os, uint64_t dir_obj, const char *name,
+    uint64_t rdev, uint64_t *objp)
+{
+	dmu_tx_t *tx;
+	uint64_t obj;
+	int err;
+
+	tx = dmu_tx_create(os);
+	dmu_tx_hold_zap(tx, dir_obj, B_TRUE, name);
+	dmu_tx_hold_sa_create(tx, DN_BONUS_SIZE(DNODE_MIN_SIZE));
+
+	err = dmu_tx_assign(tx, DMU_TX_WAIT);
+	if (err != 0) {
+		dmu_tx_abort(tx);
+		return (err);
+	}
+
+	obj = dmu_object_alloc(os, DMU_OT_PLAIN_FILE_CONTENTS, 0,
+	    DMU_OT_SA, DN_BONUS_SIZE(DNODE_MIN_SIZE), tx);
+
+	err = set_sa_attrs(os, obj, dir_obj, S_IFCHR | 0600, 0, tx);
+	if (err == 0) {
+		uint64_t dirent = ZFS_DIRENT_MAKE(IFTODT(S_IFCHR), obj);
+		err = zap_add(os, dir_obj, name, 8, 1, &dirent, tx);
+	}
+	dmu_tx_commit(tx);
+	if (err != 0)
+		return (err);
+
+	err = rt_set_sa_u64(os, obj, ZPL_RDEV, rdev);
+	if (err != 0)
+		return (err);
+
+	if (objp != NULL)
+		*objp = obj;
+	return (0);
+}
+
+/*
  * Rename a file: remove from src_dir, add to dst_dir with same obj.
  */
 int
