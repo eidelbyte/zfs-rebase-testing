@@ -471,10 +471,9 @@ rt_add_hardlink(objset_t *os, uint64_t dir_obj, const char *name,
 /*
  * Corruption injector: set ZPL_LINKS to an arbitrary value without
  * touching directory entries. Used by the linkpool completeness
- * (LV) matrix cells to force rlp_nfound != rlp_nlink. NOTE: against
- * a DEBUG libzpool the engine ASSERTs on the mismatch instead of
- * returning EIO -- the LV tests expect the production behavior of
- * the FreeBSD system library.
+ * (LV) matrix cells to force rlp_nfound != rlp_nlink; the engine
+ * treats the mismatch as corrupt input and returns EIO on every
+ * build, debug included.
  */
 int
 rt_set_nlink(objset_t *os, uint64_t obj, uint64_t nlink)

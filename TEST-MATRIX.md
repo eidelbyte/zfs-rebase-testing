@@ -105,9 +105,11 @@ right}.
 | LV4 | nlink < entries (3 entries, nlink 2) | EIO | covered: test_linkpool_nlink_under |
 | LV5 | nlink == 1 with 2 entries | not detected | BY DESIGN: discovery keys on nlink > 1, so this corruption is invisible to the walker. Detecting it costs O(all files) memory -- exactly the tradeoff the design rejected. Documented, no test possible. |
 
-Note on LV cells: a DEBUG libzpool ASSERTs on the mismatch (panics the
-harness) instead of returning EIO; run them against the non-debug
-FreeBSD system library.
+Note on LV cells: originally the engine ASSERTed on the mismatch in
+debug builds, which aborted the whole suite on the FreeBSD box (its
+libzpool is a debug build -- LV1 proved it, 2026-08-22). Corrupt
+on-disk input is an error, never an assertion: the engine now returns
+EIO with a dbgmsg on every build, and the LV cells run anywhere.
 
 The four older manifest-inspecting hardlink tests in test_linkpool.c
 (edit-both-sides dedup, delete-no-conflict, delete-vs-edit) assert
