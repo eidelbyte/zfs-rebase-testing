@@ -163,6 +163,7 @@ static int
 ab_scaffold_pool(uint64_t *objp)
 {
 	rt_ds_t d;
+	uint64_t obj;
 	int err;
 
 	err = rt_scaffold_empty_base();
@@ -173,13 +174,15 @@ ab_scaffold_pool(uint64_t *objp)
 	if (err != 0)
 		return (err);
 	err = rt_create_file(d.rtd_os, d.rtd_root, "f", "x", 1,
-	    objp);
+	    &obj);
 	if (err == 0)
 		err = rt_add_hardlink(d.rtd_os, d.rtd_root, "g",
-		    *objp);
+		    obj);
 	rt_close(&d);
 	if (err != 0)
 		return (err);
+	if (objp != NULL)
+		*objp = obj;
 
 	return (rt_scaffold_snap_and_clone());
 }
