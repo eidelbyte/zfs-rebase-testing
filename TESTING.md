@@ -17,11 +17,12 @@ filesystem.
 | `test_setup.c` | setup matrix: discovery, preconditions, fences (8 tests) |
 | `test_walk.c` | walk matrix: union iteration, recursion, faults (9 tests) |
 | `test_hysteria.c` | hysteria matrix via walk-stats counters (30 tests) + crossref-era suppression (7 tests) |
+| `test_diff.c` | standalone-diff matrix: two-axis records via changelist counts (19 tests) |
 | `test_moves.c` | rename detection and move conflicts (12 tests) |
 | `test_linkpool.c` | linkpool discovery/membership/verify matrix + crossref-era hardlink cases (10 tests) |
 | `test_crossref.c` | conflict types, benign cases, clean merges (11 tests) |
 
-100 tests total. Section names double as command-line arguments (see
+119 tests total. Section names double as command-line arguments (see
 Running below).
 
 Tests are planned by problem-space matrix: see `TEST-MATRIX.md` for
@@ -104,21 +105,23 @@ The harness must be run as root (it calls `kernel_init` which
 opens `/dev/zfs`).  Each test creates a pool on a file vdev at
 `/tmp/rtest_vdev`, runs the test, and destroys the pool.
 
-Sections: `basic`, `setup`, `walk`, `hysteria`, `moves`, `linkpool`,
-`crossref`.
+Sections: `basic`, `setup`, `walk`, `hysteria`, `diff`, `moves`,
+`linkpool`, `crossref`.
 
 A full run against a finished engine ends with:
 
 ```
 =====================
-Results: 100/100 passed
+Results: 119/119 passed
 ```
 
 Against the current v2 branch (engine built through
 hysterical-detect), the sections meaningful today are `basic`
 (ENOSYS-sentinel tests), `setup`, `walk`, the matrix half of
-`linkpool`, and the H-matrix half of `hysteria` (asserted through
-the walk-summary dbgmsg counters via `rt_walk_stats()`); tests that
+`linkpool`, the H-matrix half of `hysteria` (asserted through the
+walk-summary dbgmsg counters via `rt_walk_stats()`), and `diff`
+(the D matrix, asserted through the changelist counts line via
+`rt_changelist_counts()`); tests that
 inspect the conflict manifest fail cleanly (the accessors return
 sentinels instead of aborting) until the emit issues land.
 

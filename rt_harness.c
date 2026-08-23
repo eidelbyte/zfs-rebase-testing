@@ -84,24 +84,22 @@ rt_run_rebase(nvlist_t **nvlp)
 }
 
 /*
- * Scrape the engine's walk-summary counters from the dbgmsg ring:
- * the only externally visible classification until standalone-diff
- * emits changelists (H matrix preamble). libzpool records dbgmsgs
+ * Find the LAST dbgmsg-ring line containing `needle` and copy it
+ * (from the needle onward) into line_out. libzpool records dbgmsgs
  * unconditionally (zfs_dbgmsg_enable defaults on) and
  * zfs_dbgmsg_print() dumps the whole ring to any fd; we write it
- * to a temp file and keep the LAST summary line, so earlier runs
- * in the same process cannot bleed in. Returns ENOENT if no run
- * has logged a summary (the walk only logs on success).
+ * to a temp file and keep the last match, so earlier runs in the
+ * same process cannot bleed in. Returns ENOENT when no line
+ * matches.
  */
-int
-rt_walk_stats(rt_walk_stats_t *ws)
+static int
+rt_dbgmsg_last(const char *needle, char *line_out, size_t outlen)
 {
 	char tmpl[] = "/tmp/rtest_dbgmsg.XXXXXX";
 	char line[512];
 	FILE *f;
 	int fd;
 	boolean_t found = B_FALSE;
-	unsigned long long v, hl, hr, lk;
 
 	fd = mkstemp(tmpl);
 	if (fd < 0)
@@ -118,26 +116,74 @@ rt_walk_stats(rt_walk_stats_t *ws)
 	}
 
 	while (fgets(line, sizeof (line), f) != NULL) {
-		const char *p = strstr(line, "rebase: walk visited");
+		const char *p = strstr(line, needle);
 
 		if (p == NULL)
 			continue;
-		if (sscanf(p, "rebase: walk visited %llu paths, "
-		    "hysterical left %llu right %llu, "
-		    "linkpool-member paths %llu",
-		    &v, &hl, &hr, &lk) == 4) {
-			ws->rws_visited = v;
-			ws->rws_hyst_left = hl;
-			ws->rws_hyst_right = hr;
-			ws->rws_linked = lk;
-			found = B_TRUE;
-		}
+		(void) strlcpy(line_out, p, outlen);
+		found = B_TRUE;
 	}
 
 	(void) fclose(f);
 	(void) unlink(tmpl);
 
 	return (found ? 0 : ENOENT);
+}
+
+/*
+ * Scrape the engine's walk-summary counters from the dbgmsg ring:
+ * the classification observable defined by the H matrix preamble.
+ * Returns ENOENT if no run has logged a summary (the walk only
+ * logs on success).
+ */
+int
+rt_walk_stats(rt_walk_stats_t *ws)
+{
+	char line[512];
+	unsigned long long v, hl, hr, lk;
+	int err;
+
+	err = rt_dbgmsg_last("rebase: walk visited", line,
+	    sizeof (line));
+	if (err != 0)
+		return (err);
+
+	if (sscanf(line, "rebase: walk visited %llu paths, "
+	    "hysterical left %llu right %llu, "
+	    "linkpool-member paths %llu", &v, &hl, &hr, &lk) != 4)
+		return (ENOENT);
+
+	ws->rws_visited = v;
+	ws->rws_hyst_left = hl;
+	ws->rws_hyst_right = hr;
+	ws->rws_linked = lk;
+	return (0);
+}
+
+/*
+ * Scrape the changelist counts from the walk's second summary
+ * line: the record-level observable defined by the D matrix
+ * preamble.
+ */
+int
+rt_changelist_counts(uint64_t *leftp, uint64_t *rightp)
+{
+	char line[512];
+	unsigned long long l, r;
+	int err;
+
+	err = rt_dbgmsg_last("rebase: changelists left", line,
+	    sizeof (line));
+	if (err != 0)
+		return (err);
+
+	if (sscanf(line, "rebase: changelists left %llu right %llu",
+	    &l, &r) != 2)
+		return (ENOENT);
+
+	*leftp = l;
+	*rightp = r;
+	return (0);
 }
 
 /*

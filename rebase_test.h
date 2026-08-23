@@ -17,6 +17,7 @@
  *   rt_zpl.c            raw DMU/ZAP/SA object manipulation
  *   test_basic.c        walk + standalone diff + error cases
  *   test_hysteria.c     identical-content suppression
+ *   test_diff.c         standalone-diff matrix (two-axis records)
  *   test_moves.c        rename detection and move conflicts
  *   test_linkpool.c     hardlink cases (sprint-2 catalog lands here)
  *   test_crossref.c     conflict detection and clean merges
@@ -154,6 +155,7 @@ void rt_close(rt_ds_t *ds);
 void rt_sync_pool(void);
 int rt_run_rebase(nvlist_t **nvlp);
 int rt_walk_stats(rt_walk_stats_t *ws);
+int rt_changelist_counts(uint64_t *leftp, uint64_t *rightp);
 uint64_t rt_manifest_nconflicts(nvlist_t *nvl);
 uint64_t rt_manifest_left_nchanges(nvlist_t *nvl);
 uint64_t rt_manifest_right_nchanges(nvlist_t *nvl);
@@ -213,6 +215,7 @@ void run_basic_tests(void);
 void run_setup_tests(void);
 void run_walk_tests(void);
 void run_hysteria_tests(void);
+void run_diff_tests(void);
 void run_moves_tests(void);
 void run_linkpool_tests(void);
 void run_crossref_tests(void);

@@ -23,6 +23,7 @@ static const struct {
 	{ "setup",	run_setup_tests },
 	{ "walk",	run_walk_tests },
 	{ "hysteria",	run_hysteria_tests },
+	{ "diff",	run_diff_tests },
 	{ "moves",	run_moves_tests },
 	{ "linkpool",	run_linkpool_tests },
 	{ "crossref",	run_crossref_tests },

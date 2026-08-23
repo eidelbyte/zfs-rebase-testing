@@ -44,6 +44,7 @@ SRCS	= rebase_test_main.c \
 	  test_setup.c \
 	  test_walk.c \
 	  test_hysteria.c \
+	  test_diff.c \
 	  test_moves.c \
 	  test_linkpool.c \
 	  test_crossref.c
