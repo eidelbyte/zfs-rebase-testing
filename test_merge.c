@@ -52,7 +52,7 @@ mm_print(const char *tag, const uint64_t f[7],
 }
 
 /*
- * Sync, run the rebase (ENOSYS success sentinel), scrape the
+ * Sync, run the rebase (expecting success), scrape the
  * targets, finals, and conflicts lines, tear the pool down, and
  * compare the 12-tuple. The row-count invariant (T8's cousin):
  * the finals buckets must sum to the row count reported by either

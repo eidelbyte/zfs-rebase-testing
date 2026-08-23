@@ -285,6 +285,10 @@ uint64_t rt_manifest_right_nchanges(nvlist_t *nvl);
 boolean_t rt_manifest_has_conflict(nvlist_t *nvl, const char *type,
     const char *path);
 uint64_t rt_manifest_conflict_nalt(nvlist_t *nvl, const char *path);
+uint64_t rt_manifest_nwarnings(nvlist_t *nvl);
+uint64_t rt_manifest_nactions(nvlist_t *nvl);
+boolean_t rt_manifest_has_warning(nvlist_t *nvl, const char *kind,
+    const char *path);
 void rt_manifest_dump(nvlist_t *nvl);
 
 int rt_scaffold_basic(void);
@@ -341,6 +345,7 @@ void run_diff_tests(void);
 void run_moves_tests(void);
 void run_anchor_tests(void);
 void run_merge_tests(void);
+void run_emit_tests(void);
 void run_linkpool_tests(void);
 void run_crossref_tests(void);
 

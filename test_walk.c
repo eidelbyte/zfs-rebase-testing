@@ -5,7 +5,7 @@
  * Walk-phase matrix: the three-way union iteration, directory
  * recursion, tree shapes, orphan skipping, and error propagation.
  * Cells W1-W18 in TEST-MATRIX.md; each test names the cells it
- * covers. These tests assert only the engine's return code (ENOSYS
+ * covers. These tests assert only the engine's return code (success
  * = the walk completed; specific errnos for the fault cells), so
  * they are meaningful from zap-walk-basic onward. The linkpool
  * discovery and completeness cells (the LP and LV rows) live in
@@ -75,7 +75,7 @@ test_walk_presence_matrix(void)
 	err = dsl_rebase(RT_DS_LEFT, RT_DS_RIGHT, NULL);
 	rt_scaffold_teardown();
 
-	TEST_EXPECT(err == ENOSYS, "expected ENOSYS");
+	TEST_EXPECT(err == 0, "expected success");
 	TEST_PASS();
 }
 
@@ -170,7 +170,7 @@ test_walk_kind_matrix(void)
 	err = dsl_rebase(RT_DS_LEFT, RT_DS_RIGHT, NULL);
 	rt_scaffold_teardown();
 
-	TEST_EXPECT(err == ENOSYS, "expected ENOSYS");
+	TEST_EXPECT(err == 0, "expected success");
 	TEST_PASS();
 }
 
@@ -214,7 +214,7 @@ test_walk_side_subtrees(void)
 	err = dsl_rebase(RT_DS_LEFT, RT_DS_RIGHT, NULL);
 	rt_scaffold_teardown();
 
-	TEST_EXPECT(err == ENOSYS, "expected ENOSYS");
+	TEST_EXPECT(err == 0, "expected success");
 	TEST_PASS();
 }
 
@@ -262,7 +262,7 @@ test_walk_deleted_dir_trees(void)
 	err = dsl_rebase(RT_DS_LEFT, RT_DS_RIGHT, NULL);
 	rt_scaffold_teardown();
 
-	TEST_EXPECT(err == ENOSYS, "expected ENOSYS");
+	TEST_EXPECT(err == 0, "expected success");
 	TEST_PASS();
 }
 
@@ -310,7 +310,7 @@ test_walk_deep_nesting(void)
 	err = dsl_rebase(RT_DS_LEFT, RT_DS_RIGHT, NULL);
 	rt_scaffold_teardown();
 
-	TEST_EXPECT(err == ENOSYS, "expected ENOSYS");
+	TEST_EXPECT(err == 0, "expected success");
 	TEST_PASS();
 }
 
@@ -331,7 +331,7 @@ test_walk_empty_filesystems(void)
 	err = dsl_rebase(RT_DS_LEFT, RT_DS_RIGHT, NULL);
 	rt_scaffold_teardown();
 
-	TEST_EXPECT(err == ENOSYS, "expected ENOSYS");
+	TEST_EXPECT(err == 0, "expected success");
 	TEST_PASS();
 }
 
@@ -365,7 +365,7 @@ test_walk_orphan_skipped(void)
 	err = dsl_rebase(RT_DS_LEFT, RT_DS_RIGHT, NULL);
 	rt_scaffold_teardown();
 
-	TEST_EXPECT(err == ENOSYS, "expected ENOSYS");
+	TEST_EXPECT(err == 0, "expected success");
 	TEST_PASS();
 }
 
@@ -403,7 +403,7 @@ test_walk_dangling_dirent(void)
  * W19: hardlinked symlink and hardlinked device node, each a
  * two-member linkpool. Non-regular files carry ZPL_LINKS like any
  * other, so discovery and the completeness verify must treat them
- * identically; a clean walk exits ENOSYS.
+ * identically; a clean walk completes the diff.
  */
 static int
 test_walk_hardlinked_specials(void)
@@ -435,7 +435,7 @@ test_walk_hardlinked_specials(void)
 	err = dsl_rebase(RT_DS_LEFT, RT_DS_RIGHT, NULL);
 	rt_scaffold_teardown();
 
-	TEST_EXPECT(err == ENOSYS, "expected ENOSYS");
+	TEST_EXPECT(err == 0, "expected success");
 	TEST_PASS();
 }
 

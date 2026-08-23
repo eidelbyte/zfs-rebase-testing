@@ -21,10 +21,23 @@ header points back to its matrix section.
 Matrices so far: setup (S), walk (W), linkpool (LP/LV), hysteria (H),
 standalone-diff (D), move-collapse (M), linkpool-anchor (A
 classification/rescue, T membership targets), membership-merge (U
-unification, R resolution). The remaining crossref phases get theirs
-as the v2 engine reaches them (test_moves.c's manifest-based tests
-and test_crossref.c predate the methodology and assert sprint-1
-behavior; they will be re-plotted when those engine issues land).
+unification, R resolution), content-merge-emit (E content, F
+warnings/actions/emit, P samepath). All six cross-reference phases
+are plotted.
+
+THE CONTRACT FLIP (2026-08-23, with content-merge-emit, as
+retrospective iceberg 5 mandated): the engine's success return is
+now 0 with the summary manifest in outnvl; the ENOSYS sentinel is
+retired, every direct assertion flipped in one pass, and
+rt_run_rebase() hands the real nvlist over. The manifest is the
+primary observable from the E/F/P sections on; the dbgmsg tally
+lines remain byte-stable contracts for the earlier sections'
+counters, now secondary signals exactly as the H and D preambles
+promised. The crossref-era test tails (basic 2, hysteria 7, moves
+10, linkpool 3, crossref 11) came alive in the same pass and are
+mapped below as the P family's existing coverage -- only the two
+linkpool-tail hardlink tests needed rewriting, to LINKPOOL_CONTENT
+(pool-level conflicts are the v2 fix for per-member noise).
 
 ## Setup matrix (S) -- discovery, preconditions, fence-posts
 
@@ -451,3 +464,47 @@ against the NOVEL pool that a two-parent decline produces.
 | R14 | policy arms LEFT/RIGHT/BASE/NEITHER for the R4 tie | silent resolution per flag | deferred: rs_policy is always NONE until libzfs-rebase/cli-rebase plumb flags; the arms are implemented and this cell unblocks then |
 | R15 | standalone-only run resolves trivially | finals land in same/gone buckets, zero conflicts, sum invariant holds with no pools anywhere | covered: test_merge_standalone_trivial |
 | R16 | manifest dedup: two same-type conflicts on one destination | left deletes two members, right relinks both into one pool: ONE DELETE_VS_RELINK record, second path in alt_paths | covered: test_merge_dedup_alt_paths |
+
+## Content-merge-emit matrix (E content, F warnings/actions/emit, P samepath)
+
+Dimensions, phase E: group edit shape {neither, one side, both
+convergent, both divergent}; group kind {anchored, fragment
+(one-sided split three-way), novel}; dead-pool interplay (owned by
+the R family). Phase F: warning kinds {IMPLIED_CHANGE,
+LINKPOOL_SHRUNK, DANGLING_SYMLINK (caused / pre-existing /
+relative / absolute)}; action compilation {right-driven vs
+left-expressed}; emit shape {counts, typed conflicts, alt arrays,
+truncated flag}. Samepath (P): the carried sprint-1 logic --
+every pair shape is pinned by the revived crossref-era sections.
+
+Observation mechanism: the manifest itself, via rt_run_rebase()
+and the accessors (nconflicts/nwarnings/nactions, typed conflict
+and warning lookups, alt counts, changelist counts).
+
+| Cell | Scenario | Expect | Disposition |
+|------|----------|--------|-------------|
+| E1  | PHANTOM-CONFLICT DISSOLUTION (the second acceptance test): base pool {A,B,C,X,Y}; left edits via its {A,B,C} view and severs X,Y; right edits via {C,X,Y} to the SAME content and severs A,B | one lineage, convergent edit, disjoint severs: ZERO conflicts | covered: test_emit_phantom_dissolution |
+| E2  | both sides edit a pool to the same value | convergent, zero conflicts | covered: test_emit_convergent_pool (E1 also witnesses at scale) |
+| E3  | right-only pool edit | zero conflicts; WRITE action compiled; IMPLIED_CHANGE per left-silent member | covered: test_emit_right_pool_edit |
+| E4  | divergent pool edits | one LINKPOOL_CONTENT with the mate as alt path | existing: test_edge_hardlink_edit_both (rewritten to v2 in the flip pass) |
+| E5  | dead pool with a lost edit | one LINKPOOL_CONTENT (dead-pool sweep) | existing: test_edge_hardlink_delete_vs_edit (rewritten); R8 pins the counter view |
+| E6  | one-sided split merges three-way: left severs a fragment, right edits the parent | fragment inherits right's edit (l == base, r edited): zero conflicts, WRITE actions | covered: test_emit_fragment_three_way |
+| E7  | unified novel group content | both sides identical by construction | existing: U4/U7/U8 |
+| F1  | IMPLIED_CHANGE per unlooked-at member | right pool edit: one warning per left-silent member path | covered: test_emit_right_pool_edit (asserts both) |
+| F2  | LINKPOOL_SHRUNK when the winner's roster lost members | left severs A, right edits: A standalone, edit wins, SHRUNK warned | covered: test_emit_shrunk_warning |
+| F3  | right-driven standalone changes compile actions | add+edit+delete on right = COPY+WRITE+UNLINK (nactions 3) | covered: test_emit_standalone_actions |
+| F4  | left-expressed changes compile NO actions | left-only changes: nactions 0 | covered: test_emit_left_no_actions |
+| F5  | merge-caused dangling symlink | right adds a link to a name left renamed away: DANGLING_SYMLINK warned | covered: test_emit_dangling_symlink |
+| F6  | pre-existing dangle suppressed | base symlink already dangling, nobody touches it: zero warnings | covered: test_emit_dangling_preexisting |
+| F7  | relative target resolution | subdir symlink "../hello", left deletes hello: warned | covered: test_emit_dangling_relative |
+| F8  | surviving target, no warning | symlink whose target survives the merge stays quiet | covered: inside test_emit_dangling_symlink (control link) |
+| F9  | conflicted row never stacks a dangling warning | undecided paths count present | deferred: needs a conflicted-target fixture whose symlink is otherwise clean; add with phase-2 resolve tests |
+| F10 | truncated flag past REBASE_EMIT_MAX_CONFLICTS | totals full, first 512 records, truncated true | deferred: a 512-conflict fixture is a perf-pass item; the flag's false value is asserted by every manifest test implicitly |
+| P1  | BOTH_MODIFIED (same obj, and cross-obj replace-vs-edit) | | existing: test_conflict_both_modified, basic deep-nested, hysteria-tail different-content pair |
+| P2  | CREATE_CREATE incl. file-vs-dir | | existing: test_conflict_create_create, test_edge_file_vs_dir |
+| P3  | MODIFY_DELETE / DELETE_MODIFY | | existing: test_conflict_modify_delete, test_conflict_delete_modify |
+| P4  | DIR_DELETE_VS_EDIT, both directions | | existing: test_conflict_dir_delete_vs_edit + reverse |
+| P5  | convergence suppression (identical edits/adds/move-edits, hysterical no-ops) | zero conflicts | existing: the five suppression tests in hysteria's tail |
+| P6  | MOVE family: diverge (both dests), move-vs-edit (dest and obj), move-vs-delete both directions, benign same-dest pairs | | existing: the ten manifest tests in moves' tail |
+| P7  | both-DELETE and clean-merge shapes | zero conflicts | existing: test_benign_both_delete, the two clean tests |
+| P8  | multiple conflicts, one manifest; counts | 3 records; changelist counts serialize | existing: test_edge_multiple_conflicts, test_edge_changelist_counts |

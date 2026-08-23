@@ -5,7 +5,7 @@
  * Basic diff coverage: the recursive walk, single-side standalone
  * changes, changelist counts, and the entry-point error cases.
  * Tests that end in a bare dsl_rebase(..., NULL) only assert the
- * ENOSYS success sentinel (the apply phase is unimplemented);
+ * engine's success return (0 with the summary manifest);
  * manifest-inspecting tests use rt_run_rebase().
  */
 
@@ -26,8 +26,8 @@ test_smoke_no_changes(void)
 	err = dsl_rebase(RT_DS_LEFT, RT_DS_RIGHT, NULL);
 	rt_scaffold_teardown();
 
-	TEST_EXPECT(err == ENOSYS,
-	    "expected ENOSYS from successful diff+collapse");
+	TEST_EXPECT(err == 0,
+	    "expected success from the completed diff");
 	TEST_PASS();
 }
 
@@ -50,7 +50,7 @@ test_left_add(void)
 	err = dsl_rebase(RT_DS_LEFT, RT_DS_RIGHT, NULL);
 	rt_scaffold_teardown();
 
-	TEST_EXPECT(err == ENOSYS, "expected ENOSYS");
+	TEST_EXPECT(err == 0, "expected success");
 	TEST_PASS();
 }
 
@@ -73,7 +73,7 @@ test_right_add(void)
 	err = dsl_rebase(RT_DS_LEFT, RT_DS_RIGHT, NULL);
 	rt_scaffold_teardown();
 
-	TEST_EXPECT(err == ENOSYS, "expected ENOSYS");
+	TEST_EXPECT(err == 0, "expected success");
 	TEST_PASS();
 }
 
@@ -95,7 +95,7 @@ test_left_delete(void)
 	err = dsl_rebase(RT_DS_LEFT, RT_DS_RIGHT, NULL);
 	rt_scaffold_teardown();
 
-	TEST_EXPECT(err == ENOSYS, "expected ENOSYS");
+	TEST_EXPECT(err == 0, "expected success");
 	TEST_PASS();
 }
 
@@ -123,7 +123,7 @@ test_left_edit(void)
 	err = dsl_rebase(RT_DS_LEFT, RT_DS_RIGHT, NULL);
 	rt_scaffold_teardown();
 
-	TEST_EXPECT(err == ENOSYS, "expected ENOSYS");
+	TEST_EXPECT(err == 0, "expected success");
 	TEST_PASS();
 }
 
@@ -152,7 +152,7 @@ test_both_add_different(void)
 	err = dsl_rebase(RT_DS_LEFT, RT_DS_RIGHT, NULL);
 	rt_scaffold_teardown();
 
-	TEST_EXPECT(err == ENOSYS, "expected ENOSYS");
+	TEST_EXPECT(err == 0, "expected success");
 	TEST_PASS();
 }
 
@@ -187,7 +187,7 @@ test_both_edit(void)
 	err = dsl_rebase(RT_DS_LEFT, RT_DS_RIGHT, NULL);
 	rt_scaffold_teardown();
 
-	TEST_EXPECT(err == ENOSYS, "expected ENOSYS");
+	TEST_EXPECT(err == 0, "expected success");
 	TEST_PASS();
 }
 
@@ -212,7 +212,7 @@ test_nested_edit(void)
 	err = dsl_rebase(RT_DS_LEFT, RT_DS_RIGHT, NULL);
 	rt_scaffold_teardown();
 
-	TEST_EXPECT(err == ENOSYS, "expected ENOSYS");
+	TEST_EXPECT(err == 0, "expected success");
 	TEST_PASS();
 }
 
@@ -247,7 +247,7 @@ test_mixed_operations(void)
 	err = dsl_rebase(RT_DS_LEFT, RT_DS_RIGHT, NULL);
 	rt_scaffold_teardown();
 
-	TEST_EXPECT(err == ENOSYS, "expected ENOSYS");
+	TEST_EXPECT(err == 0, "expected success");
 	TEST_PASS();
 }
 

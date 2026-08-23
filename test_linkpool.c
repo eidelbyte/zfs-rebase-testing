@@ -75,7 +75,7 @@ test_linkpool_discovery_matrix(void)
 	err = dsl_rebase(RT_DS_LEFT, RT_DS_RIGHT, NULL);
 	rt_scaffold_teardown();
 
-	TEST_EXPECT(err == ENOSYS, "expected ENOSYS");
+	TEST_EXPECT(err == 0, "expected success");
 	TEST_PASS();
 }
 
@@ -123,7 +123,7 @@ test_linkpool_membership_ops(void)
 	err = dsl_rebase(RT_DS_LEFT, RT_DS_RIGHT, NULL);
 	rt_scaffold_teardown();
 
-	TEST_EXPECT(err == ENOSYS, "expected ENOSYS");
+	TEST_EXPECT(err == 0, "expected success");
 	TEST_PASS();
 }
 
@@ -286,7 +286,7 @@ test_left_hardlink(void)
 	err = dsl_rebase(RT_DS_LEFT, RT_DS_RIGHT, NULL);
 	rt_scaffold_teardown();
 
-	TEST_EXPECT(err == ENOSYS, "expected ENOSYS");
+	TEST_EXPECT(err == 0, "expected success");
 	TEST_PASS();
 }
 
@@ -338,11 +338,11 @@ test_edge_hardlink_edit_both_sides(void)
 	TEST_EXPECT(err == 0, "rebase failed");
 	TEST_EXPECT(rt_manifest_nconflicts(nvl) == 1,
 	    "expected 1 conflict (hardlink dedup)");
-	TEST_EXPECT(rt_manifest_has_conflict(nvl, "BOTH_MODIFIED",
+	TEST_EXPECT(rt_manifest_has_conflict(nvl, "LINKPOOL_CONTENT",
 	    "hello") ||
-	    rt_manifest_has_conflict(nvl, "BOTH_MODIFIED",
+	    rt_manifest_has_conflict(nvl, "LINKPOOL_CONTENT",
 	    "hello_link"),
-	    "expected BOTH_MODIFIED at hello or hello_link");
+	    "expected LINKPOOL_CONTENT at hello or hello_link");
 	TEST_EXPECT(rt_manifest_conflict_nalt(nvl, "hello") == 1 ||
 	    rt_manifest_conflict_nalt(nvl, "hello_link") == 1,
 	    "expected 1 alt_path (hardlink dedup)");
@@ -393,9 +393,14 @@ test_edge_hardlink_delete_no_conflict(void)
 }
 
 /*
- * Left removes one link, right edits the shared dnode through that
- * same link path: the link removal collides with the edit at the
- * path level.
+ * Left removes one link (dissolving the two-link pool to a
+ * standalone survivor) while right edits the shared dnode. Under
+ * unlink-is-not-delete the per-path rows resolve cleanly -- but
+ * the merged membership of the POOL reaches zero while the right
+ * side, which kept both members, edited its content: right's edit
+ * would be silently lost, and that is the once-per-linkpool
+ * LINKPOOL_CONTENT conflict (v2 semantics; the old DELETE/MODIFY
+ * expectation was the pre-rewrite path-level reading).
  */
 static int
 test_edge_hardlink_delete_vs_edit(void)
@@ -435,14 +440,14 @@ test_edge_hardlink_delete_vs_edit(void)
 	err = rt_run_rebase(&nvl);
 	rt_scaffold_teardown();
 	TEST_EXPECT(err == 0, "rebase failed");
-	TEST_EXPECT(rt_manifest_nconflicts(nvl) >= 1,
-	    "expected at least 1 conflict");
+	TEST_EXPECT(rt_manifest_nconflicts(nvl) == 1,
+	    "expected 1 conflict");
 	TEST_EXPECT(
-	    rt_manifest_has_conflict(nvl, "DELETE_MODIFY",
-	    "hello_link") ||
-	    rt_manifest_has_conflict(nvl, "MODIFY_DELETE",
+	    rt_manifest_has_conflict(nvl, "LINKPOOL_CONTENT",
+	    "hello") ||
+	    rt_manifest_has_conflict(nvl, "LINKPOOL_CONTENT",
 	    "hello_link"),
-	    "expected DELETE/MODIFY conflict at hello_link");
+	    "expected LINKPOOL_CONTENT (dead pool, edit lost)");
 	fnvlist_free(nvl);
 	TEST_PASS();
 }

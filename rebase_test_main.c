@@ -27,6 +27,7 @@ static const struct {
 	{ "moves",	run_moves_tests },
 	{ "anchor",	run_anchor_tests },
 	{ "merge",	run_merge_tests },
+	{ "emit",	run_emit_tests },
 	{ "linkpool",	run_linkpool_tests },
 	{ "crossref",	run_crossref_tests },
 };

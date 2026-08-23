@@ -23,7 +23,7 @@
 #define	RT_384K		393216ULL
 
 /*
- * Sync, run the rebase (expecting the ENOSYS success sentinel),
+ * Sync, run the rebase (expecting success),
  * scrape the walk summary, tear the pool down, and compare all
  * four counters. Returns 0 on match; prints the mismatch and
  * returns nonzero otherwise. Callers wrap it in TEST_FAIL/PASS.

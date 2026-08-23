@@ -64,7 +64,7 @@ ab_print(const char *tag, uint64_t lk, uint64_t cl, uint64_t cr,
 }
 
 /*
- * Sync, run the rebase (ENOSYS success sentinel), scrape all five
+ * Sync, run the rebase (expecting success), scrape all five
  * summary lines, tear the pool down, and compare the 27-tuple.
  * Also checks the structural row-count invariant (T8): each side's
  * target tallies sum to the number of membership rows, so the two

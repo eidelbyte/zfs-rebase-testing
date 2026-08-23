@@ -75,13 +75,14 @@ rt_run_rebase(nvlist_t **nvlp)
 
 	nvl = fnvlist_alloc();
 	err = dsl_rebase(RT_DS_LEFT, RT_DS_RIGHT, nvl);
-	if (err == ENOSYS) {
+	if (err == 0) {
 		*nvlp = nvl;
 		return (0);
 	}
 	fnvlist_free(nvl);
 	return (err);
 }
+
 
 /*
  * Find the LAST dbgmsg-ring line containing `needle` and copy it
@@ -411,6 +412,47 @@ rt_manifest_has_conflict(nvlist_t *nvl, const char *type, const char *path)
 		const char *ct = fnvlist_lookup_string(arr[i], "type");
 		const char *cp = fnvlist_lookup_string(arr[i], "path");
 		if (strcmp(ct, type) == 0 && path_match(cp, path))
+			return (B_TRUE);
+	}
+	return (B_FALSE);
+}
+
+uint64_t
+rt_manifest_nwarnings(nvlist_t *nvl)
+{
+	uint64_t v;
+
+	if (nvlist_lookup_uint64(nvl, "nwarnings", &v) != 0)
+		return (UINT64_MAX);
+	return (v);
+}
+
+uint64_t
+rt_manifest_nactions(nvlist_t *nvl)
+{
+	uint64_t v;
+
+	if (nvlist_lookup_uint64(nvl, "nactions", &v) != 0)
+		return (UINT64_MAX);
+	return (v);
+}
+
+boolean_t
+rt_manifest_has_warning(nvlist_t *nvl, const char *kind,
+    const char *path)
+{
+	nvlist_t **arr;
+	uint_t n;
+	int err;
+
+	err = nvlist_lookup_nvlist_array(nvl, "warnings", &arr, &n);
+	if (err != 0)
+		return (B_FALSE);
+
+	for (uint_t i = 0; i < n; i++) {
+		const char *wk = fnvlist_lookup_string(arr[i], "kind");
+		const char *wp = fnvlist_lookup_string(arr[i], "path");
+		if (strcmp(wk, kind) == 0 && path_match(wp, path))
 			return (B_TRUE);
 	}
 	return (B_FALSE);

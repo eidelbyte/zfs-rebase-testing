@@ -19,7 +19,7 @@
 #include "rebase_test.h"
 
 /*
- * Sync, run the rebase (expecting the ENOSYS success sentinel),
+ * Sync, run the rebase (expecting success),
  * scrape all three summary lines, tear the pool down, and compare
  * the full ten-tuple: the six D counters plus the four
  * move-collapse counters. Returns 0 on match; prints the mismatch

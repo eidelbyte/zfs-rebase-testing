@@ -30,7 +30,7 @@ test_setup_right_as_snapshot(void)
 	err = dsl_rebase(RT_DS_LEFT, RT_DS_RIGHT "@rsnap", NULL);
 	rt_scaffold_teardown();
 
-	TEST_EXPECT(err == ENOSYS, "expected ENOSYS");
+	TEST_EXPECT(err == 0, "expected success");
 	TEST_PASS();
 }
 

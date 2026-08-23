@@ -16,15 +16,16 @@ filesystem.
 | `test_basic.c` | single-side standalone changes, error cases (13 tests) |
 | `test_setup.c` | setup matrix: discovery, preconditions, fences (12 tests) |
 | `test_walk.c` | walk matrix: union iteration, recursion, faults (9 tests) |
-| `test_hysteria.c` | hysteria matrix via walk-stats counters (31 tests) + crossref-era suppression (7 tests) |
+| `test_hysteria.c` | hysteria matrix via walk-stats counters (31 tests) + samepath convergence suppression (7 tests) |
 | `test_diff.c` | standalone-diff matrix: two-axis records via changelist counts (19 tests) |
-| `test_moves.c` | move-collapse matrix via move-stats counters (16 tests) + crossref-era move conflicts (10 tests) |
+| `test_moves.c` | move-collapse matrix via move-stats counters (16 tests) + samepath move conflicts (10 tests) |
 | `test_anchor.c` | linkpool-anchor matrix (crossref phases A+B) via anchor/target tallies (17 tests) |
 | `test_merge.c` | membership-merge matrix (crossref phases C+D) via finals/conflicts tallies (24 tests) |
-| `test_linkpool.c` | linkpool discovery/membership/verify matrix + crossref-era hardlink cases (10 tests) |
-| `test_crossref.c` | conflict types, benign cases, clean merges (11 tests) |
+| `test_linkpool.c` | linkpool discovery/membership/verify matrix + pool-content conflict cases (10 tests) |
+| `test_emit.c` | content-merge-emit matrix (crossref phases E+F) via the manifest (10 tests) |
+| `test_crossref.c` | samepath conflict types, benign cases, clean merges (11 tests) |
 
-179 tests total. Section names double as command-line arguments (see
+189 tests total. Section names double as command-line arguments (see
 Running below).
 
 Tests are planned by problem-space matrix: see `TEST-MATRIX.md` for
@@ -108,41 +109,32 @@ opens `/dev/zfs`).  Each test creates a pool on a file vdev at
 `/tmp/rtest_vdev`, runs the test, and destroys the pool.
 
 Sections: `basic`, `setup`, `walk`, `hysteria`, `diff`, `moves`,
-`anchor`, `merge`, `linkpool`, `crossref`.
+`anchor`, `merge`, `emit`, `linkpool`, `crossref`.
 
 A full run against a finished engine ends with:
 
 ```
 =====================
-Results: 179/179 passed
+Results: 189/189 passed
 ```
 
-Against the current v2 branch (engine built through
-membership-merge), the sections meaningful today are `basic`
-(ENOSYS-sentinel tests), `setup`, `walk`, the matrix half of
-`linkpool`, the H-matrix half of `hysteria` (asserted through the
-walk-summary dbgmsg counters via `rt_walk_stats()`), `diff` (the D
-matrix, asserted through the changelist counts line via
-`rt_changelist_counts()` -- post-collapse counts since
-move-collapse landed), the M-matrix half of `moves` (asserted
-through the moves line via `rt_move_stats()`), `anchor` (the
-A/T matrix for crossref phases A+B, asserted through the four
-per-branch tally lines via `rt_anchor_stats()` /
-`rt_target_stats()`), and `merge` (the U/R matrix for crossref
-phases C+D, asserted through the finals and conflicts lines via
-`rt_final_stats()` / `rt_conflict_stats()`); tests that
-inspect the conflict manifest fail cleanly (the accessors return
-sentinels instead of aborting) until the emit issues land.
+As of content-merge-emit (2026-08-23) the diff pipeline is
+complete: a successful rebase returns 0 with the summary manifest
+in outnvl, and EVERY section is live. The manifest (conflicts,
+warnings, counts) is the primary observable from the emit era on;
+the walk-summary dbgmsg lines remain byte-stable contracts for the
+counter-based sections (hysteria, diff, moves, anchor, merge) as
+secondary signals, exactly as their matrix preambles promised.
 
 A test failure prints `FAIL: <reason>` on its line and the program
 exits with status 1.
 
 Tests that end in a bare `dsl_rebase(..., NULL)` assert only the
-ENOSYS success sentinel (the apply phase is not implemented, so
-ENOSYS after a successful diff is the expected result). Tests that
-call `rt_run_rebase()` also inspect the conflict manifest from the
-output nvlist: conflict types and paths, hardlink alt-path dedup,
-and changelist counts.
+return code (0 for a completed diff; typed errnos for precondition
+and corruption cases). Tests that call `rt_run_rebase()` also
+inspect the manifest from the output nvlist: typed conflicts and
+warnings with paths and alt-path arrays, and the count fields
+(nconflicts, nwarnings, nactions, changelist counts).
 
 ## How it works
 
@@ -206,14 +198,13 @@ H-matrix `hysteria` tests are green from hysterical-detect onward;
 the D-matrix `diff` tests from standalone-diff onward; the
 M-matrix half of `moves` from move-collapse onward; the `anchor`
 section from linkpool-anchor onward; and the `merge` section from
-membership-merge onward. The
-crossref-era tail of `hysteria` plus the manifest halves of
-`moves` and `crossref` still assert sprint-1 manifest behavior;
-the sprint-2 rewrite (two-axis change records, linkpool tables;
-see `sprints/sprint-2/diff-engine-rewrite-full.md`) keeps those
-manifest shapes for standalone paths, and each remaining section
-gets re-plotted into its own matrix as the corresponding engine
-phase lands. The 14-test catalog (sever-vs-nothing, phantom-conflict
+membership-merge onward.  The
+one-time contract flip landed with content-merge-emit
+(2026-08-23): every ENOSYS assertion became 0-with-manifest in a
+single pass, the former crossref-era tails came alive as the
+samepath (P) family's coverage, and only the two linkpool
+hardlink-conflict tests needed rewriting -- to LINKPOOL_CONTENT,
+the v2 pool-level conflict that replaced per-member noise. The 14-test catalog (sever-vs-nothing, phantom-conflict
 dissolution, index recycling, novel overlap, warnings) arrives with
 the testing-framework issue. The ZPL helpers maintain real link
 semantics: `rt_add_hardlink` bumps ZPL_LINKS, `rt_remove_entry` and

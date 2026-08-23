@@ -48,6 +48,7 @@ SRCS	= rebase_test_main.c \
 	  test_moves.c \
 	  test_anchor.c \
 	  test_merge.c \
+	  test_emit.c \
 	  test_linkpool.c \
 	  test_crossref.c
 
