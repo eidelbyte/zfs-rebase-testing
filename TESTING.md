@@ -28,6 +28,14 @@ Tests are planned by problem-space matrix: see `TEST-MATRIX.md` for
 the methodology, the per-phase matrices, and the cell-to-test
 mapping. Each test's comment names the matrix cells it covers.
 
+On a machine with no ZFS headers, `devcheck/syncheck.sh` compiles
+every source against a stub header (syntax, call arity, unused
+variables, -Wcast-qual) and runs the consistency checks
+(defined-vs-called test counts, brace balance, ASCII). It is the
+pre-push gate; the FreeBSD build and run remain the authority. Keep
+`devcheck/stub/rebase_test.h` in sync when helpers or libzpool
+calls are added.
+
 ## Prerequisites
 
 An OpenZFS source tree for the headers, and a `libzpool` that contains

@@ -39,13 +39,15 @@ static nvlist_t *
 make_vdev_root(const char *path, size_t size)
 {
 	nvlist_t *root, *child;
+	const nvlist_t *children[1];
 
 	child = make_file_vdev(path, size);
+	children[0] = child;
 
 	root = fnvlist_alloc();
 	fnvlist_add_string(root, ZPOOL_CONFIG_TYPE, VDEV_TYPE_ROOT);
 	fnvlist_add_nvlist_array(root, ZPOOL_CONFIG_CHILDREN,
-	    (const nvlist_t **)&child, 1);
+	    children, 1);
 	fnvlist_free(child);
 
 	return (root);
