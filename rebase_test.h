@@ -162,6 +162,23 @@ typedef struct rt_move_stats {
 	uint64_t	rms_move_edits_right;
 } rt_move_stats_t;
 
+/*
+ * Cross-reference phase A/B counters scraped from the engine's
+ * per-branch summary lines. Array order matches the dbgmsg text:
+ * anchors are (anchored, novel, recycled, fragment); targets are
+ * (same, gone, standalone, anchor, fragment, novel). See the
+ * linkpool-anchor (A/T) matrix preamble.
+ */
+typedef struct rt_anchor_stats {
+	uint64_t	ras_left[4];
+	uint64_t	ras_right[4];
+} rt_anchor_stats_t;
+
+typedef struct rt_target_stats {
+	uint64_t	rts_left[6];
+	uint64_t	rts_right[6];
+} rt_target_stats_t;
+
 /* rt_harness.c */
 int rt_open(const char *dsname, rt_ds_t *ds);
 void rt_close(rt_ds_t *ds);
@@ -170,6 +187,8 @@ int rt_run_rebase(nvlist_t **nvlp);
 int rt_walk_stats(rt_walk_stats_t *ws);
 int rt_changelist_counts(uint64_t *leftp, uint64_t *rightp);
 int rt_move_stats(rt_move_stats_t *ms);
+int rt_anchor_stats(rt_anchor_stats_t *as);
+int rt_target_stats(rt_target_stats_t *ts);
 
 /*
  * test_diff.c -- the shared ten-tuple finisher (D six-tuple plus
@@ -243,6 +262,7 @@ void run_walk_tests(void);
 void run_hysteria_tests(void);
 void run_diff_tests(void);
 void run_moves_tests(void);
+void run_anchor_tests(void);
 void run_linkpool_tests(void);
 void run_crossref_tests(void);
 

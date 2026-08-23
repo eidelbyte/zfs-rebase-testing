@@ -25,6 +25,7 @@ static const struct {
 	{ "hysteria",	run_hysteria_tests },
 	{ "diff",	run_diff_tests },
 	{ "moves",	run_moves_tests },
+	{ "anchor",	run_anchor_tests },
 	{ "linkpool",	run_linkpool_tests },
 	{ "crossref",	run_crossref_tests },
 };

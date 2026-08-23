@@ -19,11 +19,12 @@ matrix is added here BEFORE its tests are written, and each test file's
 header points back to its matrix section.
 
 Matrices so far: setup (S), walk (W), linkpool (LP/LV), hysteria (H),
-standalone-diff (D), move-collapse (M). The crossref phase gets its
-matrix as the v2 engine reaches it (test_moves.c's manifest-based
-tests and test_crossref.c predate the methodology and assert
-sprint-1 behavior; they will be re-plotted when those engine issues
-land).
+standalone-diff (D), move-collapse (M), linkpool-anchor (A
+classification/rescue, T membership targets). The remaining crossref
+phases get theirs as the v2 engine reaches them (test_moves.c's
+manifest-based tests and test_crossref.c predate the methodology and
+assert sprint-1 behavior; they will be re-plotted when those engine
+issues land).
 
 ## Setup matrix (S) -- discovery, preconditions, fence-posts
 
@@ -306,3 +307,66 @@ severed path's new dnode).
 | M16 | no spurious moves | ADD-only and DELETE-only runs never collapse; every D fixture's moves line is all zeros | existing: diff_finish() asserts zero moves across all 19 D tests (D4/D5 are the pure ADD-only/DELETE-only cells) |
 | M17 | symlink rename | 1 MOVE (var-attr identity through the collapse content gate) | covered: test_moves_symlink_rename |
 | M18 | prefix tiebreak selection VALUE (in-dir source wins over a distant candidate; equal prefixes keep sort order) | which DELETE was consumed / rc_old_path | deferred: invisible in counts (M11 proves the collapse, not the choice); emit's manifest exposes rc_old_path and takes these over |
+
+## Linkpool-anchor matrix (A classification/rescue, T targets)
+
+Dimensions, phase A: classification input {absent from base =
+NOVEL, present+untouched = ANCHORED (fast path), present+touched+
+gen-match = ANCHORED, present+touched+gen-mismatch = RECYCLED};
+base state of the dnode {pooled, standalone (the degenerate
+one-member anchor)}; fragment rescue {clean fragment, fragment
+plus ADDED members, two distinct parents (no rescue), parent ==
+own obj i.e. recycled-in-place (no rescue), no MOVED provenance at
+all}; pools per side; side symmetry; gen unreadable at classify.
+Dimensions, phase B: each target kind {SAME_AS_BASE, GONE,
+STANDALONE, ANCHOR, FRAGMENT, NOVEL} crossed with how it is
+reached (record-driven, table-driven, synthesized), plus dual-sided
+rows and the row-count consistency invariant.
+
+Observation mechanism: four new byte-stable dbgmsg lines --
+"rebase: linkpools left|right anchored %llu novel %llu recycled
+%llu fragment %llu" (rt_anchor_stats()) and "rebase: targets
+left|right same %llu gone %llu standalone %llu anchor %llu
+fragment %llu novel %llu" (rt_target_stats()). A/T tests assert a
+27-value expectation via ab_finish(): linkpool-member paths (the
+one walk counter that validates a pool fixture), both changelist
+counts, all four move counters, the eight anchor tallies, and the
+twelve target tallies. The visited and hysteria counters are
+deliberately NOT asserted here: they are pure walk-classification
+observables already pinned exhaustively by the H, D, and M
+sections on fixtures built from the same helpers, and they are the
+most error-prone numbers to hand-compute on pool-heavy fixtures.
+Every row carries one target per side (SAME_AS_BASE = expressed
+nothing), so each side's target tallies sum to the row count;
+ab_finish() checks the two sums against each other structurally
+on every test (cell T8). Fixtures edit the LEFT side unless the
+row says otherwise.
+
+Not fixturable without on-disk corruption injection: a hard
+dmu_object_info() error during classification (ENOENT is the
+legitimate NOVEL answer; anything else needs a damaged base). The
+EIO conversion boundary it would cross is A9's.
+
+| Cell | Scenario | Expect | Disposition |
+|------|----------|--------|-------------|
+| A1  | untouched base pool | ANCHORED on both sides via the fast path; members SAME/SAME | covered: test_anchor_untouched_pool |
+| A2  | pool content edited in place | left ANCHORED via the gen compare (fast path fails); both member paths carry EDIT records, targets still SAME (same lineage in the base table) | covered: test_anchor_edited_pool |
+| A3  | post-fork pool (create + link) | NOVEL, anchor 0; members target NOVEL(pool obj) | covered: test_anchor_novel_pool |
+| A4  | recycled index (gen flipped on the pool dnode) -- THE MANDATORY CELL | RECYCLED, never ANCHORED; members EDITxMOVED(from==to) target NOVEL; the rescue's parent==own-obj guard holds (no false FRAGMENT) | covered: test_anchor_recycled_pool |
+| A5  | pool grown from a base-standalone dnode | ANCHORED (lineage, not table); both members target ANCHOR -- base contributes an absent opinion | covered: test_anchor_degenerate_standalone |
+| A6  | clean split fragment (two members severed to one new dnode, identical content) | fragment pool NOVEL rewritten to SPLIT_FRAGMENT(parent); members target FRAGMENT; abandoned mate targets STANDALONE | covered: test_anchor_fragment |
+| A7  | fragment plus a post-split ADDED member | still SPLIT_FRAGMENT (ADDED is neutral); all three members target FRAGMENT | covered: test_anchor_fragment_added_member |
+| A8  | one new pool drawing members from TWO base pools | two distinct parents disqualify: stays NOVEL, members target NOVEL | covered: test_anchor_two_parents |
+| A9  | ZPL_GEN unreadable at classify time | EIO -- and the fixture repoints the old path onto a fresh dnode so no walk hysteria/linkpool compare and no move-collapse run reads the gen first: phase A is genuinely the first reader | covered: test_anchor_gen_missing |
+| A10 | link churn: every base path of the dnode turned over, nlink never zero | ANCHORED -- the doc-correction witness (the survivors scan would falsely RECYCLE); new paths target ANCHOR, old path GONE | covered: test_anchor_link_churn |
+| A11 | several pools on one side (anchored + novel) | tallies count independently: left (1,1,0,0) | covered: test_anchor_multi_pool |
+| A12 | side symmetry: novel pool on the RIGHT | right tallies and right NOVEL targets; left all SAME | covered: test_anchor_right_novel |
+| T1  | GONE via a pooled member's DELETE record | deleted path GONE, survivors SAME (pool still anchored) | covered: test_target_gone_delete |
+| T2  | GONE synthesized for a collapsed member-move's old path | MOVE record at the new path (ANCHOR target, ml=1), old path row GONE without any record, mate SAME | covered: test_target_gone_move_source |
+| T3  | STANDALONE via sever (hysterical copy) | severed path and abandoned mate both STANDALONE; left side has NO pools at all (tallies all zero) | covered: test_target_severed_standalone |
+| T4  | SAME_AS_BASE as the unexpressed side | every cell above asserts full right-side (or left-side) SAME columns | existing: all A/T fixtures |
+| T5  | ANCHOR via relink into another anchored pool | moved path targets ANCHOR(new pool), abandoned mate STANDALONE, target pool's own members SAME | covered: test_target_relink_anchor |
+| T6  | NOVEL targets | members of NOVEL and RECYCLED pools | existing: A3, A4, A8, A12 |
+| T7  | FRAGMENT targets | fragment members, including post-split joins | existing: A6, A7 |
+| T8  | row-count consistency: each side's target tallies sum to the row count | structural | existing: ab_finish() checks left sum == right sum on every test |
+| T9  | dual-sided row: left deletes the path, right severs it | one row, GONE vs STANDALONE; the dissolved pool's mate STANDALONE on both sides; zero pools remain anywhere | covered: test_target_both_sides |

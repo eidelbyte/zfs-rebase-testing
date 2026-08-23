@@ -215,6 +215,87 @@ rt_move_stats(rt_move_stats_t *ms)
 }
 
 /*
+ * Scrape the linkpool classification tallies (phase A) and the
+ * membership target tallies (phase B) from their per-branch
+ * summary lines. Literal formats only: the lines are byte-stable
+ * contracts and non-literal sscanf formats are a warning class we
+ * do not want to negotiate with.
+ */
+int
+rt_anchor_stats(rt_anchor_stats_t *as)
+{
+	char line[512];
+	unsigned long long a, n, r, f;
+	int err;
+
+	err = rt_dbgmsg_last("rebase: linkpools left", line,
+	    sizeof (line));
+	if (err != 0)
+		return (err);
+	if (sscanf(line, "rebase: linkpools left anchored %llu "
+	    "novel %llu recycled %llu fragment %llu",
+	    &a, &n, &r, &f) != 4)
+		return (ENOENT);
+	as->ras_left[0] = a;
+	as->ras_left[1] = n;
+	as->ras_left[2] = r;
+	as->ras_left[3] = f;
+
+	err = rt_dbgmsg_last("rebase: linkpools right", line,
+	    sizeof (line));
+	if (err != 0)
+		return (err);
+	if (sscanf(line, "rebase: linkpools right anchored %llu "
+	    "novel %llu recycled %llu fragment %llu",
+	    &a, &n, &r, &f) != 4)
+		return (ENOENT);
+	as->ras_right[0] = a;
+	as->ras_right[1] = n;
+	as->ras_right[2] = r;
+	as->ras_right[3] = f;
+	return (0);
+}
+
+int
+rt_target_stats(rt_target_stats_t *ts)
+{
+	char line[512];
+	unsigned long long s, g, st, a, f, n;
+	int err;
+
+	err = rt_dbgmsg_last("rebase: targets left", line,
+	    sizeof (line));
+	if (err != 0)
+		return (err);
+	if (sscanf(line, "rebase: targets left same %llu gone %llu "
+	    "standalone %llu anchor %llu fragment %llu novel %llu",
+	    &s, &g, &st, &a, &f, &n) != 6)
+		return (ENOENT);
+	ts->rts_left[0] = s;
+	ts->rts_left[1] = g;
+	ts->rts_left[2] = st;
+	ts->rts_left[3] = a;
+	ts->rts_left[4] = f;
+	ts->rts_left[5] = n;
+
+	err = rt_dbgmsg_last("rebase: targets right", line,
+	    sizeof (line));
+	if (err != 0)
+		return (err);
+	if (sscanf(line, "rebase: targets right same %llu gone %llu "
+	    "standalone %llu anchor %llu fragment %llu novel %llu",
+	    &s, &g, &st, &a, &f, &n) != 6)
+		return (ENOENT);
+	ts->rts_right[0] = s;
+	ts->rts_right[1] = g;
+	ts->rts_right[2] = st;
+	ts->rts_right[3] = a;
+	ts->rts_right[4] = f;
+	ts->rts_right[5] = n;
+	return (0);
+}
+
+/*
  * Manifest accessors are defensive: a missing key returns
  * UINT64_MAX instead of aborting the harness, so a test asserting
  * against an engine that does not emit that key yet FAILs cleanly
