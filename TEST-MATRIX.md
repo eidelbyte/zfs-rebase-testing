@@ -492,7 +492,7 @@ and warning lookups, alt counts, changelist counts).
 | E7  | unified novel group content | both sides identical by construction | existing: U4/U7/U8 |
 | F1  | IMPLIED_CHANGE per unlooked-at member | right pool edit: one warning per left-silent member path | covered: test_emit_right_pool_edit (asserts both) |
 | F2  | LINKPOOL_SHRUNK when the winner's roster lost members | left severs A, right edits: A standalone, edit wins, SHRUNK warned | covered: test_emit_shrunk_warning |
-| F3  | right-driven standalone changes compile actions | add+edit+delete on right = COPY+WRITE+UNLINK (nactions 3) | covered: test_emit_standalone_actions |
+| F3  | right-driven standalone changes compile actions | add+edit+delete on right = COPY+WRITE+UNLINK (nactions 3). First execution (2026-08-23) caught a real double-count: the row loop and the standalone sweep both emitted UNLINK for the same right delete; fixed with the ownership gate (row loop skips standalone paths) | covered: test_emit_standalone_actions |
 | F4  | left-expressed changes compile NO actions | left-only changes: nactions 0 | covered: test_emit_left_no_actions |
 | F5  | merge-caused dangling symlink | right adds a link to a name left renamed away: DANGLING_SYMLINK warned | covered: test_emit_dangling_symlink |
 | F6  | pre-existing dangle suppressed | base symlink already dangling, nobody touches it: zero warnings | covered: test_emit_dangling_preexisting |
