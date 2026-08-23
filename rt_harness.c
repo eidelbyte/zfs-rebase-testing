@@ -187,6 +187,34 @@ rt_changelist_counts(uint64_t *leftp, uint64_t *rightp)
 }
 
 /*
+ * Scrape the move-collapse counters from the walk's third summary
+ * line: the collapse observable defined by the M matrix preamble.
+ */
+int
+rt_move_stats(rt_move_stats_t *ms)
+{
+	char line[512];
+	unsigned long long ml, mr, mel, mer;
+	int err;
+
+	err = rt_dbgmsg_last("rebase: moves left", line,
+	    sizeof (line));
+	if (err != 0)
+		return (err);
+
+	if (sscanf(line, "rebase: moves left %llu right %llu, "
+	    "move-edits left %llu right %llu",
+	    &ml, &mr, &mel, &mer) != 4)
+		return (ENOENT);
+
+	ms->rms_moves_left = ml;
+	ms->rms_moves_right = mr;
+	ms->rms_move_edits_left = mel;
+	ms->rms_move_edits_right = mer;
+	return (0);
+}
+
+/*
  * Manifest accessors are defensive: a missing key returns
  * UINT64_MAX instead of aborting the harness, so a test asserting
  * against an engine that does not emit that key yet FAILs cleanly

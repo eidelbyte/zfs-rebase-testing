@@ -18,10 +18,12 @@ a bug must have nowhere to hide. When a new engine phase lands, its
 matrix is added here BEFORE its tests are written, and each test file's
 header points back to its matrix section.
 
-Matrices so far: setup (S), walk (W), linkpool (LP/LV), hysteria (H), standalone-diff (D).
-Moves and crossref phases get theirs as the v2 engine reaches them
-(their current sections predate the methodology and assert sprint-1
-behavior; they will be re-plotted when those engine issues land).
+Matrices so far: setup (S), walk (W), linkpool (LP/LV), hysteria (H),
+standalone-diff (D), move-collapse (M). The crossref phase gets its
+matrix as the v2 engine reaches it (test_moves.c's manifest-based
+tests and test_crossref.c predate the methodology and assert
+sprint-1 behavior; they will be re-plotted when those engine issues
+land).
 
 ## Setup matrix (S) -- discovery, preconditions, fence-posts
 
@@ -197,7 +199,12 @@ Observation mechanism: the walk logs a second dbgmsg line,
 six-tuple (visited, hyst_left, hyst_right, linked, changes_left,
 changes_right) via a planned rt_changelist_counts() companion to
 rt_walk_stats(), with fixtures minimal enough that every expected
-tuple is computable by hand. Counts prove which paths produced or
+tuple is computable by hand. SEMANTIC CHANGE at move-collapse
+(2026-08-23): the changelists line now reports POST-collapse
+counts -- what the diff pipeline hands to cross-reference. Only D6
+had a collapsible pair, so only D6's tuple changed; diff_finish()
+additionally asserts the moves line is all zeros for every D
+fixture (the no-spurious-moves half of cell M16). Counts prove which paths produced or
 suppressed a record -- and with per-cell fixtures that distinguishes
 one-record-vs-two questions like EDIT-vs-DELETE+ADD -- but they
 cannot prove op VALUES, provenance numbers, or field conventions;
@@ -216,7 +223,7 @@ hysteria and moves.
 | D3  | rename-on-save, content unchanged | 0 records -- not 1 (leaked EDIT) and not 2 (DELETE+ADD split) | covered: test_diff_hysterical_zero |
 | D4  | standalone file added | left 1 (ADD x NONE) | covered: test_diff_add |
 | D5  | standalone file deleted | left 1 (DELETE x NONE) | covered: test_diff_delete |
-| D6  | plain rename | left 2 (DELETE at old path + ADD at new, same obj) -- EXPECTATION CHANGES to one MOVE record when move-collapse lands; this row gets re-dispositioned then | covered: test_diff_rename_two_records |
+| D6  | plain rename | left 1 -- the pair now collapses to one MOVE record (was 2 pre-collapse; re-dispositioned 2026-08-23 when move-collapse landed, as this row promised). The collapse itself is M1's cell; this row keeps the D-level claim: a rename is never a surviving DELETE+ADD split | covered: test_diff_rename_collapses (renamed from test_diff_rename_two_records) |
 | D7  | rename-on-save with NEW content | left 1 -- EDIT at the path, never a DELETE+ADD split (path-scoped content ops) | covered: test_diff_recreate_one_record |
 | D8  | dir chmod | left 1 (the dir's own EDIT record) | covered: test_diff_dir_chmod |
 | D9  | dir with entries-only change | left 1 -- the child's ADD; the dir itself contributes no record (ZPL_SIZE-skip rule at record level) | covered: test_diff_dir_entries |
@@ -230,9 +237,72 @@ hysteria and moves.
 | D17 | side symmetry: D2's fixture on the RIGHT | left 0, right 1 | covered: test_diff_right_side |
 | D18 | both sides act on disjoint paths | left 1, right 1, independently | covered: test_diff_both_sides |
 | D19 | side-added subtree containing a hardlink pair | left 3 (dir ADD x NONE; two paths ADD x ADDED) | covered: test_diff_added_subtree |
-| D20 | rc_obj convention: DELETE carries base's obj, ADD the side's | rename halves match by obj | deferred: not visible in counts; move-collapse's rename matching is the direct witness -- its matrix takes this cell over |
+| D20 | rc_obj convention: DELETE carries base's obj, ADD the side's | rename halves match by obj | existing: M1 (a collapse can only happen if the two records met by object number; the promised move-collapse witness) |
 | D21 | rc_linkpool_from/to provenance values | correct pool objs recorded | deferred: linkpool-anchor's split-fragment rescue reads provenance back; asserted there and at emit |
 | D22 | content/linkpool op VALUES as values (EDIT vs ADD identity, ADDED vs MOVED identity) | per-record ops | deferred: counts prove record presence per fixture, not op identity; emit's manifest assertions take these over |
 | D23 | rc_dn_type per record | matches the record's object | deferred: emit exposes records; assert there |
 | D24 | classification error propagation (EIO out of the diff paths) | EIO aborts the rebase | existing: test_hysteria_gen_missing (H33 now flows through rebase_content_diff) |
 | D25 | no-record invariant: NONE x NONE allocates nothing | absence | covered: asserted inside test_diff_untouched (whole tree) and test_diff_unlink_survivors (linkpool survivors) rather than a separate test |
+
+## Move-collapse matrix (M) -- rename pairs to MOVE records
+
+Dimensions: pair formation {pure rename, rename+edit, rename+
+attr-touch, cross-directory, directory (with subtree), symlink};
+linkpool guard shape {(NONE,NONE), (REMOVED,ADDED) same pool,
+(NONE,ADDED) mixed, (REMOVED,NONE) mixed}; gen gate {match,
+mismatch, unreadable}; candidate multiplicity {one ADD one DELETE,
+several DELETEs, several ADDs}; near-miss inputs that must NOT
+collapse {swap, rename-with-replacement, ADD-only, DELETE-only};
+side {left, right}; selection tiebreak {prefix, tie}.
+
+Observation mechanism: a third walk-summary dbgmsg line, byte-
+stable from move-collapse on: "rebase: moves left %llu right %llu,
+move-edits left %llu right %llu", scraped by rt_move_stats(). M
+tests assert the full ten-tuple (the D six-tuple plus the four
+move counters) via moves_finish(); changelist counts are post-
+collapse, so every collapse is visible twice (a move counted, a
+record gone). Counters prove that and how many collapses happened
+and their MOVE/MOVE_EDIT split; they cannot prove WHICH DELETE a
+promotion consumed (the surviving records' paths and rc_old_path
+are invisible until emit) -- those rows are deferred to emit, the
+same rule that deferred D20-D23 to their consumers. Hysteria
+counters keep their walk-time semantics: the collapse's content
+gate reuses the tiers but never increments them. Fixtures edit the
+LEFT side unless the row says otherwise, and hand-compute side
+effects exactly like the D tuples (unchanged both-present paths
+count as hysterical on their side).
+
+Unrepresentable combinations, so their absence is explained and
+not a hole: (1) mixed guard eligibility WITHIN one run -- every
+DELETE in a run derives its linkpool op from the base pool state
+of the run's one dnode and every ADD from the side pool state, so
+all DELETEs agree and all ADDs agree; the guard is written
+per-pair for robustness but degenerates to run-level. (2) MOVED
+ops on pair candidates -- MOVED needs the path present on both
+sides, ADD needs base absent, DELETE needs side absent. (3) A
+linkpool-only record as a pair candidate -- content NONE is
+neither ADD nor DELETE; such records ride in runs untouched (M6's
+fixture has the mate path present as a non-record; severed-mate
+linkpool-only records always carry a different rc_obj than the
+severed path's new dnode).
+
+| Cell | Scenario | Expect | Disposition |
+|------|----------|--------|-------------|
+| M1  | pure standalone rename (fast-path content gate: helper rename leaves the dnode clean) | left: 1 MOVE, changelists 1/0 -- D6's flip and D20's rc_obj witness | covered: test_moves_pure_rename |
+| M2  | rename + content edit | left: 1 MOVE_EDIT, moves 0, move-edits 1 | covered: test_moves_move_edit |
+| M3  | rename + timestamp touch (dnode dirtied, content identical) | MOVE, not MOVE_EDIT: the content gate runs the full tiers past the failed fast path, and timestamps are excluded from identity | covered: test_moves_rename_touched |
+| M4  | cross-directory move | 1 MOVE (path scoping holds across parents) | covered: test_moves_cross_dir |
+| M5  | directory rename with one child | left: 2 MOVEs (the dir and the child collapse independently; per-descendant records are the contract, dedup belongs to the apply compiler) | covered: test_moves_dir_rename |
+| M6  | member-path rename, (REMOVED(from=N), ADDED(to=N)) guard shape | 1 MOVE; the mate path yields no record; refcount neutral | covered: test_moves_member_rename |
+| M7  | guard mixed (NONE, ADDED): rename + new hardlink onto the dnode in the rename window | NO collapse: 3 records survive (DELETE + 2 ADD), moves 0 | covered: test_moves_guard_added |
+| M8  | guard mixed (REMOVED, NONE): member rename while the pool dissolves (mate unlinked) | NO collapse: 3 records survive, moves 0 -- the conservative documented case; the rename is deliberately not detected | covered: test_moves_guard_dissolved |
+| M9  | gen mismatch (ZPL_GEN flipped on the side's dnode) | NO collapse: recycled lineage, 2 records survive, moves 0 -- never MOVE_EDIT | covered: test_moves_gen_mismatch |
+| M10 | gen unreadable at collapse time (ZPL_GEN removed; a rename's records never read gen during classification, so collapse is the FIRST reader) | EIO aborts the rebase | covered: test_moves_gen_missing |
+| M11 | several eligible DELETE candidates (pool of 3: one member renamed, another unlinked) | 1 MOVE + 1 surviving DELETE (changelists 2); collapse count proves one pair formed | covered: test_moves_two_delete_candidates |
+| M12 | several ADDs drain several DELETEs (both members of a pair renamed) | 2 MOVEs, changelists 2/0 | covered: test_moves_both_members_renamed |
+| M13 | side independence: both sides rename the same file (differently) | 1 MOVE each side, changelists 1/1, moves 1/1 -- the counter-level half of the future MOVE_DIVERGE fixture | covered: test_moves_both_sides |
+| M14 | swap two files (three renames, net obj exchange at two paths) | 0 moves: two EDIT records (path-scoped content ops; no ADD/DELETE exists to pair). v1 limit, documented | covered: test_moves_swap |
+| M15 | rename + new file created at the old path | 0 moves: EDIT at the old path (different dnode) + surviving ADD at the new (its run has no DELETE). v1 limit, documented | covered: test_moves_replaced_source |
+| M16 | no spurious moves | ADD-only and DELETE-only runs never collapse; every D fixture's moves line is all zeros | existing: diff_finish() asserts zero moves across all 19 D tests (D4/D5 are the pure ADD-only/DELETE-only cells) |
+| M17 | symlink rename | 1 MOVE (var-attr identity through the collapse content gate) | covered: test_moves_symlink_rename |
+| M18 | prefix tiebreak selection VALUE (in-dir source wins over a distant candidate; equal prefixes keep sort order) | which DELETE was consumed / rc_old_path | deferred: invisible in counts (M11 proves the collapse, not the choice); emit's manifest exposes rc_old_path and takes these over |

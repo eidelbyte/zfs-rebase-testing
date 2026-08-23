@@ -20,16 +20,20 @@
 
 /*
  * Sync, run the rebase (expecting the ENOSYS success sentinel),
- * scrape both summary lines, tear the pool down, and compare all
- * six counters. Returns 0 on match; prints the mismatch and
- * returns nonzero otherwise.
+ * scrape all three summary lines, tear the pool down, and compare
+ * the full ten-tuple: the six D counters plus the four
+ * move-collapse counters. Returns 0 on match; prints the mismatch
+ * and returns nonzero otherwise. test_moves.c shares this helper
+ * as moves_finish (declared in rebase_test.h).
  */
-static int
-diff_finish(uint64_t ev, uint64_t ehl, uint64_t ehr, uint64_t elk,
-    uint64_t ecl, uint64_t ecr)
+int
+diff_finish_full(uint64_t ev, uint64_t ehl, uint64_t ehr,
+    uint64_t elk, uint64_t ecl, uint64_t ecr, uint64_t eml,
+    uint64_t emr, uint64_t emel, uint64_t emer)
 {
 	nvlist_t *nvl;
 	rt_walk_stats_t ws;
+	rt_move_stats_t ms;
 	uint64_t cl, cr;
 	int err;
 
@@ -46,6 +50,8 @@ diff_finish(uint64_t ev, uint64_t ehl, uint64_t ehr, uint64_t elk,
 	err = rt_walk_stats(&ws);
 	if (err == 0)
 		err = rt_changelist_counts(&cl, &cr);
+	if (err == 0)
+		err = rt_move_stats(&ms);
 	rt_scaffold_teardown();
 	if (err != 0) {
 		(void) printf("\n    [diff] no summary lines "
@@ -55,22 +61,46 @@ diff_finish(uint64_t ev, uint64_t ehl, uint64_t ehr, uint64_t elk,
 
 	if (ws.rws_visited != ev || ws.rws_hyst_left != ehl ||
 	    ws.rws_hyst_right != ehr || ws.rws_linked != elk ||
-	    cl != ecl || cr != ecr) {
+	    cl != ecl || cr != ecr ||
+	    ms.rms_moves_left != eml || ms.rms_moves_right != emr ||
+	    ms.rms_move_edits_left != emel ||
+	    ms.rms_move_edits_right != emer) {
 		(void) printf("\n    [diff] expected v=%llu hl=%llu "
-		    "hr=%llu lk=%llu cl=%llu cr=%llu,\n"
+		    "hr=%llu lk=%llu cl=%llu cr=%llu\n"
+		    "           ml=%llu mr=%llu mel=%llu mer=%llu,\n"
 		    "           got v=%llu hl=%llu hr=%llu lk=%llu "
-		    "cl=%llu cr=%llu\n",
+		    "cl=%llu cr=%llu\n"
+		    "           ml=%llu mr=%llu mel=%llu mer=%llu\n",
 		    (unsigned long long)ev, (unsigned long long)ehl,
 		    (unsigned long long)ehr, (unsigned long long)elk,
 		    (unsigned long long)ecl, (unsigned long long)ecr,
+		    (unsigned long long)eml, (unsigned long long)emr,
+		    (unsigned long long)emel,
+		    (unsigned long long)emer,
 		    (unsigned long long)ws.rws_visited,
 		    (unsigned long long)ws.rws_hyst_left,
 		    (unsigned long long)ws.rws_hyst_right,
 		    (unsigned long long)ws.rws_linked,
-		    (unsigned long long)cl, (unsigned long long)cr);
+		    (unsigned long long)cl, (unsigned long long)cr,
+		    (unsigned long long)ms.rms_moves_left,
+		    (unsigned long long)ms.rms_moves_right,
+		    (unsigned long long)ms.rms_move_edits_left,
+		    (unsigned long long)ms.rms_move_edits_right);
 		return (1);
 	}
 	return (0);
+}
+
+/*
+ * The D-cell shape: six counters, and the moves line asserted all
+ * zeros -- no D fixture may produce a spurious collapse (cell M16).
+ */
+static int
+diff_finish(uint64_t ev, uint64_t ehl, uint64_t ehr, uint64_t elk,
+    uint64_t ecl, uint64_t ecr)
+{
+	return (diff_finish_full(ev, ehl, ehr, elk, ecl, ecr,
+	    0, 0, 0, 0));
 }
 
 /*
@@ -184,18 +214,20 @@ test_diff_delete(void)
 }
 
 /*
- * D6: a plain rename is two records today -- DELETE at the old
- * path plus ADD at the new, matched later by object number. When
- * move-collapse lands they become one MOVE record and this
- * expectation changes with the D6 matrix row.
+ * D6: a plain rename never survives as a DELETE+ADD split -- the
+ * pair collapses to one MOVE record (re-dispositioned 2026-08-23
+ * when move-collapse landed, as the original row promised; the
+ * collapse mechanics themselves are M1's cell). The changelist
+ * count is post-collapse, so cl drops from 2 to 1 and the moves
+ * line shows the one pure MOVE.
  */
 static int
-test_diff_rename_two_records(void)
+test_diff_rename_collapses(void)
 {
 	rt_ds_t d;
 	int err;
 
-	TEST_START("D6: rename = DELETE+ADD (pre-collapse)");
+	TEST_START("D6: rename collapses to one MOVE");
 	RT_CHECK(rt_scaffold_basic(), "scaffold failed");
 
 	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
@@ -204,7 +236,7 @@ test_diff_rename_two_records(void)
 	rt_close(&d);
 	RT_CHECK(err, "rename");
 
-	if (diff_finish(4, 2, 3, 0, 2, 0))
+	if (diff_finish_full(4, 2, 3, 0, 1, 0, 1, 0, 0, 0))
 		TEST_FAIL("tuple mismatch");
 	TEST_PASS();
 }
@@ -672,7 +704,7 @@ run_diff_tests(void)
 	(void) test_diff_hysterical_zero();
 	(void) test_diff_add();
 	(void) test_diff_delete();
-	(void) test_diff_rename_two_records();
+	(void) test_diff_rename_collapses();
 	(void) test_diff_recreate_one_record();
 	(void) test_diff_dir_chmod();
 	(void) test_diff_dir_entries();

@@ -236,12 +236,23 @@ typedef struct rt_walk_stats {
 	uint64_t	rws_linked;
 } rt_walk_stats_t;
 
+typedef struct rt_move_stats {
+	uint64_t	rms_moves_left;
+	uint64_t	rms_moves_right;
+	uint64_t	rms_move_edits_left;
+	uint64_t	rms_move_edits_right;
+} rt_move_stats_t;
+
 int rt_open(const char *dsname, rt_ds_t *ds);
 void rt_close(rt_ds_t *ds);
 void rt_sync_pool(void);
 int rt_run_rebase(nvlist_t **nvlp);
 int rt_walk_stats(rt_walk_stats_t *ws);
 int rt_changelist_counts(uint64_t *leftp, uint64_t *rightp);
+int rt_move_stats(rt_move_stats_t *ms);
+int diff_finish_full(uint64_t ev, uint64_t ehl, uint64_t ehr,
+    uint64_t elk, uint64_t ecl, uint64_t ecr, uint64_t eml,
+    uint64_t emr, uint64_t emel, uint64_t emer);
 uint64_t rt_manifest_nconflicts(nvlist_t *nvl);
 uint64_t rt_manifest_left_nchanges(nvlist_t *nvl);
 uint64_t rt_manifest_right_nchanges(nvlist_t *nvl);

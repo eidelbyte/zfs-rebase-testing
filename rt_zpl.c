@@ -978,11 +978,21 @@ int
 rt_rename_file(objset_t *os, uint64_t src_dir, const char *old_name,
     uint64_t dst_dir, const char *new_name)
 {
-	uint64_t obj;
+	uint64_t dirent;
 	dmu_tx_t *tx;
 	int err;
 
-	err = rt_dir_lookup(os, src_dir, old_name, &obj);
+	/*
+	 * Carry the raw dirent value over so the type nibble stays
+	 * whatever the entry already was -- this renames dirs,
+	 * symlinks, and devices as faithfully as files. Like a real
+	 * ZPL rename at the namespace level; deliberately does NOT
+	 * touch the renamed object's own dnode (no ctime), so a
+	 * renamed-but-unedited object stays fast-path clean for the
+	 * engine's untouched-since-fork check. Use rt_touch() when a
+	 * fixture wants the dnode dirtied.
+	 */
+	err = zap_lookup(os, src_dir, old_name, 8, 1, &dirent);
 	if (err != 0)
 		return (err);
 
@@ -996,11 +1006,7 @@ rt_rename_file(objset_t *os, uint64_t src_dir, const char *old_name,
 	}
 
 	VERIFY0(zap_remove(os, src_dir, old_name, tx));
-	{
-		uint64_t dirent = ZFS_DIRENT_MAKE(IFTODT(S_IFREG), obj);
-		VERIFY0(zap_add(os, dst_dir, new_name, 8, 1,
-		    &dirent, tx));
-	}
+	VERIFY0(zap_add(os, dst_dir, new_name, 8, 1, &dirent, tx));
 	dmu_tx_commit(tx);
 	return (0);
 }

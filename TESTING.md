@@ -18,11 +18,11 @@ filesystem.
 | `test_walk.c` | walk matrix: union iteration, recursion, faults (9 tests) |
 | `test_hysteria.c` | hysteria matrix via walk-stats counters (30 tests) + crossref-era suppression (7 tests) |
 | `test_diff.c` | standalone-diff matrix: two-axis records via changelist counts (19 tests) |
-| `test_moves.c` | rename detection and move conflicts (12 tests) |
+| `test_moves.c` | move-collapse matrix via move-stats counters (16 tests) + crossref-era move conflicts (10 tests) |
 | `test_linkpool.c` | linkpool discovery/membership/verify matrix + crossref-era hardlink cases (10 tests) |
 | `test_crossref.c` | conflict types, benign cases, clean merges (11 tests) |
 
-123 tests total. Section names double as command-line arguments (see
+137 tests total. Section names double as command-line arguments (see
 Running below).
 
 Tests are planned by problem-space matrix: see `TEST-MATRIX.md` for
@@ -112,16 +112,18 @@ A full run against a finished engine ends with:
 
 ```
 =====================
-Results: 123/123 passed
+Results: 137/137 passed
 ```
 
 Against the current v2 branch (engine built through
-hysterical-detect), the sections meaningful today are `basic`
+move-collapse), the sections meaningful today are `basic`
 (ENOSYS-sentinel tests), `setup`, `walk`, the matrix half of
 `linkpool`, the H-matrix half of `hysteria` (asserted through the
-walk-summary dbgmsg counters via `rt_walk_stats()`), and `diff`
-(the D matrix, asserted through the changelist counts line via
-`rt_changelist_counts()`); tests that
+walk-summary dbgmsg counters via `rt_walk_stats()`), `diff` (the D
+matrix, asserted through the changelist counts line via
+`rt_changelist_counts()` -- post-collapse counts since
+move-collapse landed), and the M-matrix half of `moves` (asserted
+through the moves line via `rt_move_stats()`); tests that
 inspect the conflict manifest fail cleanly (the accessors return
 sentinels instead of aborting) until the emit issues land.
 
@@ -193,13 +195,16 @@ The harness uses `libzpool` to run ZFS kernel code in userspace
 
 The `setup`, `walk`, and matrix-`linkpool` sections target the
 sprint-2 engine and are green from zap-walk-basic onward; the
-H-matrix `hysteria` tests are green from hysterical-detect onward.
-The crossref-era tail of `hysteria` plus the `moves` and `crossref`
-sections still assert sprint-1 manifest behavior; the sprint-2
-rewrite (two-axis change records, linkpool tables; see
-`sprints/sprint-2/diff-engine-rewrite-full.md`) keeps those manifest
-shapes for standalone paths, and each section gets re-plotted into
-its own matrix as the corresponding engine phase lands. The 14-test catalog (sever-vs-nothing, phantom-conflict
+H-matrix `hysteria` tests are green from hysterical-detect onward;
+the D-matrix `diff` tests from standalone-diff onward; and the
+M-matrix half of `moves` from move-collapse onward. The
+crossref-era tail of `hysteria` plus the manifest halves of
+`moves` and `crossref` still assert sprint-1 manifest behavior;
+the sprint-2 rewrite (two-axis change records, linkpool tables;
+see `sprints/sprint-2/diff-engine-rewrite-full.md`) keeps those
+manifest shapes for standalone paths, and each remaining section
+gets re-plotted into its own matrix as the corresponding engine
+phase lands. The 14-test catalog (sever-vs-nothing, phantom-conflict
 dissolution, index recycling, novel overlap, warnings) arrives with
 the testing-framework issue. The ZPL helpers maintain real link
 semantics: `rt_add_hardlink` bumps ZPL_LINKS, `rt_remove_entry` and
