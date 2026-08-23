@@ -1085,6 +1085,44 @@ test_hysteria_gen_missing(void)
 }
 
 /*
+ * H36: an unparseable ZPL_DXATTR blob is corrupt on-disk input and
+ * must surface as EIO, never as the unpacker's EINVAL (which reads
+ * as "bad arguments" at the ioctl boundary). Found 2026-08-23 by
+ * the membership-merge fault-cell plotting; fixed into
+ * hysterical-detect. The garbage write dirties the dnode, so the
+ * content tiers run: gen holds, identity holds, and the xattr
+ * stage hits the corrupt blob.
+ */
+static int
+test_hysteria_dxattr_corrupt(void)
+{
+	static const uchar_t garbage[] = {
+		0xde, 0xad, 0xbe, 0xef, 0xba, 0xdd, 0xca, 0xfe
+	};
+	rt_ds_t d;
+	uint64_t obj;
+	nvlist_t *nvl;
+	int err;
+
+	TEST_START("H36: corrupt DXATTR blob is EIO, not EINVAL");
+	RT_CHECK(rt_scaffold_basic(), "scaffold failed");
+
+	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	err = rt_dir_lookup(d.rtd_os, d.rtd_root, "hello", &obj);
+	if (err == 0)
+		err = rt_set_sa_blob(d.rtd_os, obj, ZPL_DXATTR,
+		    garbage, sizeof (garbage));
+	rt_close(&d);
+	RT_CHECK(err, "write garbage blob");
+
+	rt_sync_pool();
+	err = rt_run_rebase(&nvl);
+	rt_scaffold_teardown();
+	TEST_EXPECT(err == EIO, "expected EIO");
+	TEST_PASS();
+}
+
+/*
  * H35: side symmetry -- H11's fixture (same-length different
  * rewrite) built on the RIGHT. Only the right counter may move.
  */
@@ -1418,6 +1456,7 @@ run_hysteria_tests(void)
 	(void) test_hysteria_type_flip();
 	(void) test_hysteria_linkpool_axis();
 	(void) test_hysteria_gen_missing();
+	(void) test_hysteria_dxattr_corrupt();
 	(void) test_hysteria_right_side();
 
 	(void) printf("\n[hysteria: crossref-era suppression, "

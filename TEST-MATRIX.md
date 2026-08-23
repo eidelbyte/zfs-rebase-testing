@@ -20,11 +20,11 @@ header points back to its matrix section.
 
 Matrices so far: setup (S), walk (W), linkpool (LP/LV), hysteria (H),
 standalone-diff (D), move-collapse (M), linkpool-anchor (A
-classification/rescue, T membership targets). The remaining crossref
-phases get theirs as the v2 engine reaches them (test_moves.c's
-manifest-based tests and test_crossref.c predate the methodology and
-assert sprint-1 behavior; they will be re-plotted when those engine
-issues land).
+classification/rescue, T membership targets), membership-merge (U
+unification, R resolution). The remaining crossref phases get theirs
+as the v2 engine reaches them (test_moves.c's manifest-based tests
+and test_crossref.c predate the methodology and assert sprint-1
+behavior; they will be re-plotted when those engine issues land).
 
 ## Setup matrix (S) -- discovery, preconditions, fence-posts
 
@@ -184,6 +184,7 @@ ASSERTs in debug builds; all are safe on either libzpool.
 | H33 | ZPL_GEN missing from a compared object | EIO | covered: test_hysteria_gen_missing (sa_remove works in libzpool; rt_remove_sa_attr) |
 | H34 | symlink target flips SA-resident vs data-resident, same target | classified EDIT | BY DESIGN (conservative): logical-vs-representational unpacking is implemented for xattrs only; a false EDIT is safe, a false hysterical is not. Documented in the hysterical-detect worklog |
 | H35 | side symmetry: H11's fixture (same-length differing rewrite) built on the RIGHT side | only the right counter moves | covered: test_hysteria_right_side (H8's all-hysterical fixture could not distinguish the counters, so the cell pivoted to H11's) |
+| H36 | corrupt (unparseable) ZPL_DXATTR blob on a compared object | EIO, never the unpacker's EINVAL -- corrupt on-disk input classed correctly at the ioctl boundary (found 2026-08-23 by U9's plotting; fixed into hysterical-detect by chain rewrite) | covered: test_hysteria_dxattr_corrupt |
 
 ## Standalone-diff matrix (D) -- two-axis change records
 
@@ -370,3 +371,83 @@ EIO conversion boundary it would cross is A9's.
 | T7  | FRAGMENT targets | fragment members, including post-split joins | existing: A6, A7 |
 | T8  | row-count consistency: each side's target tallies sum to the row count | structural | existing: ab_finish() checks left sum == right sum on every test |
 | T9  | dual-sided row: left deletes the path, right severs it | one row, GONE vs STANDALONE; the dissolved pool's mate STANDALONE on both sides; zero pools remain anywhere | covered: test_target_both_sides |
+
+## Membership-merge matrix (U unification, R resolution)
+
+Dimensions, phase C (U): pool kind pairing {fragment-fragment same
+parent, fragment-fragment cross-parent, novel-novel, recycled as
+novel}; roster relation {partial overlap, zero overlap}; data
+relation for novels {identical, different}; chain shape {simple
+pair, three pools bridged through one}; data-compare fault. 
+Dimensions, phase D (R): the merge table's rows {agreement, lone
+expression wins, GONE vs STANDALONE (policy), GONE vs linkpool
+destination, contradictory destinations incl. fragment-vs-anchor},
+the dead-pool sweep {dead+edited, dead+silent, conflicted member
+keeps alive, joins keep alive, sever-vs-edit orthogonality}, and
+manifest dedup {same-type alt-path merge}.
+
+Observation mechanism: two new byte-stable lines -- "rebase:
+finals same %llu gone %llu standalone %llu anchor %llu fragment
+%llu novel %llu conflict %llu" (rt_final_stats(); the conflict
+bucket counts rows left undecided) and "rebase: conflicts total
+%llu relink %llu divergent %llu overlap %llu content %llu"
+(rt_conflict_stats(); post-dedup record counts). U/R tests assert
+a 12-value expectation via mm_finish(), which also scrapes the
+targets lines to check sum(finals buckets) == row count
+structurally on every test. Earlier-phase counters are owned by
+their own sections (the A/T rationale).
+
+What the tallies can and cannot see, recorded so the deferrals
+are honest: UNIFICATION IS VISIBLE THROUGH THE CONFLICT BUCKET --
+an un-unified shared row is either skipped (both-NOVEL) or
+divergent (fragments), so zero conflicts on an overlapping fixture
+proves the ids merged. Zero-overlap DISTINCTNESS is invisible
+(separate groups tally identically to one), so U2/U6 pin the
+no-conflict outcome and defer id distinctness to emit's group
+exposure. Policy arms other than NONE are unreachable until the
+ioctl plumbs flags (R14).
+
+The U9 fault fixture uses a malformed ZPL_DXATTR blob, not a
+missing ZPL_SIZE: a missing identity attribute reads as
+"different" in the SA tier (present-vs-absent is an answer, not
+an error), which would resolve as an overlap conflict instead of
+failing -- only the xattr unpack stage turns corruption into EIO
+before the size read. (Plotting this cell found the unpack error
+leaking as EINVAL -- fixed into hysterical-detect via chain
+rewrite; H36 pins the walk-path variant.)
+
+Unrepresentable, so its absence is explained: OVERLAPPING
+FRAGMENTS OF DIFFERENT PARENTS. A fragment claiming another
+parent's base path always sees that path's MOVED provenance from
+the other parent, so the rescue either agrees on one parent or
+declines to NOVEL on two -- cross-parent FRAGMENT-vs-FRAGMENT can
+never meet in a row. U3 covers the realizable neighbor: FRAGMENT
+against the NOVEL pool that a two-parent decline produces.
+
+| Cell | Scenario | Expect | Disposition |
+|------|----------|--------|-------------|
+| U1  | fragments of one parent, partial overlap (the doc's {B,C}/{C,D} worked example) | unified: roster {B,C,D} all FRAGMENT finals, zero conflicts (un-unified would put the shared row in divergent) | covered: test_merge_fragment_overlap |
+| U2  | fragments of one parent, ZERO overlap | stay separate (rule 5): all members FRAGMENT finals, zero conflicts; id distinctness deferred to emit | covered: test_merge_fragment_disjoint |
+| U3  | fragment meets the two-parent decline: left fragments {c,d} out of P1, right builds a pool from P1's c plus P2's y (declined to NOVEL) | the shared row is FRAGMENT vs NOVEL = DIVERGENT_MEMBERSHIP; the decline itself is A8's cell | covered: test_merge_fragment_vs_novel |
+| U4  | novel pools, overlap, identical data | unified: all NOVEL finals, zero conflicts (un-unified would leave shared rows undecided) | covered: test_merge_novel_unified |
+| U5  | novel pools, overlap, different data | NOVEL_LINKPOOL_OVERLAP scoped to exactly the overlapping paths; those rows stay undecided, the rest resolve NOVEL | covered: test_merge_novel_overlap_conflict |
+| U6  | novel pools, zero overlap, identical data | stay separate (rule 5): NOVEL finals, zero conflicts; distinctness deferred to emit | covered: test_merge_novel_disjoint |
+| U7  | chained unification: two left pools bridged by one right pool | one group, zero conflicts (a broken chain leaves the bridge rows undecided) | covered: test_merge_novel_chain |
+| U8  | both sides recycled the same pool identically | RECYCLED pools enter the heuristic and unify: NOVEL finals, zero conflicts | covered: test_merge_recycled_unified |
+| U9  | data compare fault (malformed DXATTR on the right pool dnode; phase C is its first reader) | EIO | covered: test_merge_data_fault |
+| R1  | THE ACCEPTANCE CASE: base {A,B,C}, left severs A, right idle | A STANDALONE, survivors SAME, zero conflicts, no resurrection | covered: test_merge_sever_acceptance |
+| R2  | agreement: both sides sever the same path | STANDALONE, zero conflicts | covered: test_merge_sever_agreement |
+| R3  | lone GONE wins on a pooled member | final GONE, zero conflicts | covered: test_merge_lone_gone |
+| R4  | GONE vs STANDALONE under POLICY_NONE | DELETE_VS_RELINK, row undecided | covered: test_merge_gone_vs_standalone |
+| R5  | GONE vs ANCHOR (delete vs join) | DELETE_VS_RELINK | covered: test_merge_gone_vs_anchor |
+| R6  | divergent joins: left relinks into P1, right into P2 | DIVERGENT_MEMBERSHIP, row undecided | covered: test_merge_divergent_joins |
+| R7  | FRAGMENT vs ANCHOR(other pool) on one path | DIVERGENT_MEMBERSHIP; the conflicted row keeps the parent alive (no content conflict compounding) | covered: test_merge_fragment_vs_anchor |
+| R8  | dead pool, other side edited: left unlinks all members, right edits content | ONE LINKPOOL_CONTENT record with the member list as alt paths; per-path rows resolve GONE cleanly | covered: test_merge_dead_pool_edited |
+| R9  | dead pool, other side silent | zero conflicts (control for R8) | covered: test_merge_dead_pool_silent |
+| R10 | conflicted member keeps the pool alive | left unlinks all, right severs one + edits: only the DELETE_VS_RELINK fires, never LINKPOOL_CONTENT | covered: test_merge_conflicted_keeps_alive |
+| R11 | joins keep the pool alive (link churn at finals level) | old name GONE, new names ANCHOR, right edit does NOT fire LINKPOOL_CONTENT | covered: test_merge_churn_alive |
+| R12 | sever vs content edit are orthogonal intents | left severs A, right edits pool: A STANDALONE, zero conflicts (the SHRUNK warning is phase F's, not a conflict) | covered: test_merge_sever_vs_edit |
+| R13 | GONE vs FRAGMENT | DELETE_VS_RELINK keyed by the fragment id | covered: test_merge_gone_vs_fragment |
+| R14 | policy arms LEFT/RIGHT/BASE/NEITHER for the R4 tie | silent resolution per flag | deferred: rs_policy is always NONE until libzfs-rebase/cli-rebase plumb flags; the arms are implemented and this cell unblocks then |
+| R15 | standalone-only run resolves trivially | finals land in same/gone buckets, zero conflicts, sum invariant holds with no pools anywhere | covered: test_merge_standalone_trivial |
+| R16 | manifest dedup: two same-type conflicts on one destination | left deletes two members, right relinks both into one pool: ONE DELETE_VS_RELINK record, second path in alt_paths | covered: test_merge_dedup_alt_paths |

@@ -296,6 +296,57 @@ rt_target_stats(rt_target_stats_t *ts)
 }
 
 /*
+ * Scrape the membership-merge finals and conflict tallies (phase
+ * C/D observables; see the U/R matrix preamble).
+ */
+int
+rt_final_stats(rt_final_stats_t *fs)
+{
+	char line[512];
+	unsigned long long sm, g, st, a, f, n, c;
+	int err;
+
+	err = rt_dbgmsg_last("rebase: finals", line, sizeof (line));
+	if (err != 0)
+		return (err);
+	if (sscanf(line, "rebase: finals same %llu gone %llu "
+	    "standalone %llu anchor %llu fragment %llu novel %llu "
+	    "conflict %llu", &sm, &g, &st, &a, &f, &n, &c) != 7)
+		return (ENOENT);
+	fs->rfs_kind[0] = sm;
+	fs->rfs_kind[1] = g;
+	fs->rfs_kind[2] = st;
+	fs->rfs_kind[3] = a;
+	fs->rfs_kind[4] = f;
+	fs->rfs_kind[5] = n;
+	fs->rfs_kind[6] = c;
+	return (0);
+}
+
+int
+rt_conflict_stats(rt_conflict_stats_t *cs)
+{
+	char line[512];
+	unsigned long long t, r, d, o, c;
+	int err;
+
+	err = rt_dbgmsg_last("rebase: conflicts", line,
+	    sizeof (line));
+	if (err != 0)
+		return (err);
+	if (sscanf(line, "rebase: conflicts total %llu relink %llu "
+	    "divergent %llu overlap %llu content %llu",
+	    &t, &r, &d, &o, &c) != 5)
+		return (ENOENT);
+	cs->rcs_total = t;
+	cs->rcs_relink = r;
+	cs->rcs_divergent = d;
+	cs->rcs_overlap = o;
+	cs->rcs_content = c;
+	return (0);
+}
+
+/*
  * Manifest accessors are defensive: a missing key returns
  * UINT64_MAX instead of aborting the harness, so a test asserting
  * against an engine that does not emit that key yet FAILs cleanly

@@ -253,6 +253,18 @@ typedef struct rt_target_stats {
 	uint64_t	rts_right[6];
 } rt_target_stats_t;
 
+typedef struct rt_final_stats {
+	uint64_t	rfs_kind[7];
+} rt_final_stats_t;
+
+typedef struct rt_conflict_stats {
+	uint64_t	rcs_total;
+	uint64_t	rcs_relink;
+	uint64_t	rcs_divergent;
+	uint64_t	rcs_overlap;
+	uint64_t	rcs_content;
+} rt_conflict_stats_t;
+
 int rt_open(const char *dsname, rt_ds_t *ds);
 void rt_close(rt_ds_t *ds);
 void rt_sync_pool(void);
@@ -262,6 +274,8 @@ int rt_changelist_counts(uint64_t *leftp, uint64_t *rightp);
 int rt_move_stats(rt_move_stats_t *ms);
 int rt_anchor_stats(rt_anchor_stats_t *as);
 int rt_target_stats(rt_target_stats_t *ts);
+int rt_final_stats(rt_final_stats_t *fs);
+int rt_conflict_stats(rt_conflict_stats_t *cs);
 int diff_finish_full(uint64_t ev, uint64_t ehl, uint64_t ehr,
     uint64_t elk, uint64_t ecl, uint64_t ecr, uint64_t eml,
     uint64_t emr, uint64_t emel, uint64_t emer);
@@ -326,6 +340,7 @@ void run_hysteria_tests(void);
 void run_diff_tests(void);
 void run_moves_tests(void);
 void run_anchor_tests(void);
+void run_merge_tests(void);
 void run_linkpool_tests(void);
 void run_crossref_tests(void);
 

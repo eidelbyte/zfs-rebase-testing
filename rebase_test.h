@@ -179,6 +179,25 @@ typedef struct rt_target_stats {
 	uint64_t	rts_right[6];
 } rt_target_stats_t;
 
+/*
+ * Cross-reference phase C/D counters scraped from the engine's
+ * merge summary lines. Finals order matches the dbgmsg text (same,
+ * gone, standalone, anchor, fragment, novel, conflict -- the last
+ * counts rows left undecided). See the membership-merge (U/R)
+ * matrix preamble.
+ */
+typedef struct rt_final_stats {
+	uint64_t	rfs_kind[7];
+} rt_final_stats_t;
+
+typedef struct rt_conflict_stats {
+	uint64_t	rcs_total;
+	uint64_t	rcs_relink;
+	uint64_t	rcs_divergent;
+	uint64_t	rcs_overlap;
+	uint64_t	rcs_content;
+} rt_conflict_stats_t;
+
 /* rt_harness.c */
 int rt_open(const char *dsname, rt_ds_t *ds);
 void rt_close(rt_ds_t *ds);
@@ -189,6 +208,8 @@ int rt_changelist_counts(uint64_t *leftp, uint64_t *rightp);
 int rt_move_stats(rt_move_stats_t *ms);
 int rt_anchor_stats(rt_anchor_stats_t *as);
 int rt_target_stats(rt_target_stats_t *ts);
+int rt_final_stats(rt_final_stats_t *fs);
+int rt_conflict_stats(rt_conflict_stats_t *cs);
 
 /*
  * test_diff.c -- the shared ten-tuple finisher (D six-tuple plus
@@ -263,6 +284,7 @@ void run_hysteria_tests(void);
 void run_diff_tests(void);
 void run_moves_tests(void);
 void run_anchor_tests(void);
+void run_merge_tests(void);
 void run_linkpool_tests(void);
 void run_crossref_tests(void);
 

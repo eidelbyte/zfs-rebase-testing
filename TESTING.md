@@ -16,14 +16,15 @@ filesystem.
 | `test_basic.c` | single-side standalone changes, error cases (13 tests) |
 | `test_setup.c` | setup matrix: discovery, preconditions, fences (12 tests) |
 | `test_walk.c` | walk matrix: union iteration, recursion, faults (9 tests) |
-| `test_hysteria.c` | hysteria matrix via walk-stats counters (30 tests) + crossref-era suppression (7 tests) |
+| `test_hysteria.c` | hysteria matrix via walk-stats counters (31 tests) + crossref-era suppression (7 tests) |
 | `test_diff.c` | standalone-diff matrix: two-axis records via changelist counts (19 tests) |
 | `test_moves.c` | move-collapse matrix via move-stats counters (16 tests) + crossref-era move conflicts (10 tests) |
 | `test_anchor.c` | linkpool-anchor matrix (crossref phases A+B) via anchor/target tallies (17 tests) |
+| `test_merge.c` | membership-merge matrix (crossref phases C+D) via finals/conflicts tallies (24 tests) |
 | `test_linkpool.c` | linkpool discovery/membership/verify matrix + crossref-era hardlink cases (10 tests) |
 | `test_crossref.c` | conflict types, benign cases, clean merges (11 tests) |
 
-154 tests total. Section names double as command-line arguments (see
+179 tests total. Section names double as command-line arguments (see
 Running below).
 
 Tests are planned by problem-space matrix: see `TEST-MATRIX.md` for
@@ -107,27 +108,29 @@ opens `/dev/zfs`).  Each test creates a pool on a file vdev at
 `/tmp/rtest_vdev`, runs the test, and destroys the pool.
 
 Sections: `basic`, `setup`, `walk`, `hysteria`, `diff`, `moves`,
-`anchor`, `linkpool`, `crossref`.
+`anchor`, `merge`, `linkpool`, `crossref`.
 
 A full run against a finished engine ends with:
 
 ```
 =====================
-Results: 154/154 passed
+Results: 179/179 passed
 ```
 
 Against the current v2 branch (engine built through
-linkpool-anchor), the sections meaningful today are `basic`
+membership-merge), the sections meaningful today are `basic`
 (ENOSYS-sentinel tests), `setup`, `walk`, the matrix half of
 `linkpool`, the H-matrix half of `hysteria` (asserted through the
 walk-summary dbgmsg counters via `rt_walk_stats()`), `diff` (the D
 matrix, asserted through the changelist counts line via
 `rt_changelist_counts()` -- post-collapse counts since
 move-collapse landed), the M-matrix half of `moves` (asserted
-through the moves line via `rt_move_stats()`), and `anchor` (the
+through the moves line via `rt_move_stats()`), `anchor` (the
 A/T matrix for crossref phases A+B, asserted through the four
 per-branch tally lines via `rt_anchor_stats()` /
-`rt_target_stats()`); tests that
+`rt_target_stats()`), and `merge` (the U/R matrix for crossref
+phases C+D, asserted through the finals and conflicts lines via
+`rt_final_stats()` / `rt_conflict_stats()`); tests that
 inspect the conflict manifest fail cleanly (the accessors return
 sentinels instead of aborting) until the emit issues land.
 
@@ -201,8 +204,9 @@ The `setup`, `walk`, and matrix-`linkpool` sections target the
 sprint-2 engine and are green from zap-walk-basic onward; the
 H-matrix `hysteria` tests are green from hysterical-detect onward;
 the D-matrix `diff` tests from standalone-diff onward; the
-M-matrix half of `moves` from move-collapse onward; and the
-`anchor` section from linkpool-anchor onward. The
+M-matrix half of `moves` from move-collapse onward; the `anchor`
+section from linkpool-anchor onward; and the `merge` section from
+membership-merge onward. The
 crossref-era tail of `hysteria` plus the manifest halves of
 `moves` and `crossref` still assert sprint-1 manifest behavior;
 the sprint-2 rewrite (two-axis change records, linkpool tables;
