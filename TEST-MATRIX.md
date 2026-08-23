@@ -18,7 +18,7 @@ a bug must have nowhere to hide. When a new engine phase lands, its
 matrix is added here BEFORE its tests are written, and each test file's
 header points back to its matrix section.
 
-Matrices so far: setup (S), walk (W), linkpool (LP/LV), hysteria (H).
+Matrices so far: setup (S), walk (W), linkpool (LP/LV), hysteria (H), standalone-diff (D).
 Moves and crossref phases get theirs as the v2 engine reaches them
 (their current sections predate the methodology and assert sprint-1
 behavior; they will be re-plotted when those engine issues land).
@@ -181,3 +181,58 @@ ASSERTs in debug builds; all are safe on either libzpool.
 | H33 | ZPL_GEN missing from a compared object | EIO | covered: test_hysteria_gen_missing (sa_remove works in libzpool; rt_remove_sa_attr) |
 | H34 | symlink target flips SA-resident vs data-resident, same target | classified EDIT | BY DESIGN (conservative): logical-vs-representational unpacking is implemented for xattrs only; a false EDIT is safe, a false hysterical is not. Documented in the hysterical-detect worklog |
 | H35 | side symmetry: H11's fixture (same-length differing rewrite) built on the RIGHT side | only the right counter moves | covered: test_hysteria_right_side (H8's all-hysterical fixture could not distinguish the counters, so the cell pivoted to H11's) |
+
+## Standalone-diff matrix (D) -- two-axis change records
+
+Dimensions: content transition per (base, side) pair {absent->present
+= ADD, present->absent = DELETE, present+identical = NONE (hysteria),
+present+different = EDIT}; linkpool transition {none, join = ADDED,
+leave = REMOVED, same lineage = NONE, moved/recycled = MOVED};
+their legal cross product (ADD implies no base linkpool, DELETE
+implies no side linkpool: 12 legal op pairs plus no-record); object
+kind {file, dir}; side {left, right}; record-field conventions.
+
+Observation mechanism: the walk logs a second dbgmsg line,
+"rebase: changelists left %u right %u". Tests assert the full
+six-tuple (visited, hyst_left, hyst_right, linked, changes_left,
+changes_right) via a planned rt_changelist_counts() companion to
+rt_walk_stats(), with fixtures minimal enough that every expected
+tuple is computable by hand. Counts prove which paths produced or
+suppressed a record -- and with per-cell fixtures that distinguishes
+one-record-vs-two questions like EDIT-vs-DELETE+ADD -- but they
+cannot prove op VALUES, provenance numbers, or field conventions;
+those rows are explicitly deferred to the phases that consume them
+(move-collapse, linkpool-anchor, emit). Fixtures edit the LEFT side
+unless the row says otherwise. Side effects count: removing or
+adding a hardlink touches the mate paths' nlink, so their
+(hysterical, linkpool-only) records are part of each cell's
+expected tuple. Tests land in a new test_diff.c section between
+hysteria and moves.
+
+| Cell | Scenario | Expect | Disposition |
+|------|----------|--------|-------------|
+| D1  | untouched tree | 0 records each side (with H1's hysteria tuple unchanged) | planned: test_diff_untouched |
+| D2  | plain in-place edit | left 1 (EDIT x NONE), right 0 | planned: test_diff_edit |
+| D3  | rename-on-save, content unchanged | 0 records -- not 1 (leaked EDIT) and not 2 (DELETE+ADD split) | planned: test_diff_hysterical_zero |
+| D4  | standalone file added | left 1 (ADD x NONE) | planned: test_diff_add |
+| D5  | standalone file deleted | left 1 (DELETE x NONE) | planned: test_diff_delete |
+| D6  | plain rename | left 2 (DELETE at old path + ADD at new, same obj) -- EXPECTATION CHANGES to one MOVE record when move-collapse lands; this row gets re-dispositioned then | planned: test_diff_rename_two_records |
+| D7  | rename-on-save with NEW content | left 1 -- EDIT at the path, never a DELETE+ADD split (path-scoped content ops) | planned: test_diff_recreate_one_record |
+| D8  | dir chmod | left 1 (the dir's own EDIT record) | planned: test_diff_dir_chmod |
+| D9  | dir with entries-only change | left 1 -- the child's ADD; the dir itself contributes no record (ZPL_SIZE-skip rule at record level) | planned: test_diff_dir_entries |
+| D10 | sever: member path replaced by identical standalone copy | left 2 linkpool-only records (severed path NONE x REMOVED via new obj; surviving mate NONE x REMOVED via nlink drop) -- the record-level retrospective-2 bug 2 regression, upgrading H31's counter-level assert | planned: test_diff_sever_identical |
+| D11 | join: second name hardlinked onto a base standalone file | left 2 (new path ADD x ADDED; old path linkpool-only NONE x ADDED) | planned: test_diff_join |
+| D12 | unlink one of three links | left 1 (DELETE x REMOVED); the two survivors produce nothing (same-lineage NONE x NONE) | planned: test_diff_unlink_survivors |
+| D13 | dissolve a pair to zero links | left 2 (both DELETE x REMOVED) | planned: test_diff_dissolve |
+| D14 | relink a member path into another linkpool, different content | left 2 (moved path EDIT x MOVED; abandoned mate NONE x REMOVED); target pool's paths produce nothing | planned: test_diff_relink_differs |
+| D15 | recycled shared dnode (gen flip on a linkpool's obj) | left 2 (each member path EDIT x MOVED: lineage broke, numerically equal from/to) | planned: test_diff_recycled_pool |
+| D16 | relink into another linkpool with IDENTICAL content | left 2 (moved path linkpool-only NONE x MOVED; abandoned mate NONE x REMOVED) | planned: test_diff_relink_identical |
+| D17 | side symmetry: D2's fixture on the RIGHT | left 0, right 1 | planned: test_diff_right_side |
+| D18 | both sides act on disjoint paths | left 1, right 1, independently | planned: test_diff_both_sides |
+| D19 | side-added subtree containing a hardlink pair | left 3 (dir ADD x NONE; two paths ADD x ADDED) | planned: test_diff_added_subtree |
+| D20 | rc_obj convention: DELETE carries base's obj, ADD the side's | rename halves match by obj | deferred: not visible in counts; move-collapse's rename matching is the direct witness -- its matrix takes this cell over |
+| D21 | rc_linkpool_from/to provenance values | correct pool objs recorded | deferred: linkpool-anchor's split-fragment rescue reads provenance back; asserted there and at emit |
+| D22 | content/linkpool op VALUES as values (EDIT vs ADD identity, ADDED vs MOVED identity) | per-record ops | deferred: counts prove record presence per fixture, not op identity; emit's manifest assertions take these over |
+| D23 | rc_dn_type per record | matches the record's object | deferred: emit exposes records; assert there |
+| D24 | classification error propagation (EIO out of the diff paths) | EIO aborts the rebase | existing: test_hysteria_gen_missing (H33 now flows through rebase_content_diff) |
+| D25 | no-record invariant: NONE x NONE allocates nothing | absence | planned: asserted inside D1 (whole tree) and D12 (linkpool survivors) rather than a separate test |
