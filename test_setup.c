@@ -229,7 +229,7 @@ test_setup_scrub_busy(void)
 	RT_CHECK(spa_open(POOL_NAME, &spa, FTAG), "open spa");
 	perr = ENOENT;
 	for (int try = 0; try < 5 && perr != 0; try++) {
-		err = spa_scan(spa, POOL_SCAN_SCRUB, 0);
+		err = spa_scan(spa, POOL_SCAN_SCRUB);
 		if (err != 0 && err != EBUSY)
 			break;
 		perr = dsl_scrub_set_pause_resume(spa_get_dsl(spa),

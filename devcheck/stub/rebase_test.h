@@ -9,7 +9,12 @@
  * rt_* prototype and TEST macro lives in both, and every libzpool
  * API a harness file calls needs a matching fake here (match the
  * real signature; arity and pointer shape are what this checks).
- * Shapes are fakes; the FreeBSD build remains the authority.
+ * Signatures come from the FREEBSD BOX's /usr/src tree, which is
+ * what the harness actually compiles against -- NOT the local zfs
+ * research checkout when the two vintages drift (spa_scan grew a
+ * flags arg upstream that the box does not have; that skew broke
+ * a build once). Shapes are fakes; the FreeBSD build remains the
+ * authority.
  */
 #ifndef	_REBASE_TEST_H
 #define	_REBASE_TEST_H
@@ -120,7 +125,7 @@ typedef int pool_scrub_cmd_t;
 typedef int pool_scrub_flags_t;
 #define	POOL_SCAN_SCRUB 1
 #define	POOL_SCRUB_PAUSE 1
-int spa_scan(spa_t *, pool_scan_func_t, pool_scrub_flags_t);
+int spa_scan(spa_t *, pool_scan_func_t);
 int dsl_scrub_set_pause_resume(const dsl_pool_t *, pool_scrub_cmd_t);
 #define	ZFS_FUID_TABLES "FUID"
 #define	ZPL_VERSION_SA 5

@@ -37,6 +37,7 @@
 #include <sys/dmu_tx.h>
 #include <sys/dsl_dataset.h>
 #include <sys/dsl_pool.h>
+#include <sys/dsl_scan.h>
 #include <sys/dsl_rebase.h>
 #include <sys/zap.h>
 #include <sys/sa.h>
