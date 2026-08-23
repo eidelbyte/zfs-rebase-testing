@@ -44,7 +44,7 @@ Illegal combinations collapse; the surviving cells:
 | S9  | all three agree on case-insensitive | ENOTSUP | covered: test_setup_case_insensitive_rejected |
 | S10 | all three agree on a normalization | ENOTSUP | covered: test_setup_normalization_rejected |
 | S11 | nonexistent left dataset | ENOENT | covered: test_setup_missing_left |
-| S12 | active scrub/resilver | EBUSY | covered: test_setup_scrub_busy (spa_scan + POOL_SCRUB_PAUSE with a start/pause retry -- a paused scrub still counts as active, and pausing pins the tiny pool's scrub deterministically) |
+| S12 | active scrub/resilver | EBUSY | covered: test_setup_scrub_busy (spa_scan + POOL_SCRUB_PAUSE with a start/pause retry; pausing pins the tiny pool's scrub deterministically). First execution found an engine semantics bug: the check used dsl_scan_active(), which EXCLUDES paused scrubs and INCLUDES background cleanup (async destroys, pending frees) a rebase does not conflict with -- fixed to dsl_scan_scrubbing() || dsl_scan_resilvering(), the scan state machine engaged and nothing else |
 | S13 | encryption mismatch left/right | EACCES | deferred: harness datasets are unencrypted; needs encrypted scaffold |
 | S14 | non-ZPL dataset (zvol) as a side, SHARED lineage | ENOTSUP | covered: test_setup_zvol_side (rt_create_zvol_dataset + rt_clone build a zvol head and its clone so discovery finds a base and the type check fires; an UNRELATED zvol dies earlier with ENOENT in discovery -- the reachable-path analysis that first made this cell precise) |
 | S15 | ZPL version < 5 on a side | ENOTSUP | covered: test_setup_zpl_version_low (rt_set_zplprop on the VERSION master-node key) |
