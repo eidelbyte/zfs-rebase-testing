@@ -346,6 +346,7 @@ void run_moves_tests(void);
 void run_anchor_tests(void);
 void run_merge_tests(void);
 void run_emit_tests(void);
+void run_seam_tests(void);
 void run_linkpool_tests(void);
 void run_crossref_tests(void);
 

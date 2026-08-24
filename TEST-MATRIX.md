@@ -508,3 +508,65 @@ and warning lookups, alt counts, changelist counts).
 | P6  | MOVE family: diverge (both dests), move-vs-edit (dest and obj), move-vs-delete both directions, benign same-dest pairs | | existing: the ten manifest tests in moves' tail |
 | P7  | both-DELETE and clean-merge shapes | zero conflicts | existing: test_benign_both_delete, the two clean tests |
 | P8  | multiple conflicts, one manifest; counts | 3 records; changelist counts serialize | existing: test_edge_multiple_conflicts, test_edge_changelist_counts |
+
+## Cross-domain seam matrix (X) -- the membership/content boundary
+
+Plotted 2026-08-24, BEFORE the fix commit, per the retrospective-4
+lesson: when two referees split a space, the seam itself is a cell
+family. Planning doc: sprints/sprint-2/membership-content-interface.md.
+The leak under test: a row where one side holds a pool destination,
+the other side deferred with SAME_AS_BASE while holding a
+content-bearing record (ADD, EDIT, MOVE, MOVE_EDIT) at the path,
+and that record's dnode is foreign to the destination's lineage.
+The fix is one consultation in merge_row plus widening the
+synthesized GONE row to every collapsed move's old path.
+
+Dimensions: base state at the path {new name, standalone dnode M,
+base pool member (control ground)}; the deferring side's claim
+{none, ADD, in-place EDIT, replace-EDIT, MOVE, MOVE_EDIT}; winning
+destination kind {ANCHOR grown around the claim's own dnode (GROW),
+ANCHOR around a foreign file (REPOINT), NOVEL, FRAGMENT}; data
+relation {different, identical}; polarity {left defers, right
+defers}.
+
+Two rules discovered while walking the code, pinned here so the
+tests hold them: (1) THE BASE-LINEAGE EXEMPTION -- a SAME_AS_BASE
+deferral can also come from the "anchored, matching base" arm on
+base-pool ground, where the claim is a pool-level edit of the base
+lineage that the group merge and dead-pool scan already own; the
+consultation must let a claim whose object IS the path's base
+lineage defer, or the section-5 orthogonality table (edit versus
+relink, SHRUNK warning, no conflict) regresses. X17 exists to
+catch exactly that. (2) NEVER COMPARE NOVEL IDS -- the U5 lockstep
+lesson applied at the seam: a raw cross-side object match is a
+coincidence and a synthetic unified id is not a readable object,
+so the on-lineage test uses only base-rooted identities (ANCHOR
+lineage, FRAGMENT parent) and the data-compare object comes from
+the expressing side's own linkpool table at the path.
+
+Observation mechanism: the manifest (typed conflicts, warnings,
+action counts) plus the mm_finish tuple family -- a consultation
+conflict leaves its row undecided, so it lands in the finals
+conflict bucket and the sum invariant still holds.
+
+| Cell | Scenario | Expect | Disposition |
+|------|----------|--------|-------------|
+| X1  | X-A: left creates plain P (new name); right creates P as a member of a novel two-name pool, different content | CREATE_CREATE keyed by the destination, row undecided (finals conflict 1), no LINK action lands on P | covered: test_seam_create_vs_pool |
+| X2  | X-A mirror: right creates plain P; left pools it, different content | CREATE_CREATE, symmetric | covered: test_seam_create_vs_pool_mirror |
+| X3  | X-A convergent: left creates P with bytes identical to the file right linked P to (ANCHOR winner) | zero conflicts; P joins the pool (final ANCHOR); convergence defers | covered: test_seam_create_convergent |
+| X4  | X-B edit flavor: base standalone M at P; left edits M in place; right repoints P into a pool around foreign base file M2 | BOTH_MODIFIED, row undecided; the edit is no longer silently discarded | covered: test_seam_edit_vs_repoint |
+| X5  | X-B replace flavor: left replaces P with a new dnode; right GROWS a pool around M keeping P | BOTH_MODIFIED: growing is only safe for on-lineage claims, and a replace swapped the dnode out from under the grow | covered: test_seam_replace_vs_grow |
+| X6  | X-B mirror: right edits M; left repoints P | BOTH_MODIFIED, symmetric | covered: test_seam_edit_vs_repoint_mirror |
+| X7  | X-B convergent: left edits M to exactly the destination pool's bytes | zero conflicts; P final ANCHOR(M2); the expressed sharing stands, the content is satisfied | covered: test_seam_edit_convergent |
+| X8  | X-C grow flavor: left moves P away (standalone M); right grows a pool around M keeping name P | DELETE_VS_RELINK at old path P via the widened GONE row | covered: test_seam_move_vs_grow |
+| X9  | X-C repoint flavor, member-pool destination: left moves P away; right relinks P into base pool N | DELETE_VS_RELINK keyed N | covered: test_seam_move_vs_repoint |
+| X10 | X-C mirror: right moves P away; left pools the name | DELETE_VS_RELINK, symmetric | covered: test_seam_move_vs_grow_mirror |
+| X11 | X-D: left moves M to P2; right independently creates P2 as a pool member, different content | MOVE_VS_EDIT keyed by the destination (the MOVE record is a content claim at its new path), row undecided | covered: test_seam_move_dest_vs_pool |
+| X12 | X-D mirror: right moves onto a path left pooled | MOVE_VS_EDIT, symmetric | covered: test_seam_move_dest_vs_pool_mirror |
+| X13 | X-D convergent: the destination pool's bytes equal the moved file's | zero conflicts; P2 joins the pool | covered: test_seam_move_dest_convergent |
+| X14 | X-E: left MOVE_EDITs M from P to P2; right grows a pool {P,P3} around M | exactly ONE conflict, DELETE_VS_RELINK at old path P; no MOVE_VS_EDIT or BOTH_MODIFIED noise at P2 (the lineage is shared; the old-path contest owns the tension) | covered: test_seam_pool_around_moved |
+| X15 | X-CTL-GROW control: left edits M in place; right grows a pool around M | zero conflicts; P final SAME/ANCHOR ground; the on-lineage claim defers and the group owns the content -- pins that GROW keeps working | covered: test_seam_ctl_grow |
+| X16 | X-CTL-DUAL control: left links P into a left novel pool, right links P into a right novel pool, different data | NOVEL_LINKPOOL_OVERLAP at P, row undecided: dual records contest properly, never defer (the dual-record lemma) | covered: test_seam_ctl_dual |
+| X17 | X-CTL-BASEPOOL control: base pool N {A,A2,P} (three names, so the right-side remnant is still a pool and the dead-pool rules stay out of the picture); left edits N's content; right repoints P into a pool around M2 | ZERO consultation conflicts (base-lineage exemption): P final ANCHOR(M2), left's edit lands through N's surviving group; catches a consultation missing the exemption. E6 pins the FRAGMENT-winner variant of the same exemption | covered: test_seam_ctl_basepool |
+| X18 | X-REG regression: plain left standalone rename, nobody contests | diff tuples unchanged from M1; the widened synthesis adds the old path's GONE row (finals gone +1); zero conflicts, zero actions | covered: test_seam_reg_standalone_move |
+| X19 | fragment winner: right splits fragment {P3,P4} out of base pool N; left independently creates P3, different content | CREATE_CREATE keyed by the fragment; pins the FRAGMENT arm of the consultation (parent lineage for on-lineage, side table for the compare object) | covered: test_seam_fragment_winner |
