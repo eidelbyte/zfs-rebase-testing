@@ -208,8 +208,8 @@ int rt_run_rebase(nvlist_t **nvlp);
 void rt_rebase_diag(void);
 
 /* apply-era flow helpers (AP matrix) */
-int rt_apply_stats(uint64_t *copies, uint64_t *unlinks,
-    uint64_t *deferred);
+int rt_apply_stats(uint64_t *copies, uint64_t *writes,
+    uint64_t *severs, uint64_t *unlinks, uint64_t *deferred);
 void rt_apply_inject(uint64_t stop_after, int skip_rollback);
 boolean_t rt_fence_exists(void);
 int rt_destroy_fence(void);

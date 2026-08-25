@@ -653,7 +653,7 @@ territory, not harness territory.
 | CP19 | dst xattr=off, source HAS xattrs | EOPNOTSUPP from the writer -- the policy hook; what apply turns it into (conflict, warning, abort) is apply-additions' policy cell | covered: test_apply_xattr_off (EOPNOTSUPP propagates, apply fails, rollback restores; the v1 policy is refusal) |
 | CP20 | dst xattr=off, source has NO xattrs | clean no-op: the empty-set short-circuit runs before the mode gate | covered: inside test_apply_xattr_off (control file without xattrs applies cleanly first) |
 | CP21 | source file owned by nonzero uid/gid, dir-form write | xattr directory and value children carry the OWNING file's uid/gid (no caller credential exists in a sync task) | planned: test_apply_xattr_owner (fixture sets ZPL_UID/GID on source) |
-| CP22 | rebase_free_xattr_dir on a populated dir; on an empty dir | directory and every child unallocated afterward (dmu_object_info ENOENT) | covered (delete half): test_apply_unlink_xattr_file frees a populated directory through the unlink path; the replace half (clearing before rewrite) stays planned for apply-edits |
+| CP22 | rebase_free_xattr_dir on a populated dir; on an empty dir | directory and every child unallocated afterward (dmu_object_info ENOENT) | covered: test_apply_unlink_xattr_file frees a populated directory through the unlink path; test_apply_edit_xattr_dirform_cleared covers the replace half (clearing before rewrite) |
 | CP23 | corrupt DXATTR blob on the copy SOURCE | EIO through the gatherer -- rebase_copy_xattrs is the gatherer's third caller; H36 and U9 pinned the walk and phase-C readers, this pins the apply reader | covered: test_apply_corrupt_xattr_source (AP11) |
 | CP24 | ACCEPTANCE: apply a right-side object, then re-run the diff engine against the applied result | silence -- no content, attribute, or xattr differences; the copy is invisible to the engine's own eyes | covered: test_apply_roundtrip_acceptance (AP13) |
 
@@ -756,30 +756,30 @@ contract; acceptance.
 
 | Cell | Scenario | Expect | Disposition |
 |------|----------|--------|-------------|
-| AE1  | standalone edit, content grows | byte-identical new data, ZPL_SIZE grown | planned |
-| AE2  | standalone edit, content shrinks | byte-identical new data, no stale tail past EOF | planned |
-| AE3  | edit to empty; edit from empty | zero-length result lands; content onto an empty file lands | planned |
-| AE4  | multi-block edit | full byte identity across every block | planned |
-| AE5  | blocksize divergence: right's dataset uses a different recordsize, multi-block file | reclaim re-shapes the destination to the source's block size, byte-identical | planned |
-| AE6  | identity fields land | mode, uid, gid, times are right's after the write | planned |
-| AE7  | the in-place promise | object number unchanged, ZPL_GEN preserved, ZPL_PARENT preserved -- the lineage cell: a future diff must see this as the same object edited, never a recycle | planned |
-| AE8  | type flip reg->symlink | destination reads as a symlink with right's target, SAME object number | planned |
-| AE9  | type flip symlink->reg | destination reads as a file with right's bytes, same object number | planned |
-| AE10 | dir-involved flip (file->dir and dir->file) | EOPNOTSUPP refusal, rollback ran, fence present, pre-state intact | planned (v1 policy refusal) |
-| AE11 | dir attribute edit (chmod/chown on the dir itself on right) | dir WRITE stamps mode/uid/gid; children, entries, and ZPL_SIZE untouched | planned |
-| AE12 | dir xattr edit | dir's xattrs replaced logically; ZAP entries untouched | planned |
-| AE13 | destination had SA-form xattrs, source carries different ones | replaced wholesale: exactly the source's set remains, destination form | planned |
-| AE14 | destination had dir-form satellites | hidden dir and value children unallocated after the write (flips CP22's replace half), source's xattrs land | planned |
-| AE15 | source has no xattrs, destination had some | destination ends bare: both forms absent | planned |
-| AE16 | group WRITE: base pool of two, right edits the shared content | BOTH member paths read the new bytes, ZPL_LINKS still 2, exactly one write in the tally | planned |
-| AE17 | WRITE behind a deferred LINK (right MOVE_EDITs a file) | the write DEFERS: no failure, tallied deferred, the parked object's content untouched -- expectations rewritten when apply-structural lands, like AP6 | planned |
-| AE18 | SEVER: base pool of two, right delete-creates one member | severed path: NEW object number with right's content and a correct dirent type nibble; survivor: old object, old content, ZPL_LINKS 2->1 | planned |
-| AE19 | SEVER carries xattrs; parent times stamped | new object's xattrs are right's in destination form; parent mtime/ctime updated | planned |
-| AE20 | every member severs | old pool object FREED (the leak this matrix exists to catch) | planned |
-| AE21 | sever to a different kind (file member -> symlink) | fresh symlink at the path, survivor intact | planned |
+| AE1  | standalone edit, content grows | byte-identical new data, ZPL_SIZE grown | covered: test_apply_edit_grow_shrink |
+| AE2  | standalone edit, content shrinks | byte-identical new data, no stale tail past EOF | covered: test_apply_edit_grow_shrink |
+| AE3  | edit to empty; edit from empty | zero-length result lands; content onto an empty file lands | covered: test_apply_edit_empty_forms |
+| AE4  | multi-block edit | full byte identity across every block | covered: test_apply_edit_multiblock |
+| AE5  | blocksize divergence: right's dataset uses a different recordsize, multi-block file | reclaim re-shapes the destination to the source's block size, byte-identical | covered: test_apply_edit_multiblock |
+| AE6  | identity fields land | mode, uid, gid, times are right's after the write | covered: test_apply_edit_identity_lands |
+| AE7  | the in-place promise | object number unchanged, ZPL_GEN preserved, ZPL_PARENT preserved -- the lineage cell: a future diff must see this as the same object edited, never a recycle | covered: test_apply_edit_inplace_promise |
+| AE8  | type flip reg->symlink | destination reads as a symlink with right's target, SAME object number | covered: test_apply_edit_flip_to_symlink |
+| AE9  | type flip symlink->reg | destination reads as a file with right's bytes, same object number | covered: test_apply_edit_flip_from_symlink |
+| AE10 | dir-involved flip (file->dir and dir->file) | EOPNOTSUPP refusal, rollback ran, fence present, pre-state intact | covered: test_apply_edit_dir_flip_refused (dir->file direction; the guard is symmetric) |
+| AE11 | dir attribute edit (chmod/chown on the dir itself on right) | dir WRITE stamps mode/uid/gid; children, entries, and ZPL_SIZE untouched | covered: test_apply_edit_dir_attrs |
+| AE12 | dir xattr edit | dir's xattrs replaced logically; ZAP entries untouched | covered: test_apply_edit_dir_attrs |
+| AE13 | destination had SA-form xattrs, source carries different ones | replaced wholesale: exactly the source's set remains, destination form | covered: test_apply_edit_xattr_replace |
+| AE14 | destination had dir-form satellites | hidden dir and value children unallocated after the write (flips CP22's replace half), source's xattrs land | covered: test_apply_edit_xattr_dirform_cleared |
+| AE15 | source has no xattrs, destination had some | destination ends bare: both forms absent | covered: test_apply_edit_xattr_to_bare |
+| AE16 | group WRITE: base pool of two, right edits the shared content | BOTH member paths read the new bytes, ZPL_LINKS still 2, exactly one write in the tally | covered: test_apply_edit_pool_group_write |
+| AE17 | WRITE behind a deferred LINK (right MOVE_EDITs a file) | the write DEFERS: no failure, tallied deferred, the parked object's content untouched -- expectations rewritten when apply-structural lands, like AP6 | covered: test_apply_edit_write_deferred |
+| AE18 | SEVER: base pool of two, right delete-creates one member | severed path: NEW object number with right's content and a correct dirent type nibble; survivor: old object, old content, ZPL_LINKS 2->1 | covered: test_apply_sever_basic (the type nibble is asserted only through the lookup path; no raw-nibble accessor) |
+| AE19 | SEVER carries xattrs; parent times stamped | new object's xattrs are right's in destination form; parent mtime/ctime updated | covered: test_apply_sever_xattrs (parent times not directly asserted -- no time-pair accessor) |
+| AE20 | every member severs | old pool object FREED (the leak this matrix exists to catch) | covered: test_apply_sever_all_members |
+| AE21 | sever to a different kind (file member -> symlink) | fresh symlink at the path, survivor intact | covered: test_apply_sever_to_symlink |
 | AE22 | sever to a directory | -- | deferred: the fresh dir's children arrive as COPY actions and the interplay is unverified; unblocking work: a dedicated fixture once apply-structural's ordering work lands |
 | AE23 | sever drops the last name while a LINK still references the old object | object kept, loud dbgmsg | mapped: same guard as UNLINK's (rebase_apply_link_pending); fires only on compiler self-contradiction, not separately fixtured |
-| AE24 | USER CANCEL mid-edit run: two edits pending, stop after 1 | EINTR, rollback ran: ORIGINAL bytes back in both files -- the first destructive-write recovery proof | planned |
-| AE25 | CRASH mid-edit run: stop after 1, rollback suppressed | first file carries right's bytes, second still left's (partial in-place damage is real); manual rollback-to-fence restores both exactly | planned |
-| AE26 | the tally line, new shape | "rebase: apply copies N writes N severs N unlinks N deferred N" matches fixture arithmetic; LINKs still count deferred (re-points AP12) | planned |
-| AE27 | acceptance: edit-heavy apply, clear the fence, re-rebase | silence: zero conflicts, zero actions of any kind against the applied result | planned |
+| AE24 | USER CANCEL mid-edit run: two edits pending, stop after 1 | EINTR, rollback ran: ORIGINAL bytes back in both files -- the first destructive-write recovery proof | covered: test_apply_edit_cancel |
+| AE25 | CRASH mid-edit run: stop after 1, rollback suppressed | first file carries right's bytes, second still left's (partial in-place damage is real); manual rollback-to-fence restores both exactly | covered: test_apply_edit_crash_partial |
+| AE26 | the tally line, new shape | "rebase: apply copies N writes N severs N unlinks N deferred N" matches fixture arithmetic; LINKs still count deferred (re-points AP12) | covered: test_apply_stats_line (five-bucket line; its fixture's edit now applies) |
+| AE27 | acceptance: edit-heavy apply, clear the fence, re-rebase | silence: zero conflicts, zero actions of any kind against the applied result | covered: test_apply_edit_roundtrip |

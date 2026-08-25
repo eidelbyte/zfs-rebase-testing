@@ -147,6 +147,12 @@ void dmu_tx_hold_sa_create(dmu_tx_t *, int);
 void dmu_tx_hold_sa(dmu_tx_t *, sa_handle_t *, boolean_t);
 void dmu_tx_hold_write(dmu_tx_t *, uint64_t, uint64_t, uint64_t);
 void dmu_tx_hold_bonus(dmu_tx_t *, uint64_t);
+void dmu_tx_hold_free(dmu_tx_t *, uint64_t, uint64_t, uint64_t);
+int dmu_free_range(objset_t *, uint64_t, uint64_t, uint64_t,
+    dmu_tx_t *);
+#ifndef DMU_OBJECT_END
+#define	DMU_OBJECT_END (-1ULL)
+#endif
 int dmu_tx_assign(dmu_tx_t *, int);
 void dmu_tx_abort(dmu_tx_t *);
 void dmu_tx_commit(dmu_tx_t *);
@@ -272,7 +278,8 @@ int rt_run_rebase(nvlist_t **nvlp);
 void rt_rebase_diag(void);
 
 /* apply-era flow helpers + inspection accessors (AP/CP) */
-int rt_apply_stats(uint64_t *, uint64_t *, uint64_t *);
+int rt_apply_stats(uint64_t *, uint64_t *, uint64_t *, uint64_t *,
+    uint64_t *);
 void rt_apply_inject(uint64_t, int);
 boolean_t rt_fence_exists(void);
 int rt_destroy_fence(void);

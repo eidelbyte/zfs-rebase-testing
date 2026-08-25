@@ -395,7 +395,11 @@ rt_remove_entry(objset_t *os, uint64_t dir_obj, const char *name)
 }
 
 /*
- * Overwrite file data (edit in place, same dnode).
+ * Overwrite file data (edit in place, same dnode). The old tail
+ * is freed like a real editor save would (open with O_TRUNC runs
+ * zfs_trunc): without the free a shrinking edit leaves stale
+ * blocks past EOF that no real ZPL dataset would carry, and the
+ * apply copier honestly reproduces whatever is allocated.
  */
 int
 rt_edit_file(objset_t *os, uint64_t obj, const void *data,
@@ -406,6 +410,7 @@ rt_edit_file(objset_t *os, uint64_t obj, const void *data,
 
 	tx = dmu_tx_create(os);
 	dmu_tx_hold_write(tx, obj, 0, datalen);
+	dmu_tx_hold_free(tx, obj, datalen, DMU_OBJECT_END);
 	dmu_tx_hold_bonus(tx, obj);
 
 	err = dmu_tx_assign(tx, DMU_TX_WAIT);
@@ -414,6 +419,11 @@ rt_edit_file(objset_t *os, uint64_t obj, const void *data,
 		return (err);
 	}
 
+	err = dmu_free_range(os, obj, datalen, DMU_OBJECT_END, tx);
+	if (err != 0) {
+		dmu_tx_commit(tx);
+		return (err);
+	}
 	dmu_write(os, obj, 0, datalen, data, tx, 0);
 
 	/* Update ZPL_SIZE via SA. */
