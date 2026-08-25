@@ -67,7 +67,13 @@ xs_stats(rt_final_stats_t *fs, rt_conflict_stats_t *cs)
  * same name as a member of a novel two-name pool with different
  * bytes. Pre-fix the pool won silently and the compiled LINK would
  * have clobbered left's file; now the claim is heard and the
- * collision is CREATE_CREATE with the row undecided.
+ * collision is CREATE_CREATE with the row undecided. The undecided
+ * row compiles nothing at P, but the pool's OTHER member is an
+ * uncontested decided row and its LINK still compiles: exactly one
+ * action, safe under either phase-2 resolution of P. (The first
+ * box run corrected this expectation from zero: row-driven actions
+ * are guarded by row state, not by conflict coverage -- coverage
+ * guards the record-driven standalone sweep.)
  */
 static int
 test_seam_create_vs_pool(void)
@@ -109,8 +115,8 @@ test_seam_create_vs_pool(void)
 	    "P"), "expected CREATE_CREATE at P");
 	TEST_EXPECT(fs.rfs_kind[6] == 1 && fs.rfs_kind[5] == 1,
 	    "expected finals novel 1 + conflict 1");
-	TEST_EXPECT(rt_manifest_nactions(nvl) == 0,
-	    "expected no actions (conflict covers the pool)");
+	TEST_EXPECT(rt_manifest_nactions(nvl) == 1,
+	    "expected one action (LINK for the uncontested member)");
 	fnvlist_free(nvl);
 	TEST_PASS();
 }
