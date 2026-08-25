@@ -279,7 +279,7 @@ void rt_rebase_diag(void);
 
 /* apply-era flow helpers + inspection accessors (AP/CP) */
 int rt_apply_stats(uint64_t *, uint64_t *, uint64_t *, uint64_t *,
-    uint64_t *);
+    uint64_t *, uint64_t *);
 void rt_apply_inject(uint64_t, int);
 boolean_t rt_fence_exists(void);
 int rt_destroy_fence(void);

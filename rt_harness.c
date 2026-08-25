@@ -151,7 +151,7 @@ rt_rebase_diag(void)
 		"rebase: apply destination exists",
 		"rebase: apply copy", "rebase: apply unlink",
 		"rebase: apply write", "rebase: apply sever",
-		"rebase: rollback of"
+		"rebase: apply link", "rebase: rollback of"
 	};
 	char line[512];
 
@@ -559,14 +559,14 @@ rt_manifest_dump(nvlist_t *nvl)
 
 /*
  * Scrape the apply tally line:
- * copies / writes / severs / unlinks / deferred.
+ * copies / writes / severs / links / unlinks / deferred.
  */
 int
 rt_apply_stats(uint64_t *copies, uint64_t *writes, uint64_t *severs,
-    uint64_t *unlinks, uint64_t *deferred)
+    uint64_t *links, uint64_t *unlinks, uint64_t *deferred)
 {
 	char line[512];
-	unsigned long long c, w, s, u, d;
+	unsigned long long c, w, s, l, u, d;
 	int err;
 
 	err = rt_dbgmsg_last("rebase: apply copies", line,
@@ -574,12 +574,13 @@ rt_apply_stats(uint64_t *copies, uint64_t *writes, uint64_t *severs,
 	if (err != 0)
 		return (err);
 	if (sscanf(line, "rebase: apply copies %llu writes %llu "
-	    "severs %llu unlinks %llu deferred %llu",
-	    &c, &w, &s, &u, &d) != 5)
+	    "severs %llu links %llu unlinks %llu deferred %llu",
+	    &c, &w, &s, &l, &u, &d) != 6)
 		return (ENOENT);
 	*copies = c;
 	*writes = w;
 	*severs = s;
+	*links = l;
 	*unlinks = u;
 	*deferred = d;
 	return (0);

@@ -693,7 +693,7 @@ and interruption surface the CP family never claimed.
 | AP3  | right unlinks one member of a base pool | that dirent gone, object ALIVE with ZPL_LINKS decremented, surviving member's name and data intact | covered: test_apply_unlink_pool_member |
 | AP4  | right unlinks EVERY member, left silent (dead pool, no edit) | all dirents gone, object freed | covered: test_apply_unlink_dead_pool |
 | AP5  | right deletes a file carrying an xattr directory | file, hidden directory, and every value child unallocated | covered: test_apply_unlink_xattr_file (flips CP22's file half; the apply-edits replace half stays with that issue) |
-| AP6  | right renames a standalone file (the LINK-phase handoff) | old name gone, new name NOT yet present, object alive with ZPL_LINKS 0 -- this cell's expectation CHANGES when apply-structural lands (new name present, links 1) and must be rewritten then | covered: test_apply_move_handoff |
+| AP6  | right renames a standalone file | REWRITTEN at apply-structural (AS1/AS19): the move lands whole -- old name gone, new name on the same object, links 1 | covered: test_apply_move_handoff |
 | AP7  | USER CANCEL: three copies pending, injected stop after 1 | EINTR; automatic rollback ran: NO addition present, pre-state intact, fence present | covered: test_apply_cancel_rollback |
 | AP8  | CRASH: same fixture, stop after 1 with rollback suppressed | EINTR; HEAD is PARTIAL (exactly the first action's file present -- pins list-order determinism too); fence present; manual rollback-to-fence then restores pre-state exactly (pioneers the abort flow) | covered: test_apply_crash_partial |
 | AP9  | cancel inside the SECOND pass: one copy + one unlink, stop after 1 | the copy lands, the unlink loop stops, EINTR, rollback restores both (added file gone, deleted file back) | covered: test_apply_cancel_unlinks |
@@ -779,16 +779,16 @@ contract; acceptance.
 | AE14 | destination had dir-form satellites | hidden dir and value children unallocated after the write (flips CP22's replace half), source's xattrs land | covered: test_apply_edit_xattr_dirform_cleared |
 | AE15 | source has no xattrs, destination had some | destination ends bare: both forms absent | covered: test_apply_edit_xattr_to_bare |
 | AE16 | group WRITE: base pool of two, right edits the shared content | BOTH member paths read the new bytes, ZPL_LINKS still 2, exactly one write in the tally | covered: test_apply_edit_pool_group_write |
-| AE17 | WRITE behind a deferred LINK (right MOVE_EDITs a file) | the write DEFERS: no failure, tallied deferred, the parked object's content untouched -- expectations rewritten when apply-structural lands, like AP6 | covered: test_apply_edit_write_deferred |
+| AE17 | WRITE behind a pending LINK (right MOVE_EDITs a file) | REWRITTEN at apply-structural (AS3): the LINK applies first in path order and the WRITE lands; the defer branch remains as a tripwire | covered: test_apply_move_edit_whole |
 | AE18 | SEVER: base pool of two, right delete-creates one member | severed path: NEW object number with right's content and a correct dirent type nibble; survivor: old object, old content, ZPL_LINKS 2->1 | covered: test_apply_sever_basic (the type nibble is asserted only through the lookup path; no raw-nibble accessor) |
 | AE19 | SEVER carries xattrs; parent times stamped | new object's xattrs are right's in destination form; parent mtime/ctime updated | covered: test_apply_sever_xattrs (parent times not directly asserted -- no time-pair accessor) |
 | AE20 | every member severs | old pool object FREED (the leak this matrix exists to catch) | covered: test_apply_sever_all_members |
 | AE21 | sever to a different kind (file member -> symlink) | fresh symlink at the path, survivor intact | covered: test_apply_sever_to_symlink |
-| AE22 | sever to a directory | -- | deferred: the fresh dir's children arrive as COPY actions and the interplay is unverified; unblocking work: a dedicated fixture once apply-structural's ordering work lands |
+| AE22 | sever to a directory | SEVER creates the dir, the children COPY into it in path order | covered: test_apply_sever_to_dir (flipped by apply-structural, AS21) |
 | AE23 | sever drops the last name while a LINK still references the old object | object kept, loud dbgmsg | mapped: same guard as UNLINK's (rebase_apply_link_pending); fires only on compiler self-contradiction, not separately fixtured |
 | AE24 | USER CANCEL mid-edit run: two edits pending, stop after 1 | EINTR, rollback ran: ORIGINAL bytes back in both files -- the first destructive-write recovery proof | covered: test_apply_edit_cancel |
 | AE25 | CRASH mid-edit run: stop after 1, rollback suppressed | first file carries right's bytes, second still left's (partial in-place damage is real); manual rollback-to-fence restores both exactly | covered: test_apply_edit_crash_partial |
-| AE26 | the tally line, new shape | "rebase: apply copies N writes N severs N unlinks N deferred N" matches fixture arithmetic; LINKs still count deferred (re-points AP12) | covered: test_apply_stats_line (five-bucket line; its fixture's edit now applies) |
+| AE26 | the tally line | SHAPE CHANGED AGAIN by apply-structural (links bucket added); AS17 owns the current six-bucket contract | covered: test_apply_stats_line |
 | AE27 | acceptance: edit-heavy apply, clear the fence, re-rebase | silence: zero conflicts, zero actions of any kind against the applied result | covered: test_apply_edit_roundtrip |
 | AE28 | pool shrinks around a SILENT survivor | no action for the survivor's row: same object, same content, links counted down by the removals alone | mapped: AP3's fixture is exactly this shape and reads it all back |
 | AE29 | pool shrinks around an EDITED survivor | in-place WRITE on the pool object: same object number, new bytes, links correct; tally one write + one unlink, zero severs | covered: test_apply_edit_pool_shrink_survivor |
@@ -858,28 +858,28 @@ the AP6/AE17 rewrites; AE22's revisit.
 
 | Cell | Scenario | Expect | Disposition |
 |------|----------|--------|-------------|
-| AS1  | file rename within a directory | old name gone, new name present, SAME object, links 1, data and attrs intact | planned (AP6's rewrite covers the root-dir case) |
-| AS2  | move across directories | entry leaves the old parent for the new one; ZPL_PARENT points at the new parent | planned |
-| AS3  | MOVE_EDIT applies whole | moved name carries right's new bytes, nothing deferred (AE17's rewrite) | planned |
-| AS4  | directory move with children | dir object unchanged, children reachable at new paths and gone from old, old parent ZPL_LINKS down one and new parent up one | planned |
-| AS5  | rename inside a moved directory | both the dir move and the inner rename land | planned |
-| AS6  | child-of-moved-dir suppression | the action list carries NO unlink/link for children whose dirents did not change (action-count pin) | planned |
-| AS7  | right hardlinks a new name onto a base pool (the GROW join) | new name resolves to the pool object, ZPL_LINKS counted up, ZPL_PARENT best-effort points at the link's parent | planned |
-| AS8  | novel right pool, two names | first LINK creates by full copy (content and xattrs), second reuses it: both names one fresh object, links 2, no WRITE emitted, deferred 0 | planned |
-| AS9  | X1's matched-group shape applied | WRITE lands right's content in place on left's object, LINK adds the second name: both names, links 2 | planned |
-| AS10 | pool member moved (the handoff completes) | old member name gone, new name on the pool object, link count preserved | planned |
+| AS1  | file rename within a directory | old name gone, new name present, SAME object, links 1, data and attrs intact | covered: test_apply_move_handoff (rewritten) |
+| AS2  | move across directories | entry leaves the old parent for the new one; ZPL_PARENT points at the new parent | covered: test_apply_link_move_across_dirs |
+| AS3  | MOVE_EDIT applies whole | moved name carries right's new bytes, nothing deferred | covered: test_apply_move_edit_whole (AE17 rewritten) |
+| AS4  | directory move with children | dir object unchanged, children reachable at new paths and gone from old, old parent ZPL_LINKS down one and new parent up one | covered: test_apply_link_dir_move |
+| AS5  | rename inside a moved directory | both the dir move and the inner rename land | covered: test_apply_link_rename_in_moved_dir |
+| AS6  | child-of-moved-dir suppression | the action list carries NO unlink/link for children whose dirents did not change (action-count pin) | covered: test_apply_link_dir_move (nactions pin) |
+| AS7  | right hardlinks a new name onto a base pool (the GROW join) | new name resolves to the pool object, ZPL_LINKS counted up, ZPL_PARENT best-effort points at the link's parent | covered: test_apply_link_pool_join |
+| AS8  | novel right pool, two names | first LINK creates by full copy (content and xattrs), second reuses it: both names one fresh object, links 2, no WRITE emitted, deferred 0 | covered: test_apply_link_novel_pool (nactions pins the WRITE suppression) |
+| AS9  | X1's matched-group shape applied | WRITE lands right's content in place on left's object, LINK adds the second name: both names, links 2 | covered: test_apply_link_matched_novel |
+| AS10 | pool member moved (the handoff completes) | old member name gone, new name on the pool object, link count preserved | covered: test_apply_link_pool_member_move |
 | AS11 | pool member under a moved directory | -- | deferred: row-driven actions lack the dirent-identity guard; unblocking work: extend the suppression to member rows |
 | AS12 | sever parks the old pool object, a later LINK re-names it | object kept by the tripwire, link lands on it | deferred: not honestly fixturable (the emitting shape self-contradicts); the tripwire is the guard and AE23 maps it |
 | AS13 | LINK destination occupied | loud EEXIST (the merge said the name is free) | mapped: trusted-manifest guard, fires only on compiler self-contradiction |
 | AS14 | LINK target object missing | loud EIO | mapped: same guard family |
-| AS15 | USER CANCEL among structural actions | EINTR, rollback restores the pre-state completely | planned |
-| AS16 | CRASH between passes: LINK applied, UNLINK never ran | BOTH names durably present (the transient made real); fence rollback heals to exactly the pre-state | planned |
-| AS17 | the six-bucket tally | "rebase: apply copies N writes N severs N links N unlinks N deferred N"; deferred 0 on a full non-conflict apply | planned |
-| AS18 | acceptance: move-heavy apply, clear the fence, re-rebase | silence | planned |
-| AS19 | AP6 rewritten | the move lands whole: new name present, links 1 | planned (rewrites test_apply_move_handoff) |
-| AS20 | AE17 rewritten | the once-deferred WRITE applies through its LINK | planned (rewrites test_apply_edit_write_deferred) |
-| AS21 | sever to a directory with children (AE22's revisit) | SEVER creates the dir, the children COPY into it | planned (flips AE22) |
-| AS22 | novel pool inside a directory right also created | the directory's COPY precedes the members' LINKs (global path order); the pool lands inside the new directory | planned |
-| AS23 | pool member inside a directory right deleted | pass two runs children before parents ACROSS emission loops: the member's unlink precedes the directory's | planned |
+| AS15 | USER CANCEL among structural actions | EINTR, rollback restores the pre-state completely | covered: test_apply_link_cancel |
+| AS16 | CRASH between passes: LINK applied, UNLINK never ran | BOTH names durably present (the transient made real); fence rollback heals to exactly the pre-state | covered: test_apply_link_crash_double_name |
+| AS17 | the six-bucket tally | "rebase: apply copies N writes N severs N links N unlinks N deferred N"; deferred 0 on a full non-conflict apply | covered: test_apply_stats_line (fixture gained a move; six buckets pinned) |
+| AS18 | acceptance: move-heavy apply, clear the fence, re-rebase | silence | covered: test_apply_link_roundtrip |
+| AS19 | AP6 rewritten | the move lands whole: new name present, links 1 | covered: test_apply_move_handoff (rewritten) |
+| AS20 | AE17 rewritten | the once-deferred WRITE applies through its LINK | covered: test_apply_move_edit_whole (the rewrite) |
+| AS21 | sever to a directory with children (AE22's revisit) | SEVER creates the dir, the children COPY into it | covered: test_apply_sever_to_dir |
+| AS22 | novel pool inside a directory right also created | the directory's COPY precedes the members' LINKs (global path order); the pool lands inside the new directory | covered: the ordered pass is pinned by test_apply_link_novel_pool and test_apply_sever_to_dir's child ordering; a literal pool-inside-created-dir fixture folds into AS23's follow-up |
+| AS23 | pool member inside a directory right deleted | pass two runs children before parents ACROSS emission loops: the member's unlink precedes the directory's | deferred to a follow-up fixture: the ordered pass covers it by construction, but no test yet builds a pool inside a deleted dir; unblocking work: a small fixture in the next apply pass |
 | AS24 | rename chain (mv B to C, then A to B) | -- | deferred: pass-one LINKs collide with names pass two has not vacated; loud EEXIST plus rollback, never corruption; unblocking work: dependency-ordered structural application with temp-name cycle breaking |
 | AS25 | name swap (A and B exchange names) | -- | deferred: same class as AS24 (a two-cycle) |

@@ -814,24 +814,22 @@ test_apply_unlink_xattr_file(void)
 }
 
 /*
- * AP6: the LINK-phase handoff. A right-side rename applies its
- * UNLINK now and its LINK later, so between the phases the old
- * name is gone, the new name is not yet present, and the object
- * waits with a zero link count. THIS CELL'S EXPECTATION CHANGES
- * when apply-structural lands (new name present, links 1) -- the
- * assertions below must be rewritten then, not patched around.
+ * AP6 rewritten at apply-structural (AS1, AS19): right renames a
+ * standalone file and the move lands WHOLE -- old name gone, new
+ * name on the same object, link count 1. The parked-at-zero era
+ * this cell used to pin is over.
  */
 static int
 test_apply_move_handoff(void)
 {
 	rt_ds_t d;
 	uint64_t bobj, obj, links = 111;
-	boolean_t old_gone = B_FALSE, new_absent = B_FALSE;
+	boolean_t old_gone = B_FALSE;
 	boolean_t alive = B_FALSE;
 	int err;
 	nvlist_t *nvl;
 
-	TEST_START("AP: move handoff parks the object");
+	TEST_START("AP: move lands whole (AS1/AS19)");
 	RT_CHECK(rt_scaffold_empty_base(), "scaffold failed");
 	RT_CHECK(rt_open(RT_DS_SRC, &d), "hold src");
 	err = rt_create_file(d.rtd_os, d.rtd_root, "m", "m", 1,
@@ -855,17 +853,18 @@ test_apply_move_handoff(void)
 	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
 	old_gone = (rt_dir_lookup(d.rtd_os, d.rtd_root, "m",
 	    &obj) == ENOENT);
-	new_absent = (rt_dir_lookup(d.rtd_os, d.rtd_root, "m2",
-	    &obj) == ENOENT);
+	obj = 0;
+	err = rt_dir_lookup(d.rtd_os, d.rtd_root, "m2", &obj);
 	alive = rt_object_exists(d.rtd_os, bobj);
-	err = rt_get_sa_u64(d.rtd_os, bobj, ZPL_LINKS, &links);
+	if (err == 0)
+		err = rt_get_sa_u64(d.rtd_os, bobj, ZPL_LINKS,
+		    &links);
 	rt_close(&d);
 	RT_CHECK(err, "inspect");
 	TEST_EXPECT(old_gone, "old name survived");
-	TEST_EXPECT(new_absent, "new name already present "
-	    "(apply-structural landed? rewrite this cell)");
+	TEST_EXPECT(obj == bobj, "new name missing or wrong object");
 	TEST_EXPECT(alive, "moved object freed");
-	TEST_EXPECT(links == 0, "expected parked link count 0");
+	TEST_EXPECT(links == 1, "wrong link count after move");
 	TEST_PASS();
 }
 
@@ -1134,7 +1133,7 @@ test_apply_stats_line(void)
 {
 	rt_ds_t d;
 	uint64_t bobj, copies = 0, writes = 0, severs = 0;
-	uint64_t unlinks = 0, deferred = 0;
+	uint64_t links = 0, unlinks = 0, deferred = 0;
 	int err, serr = -1;
 	nvlist_t *nvl;
 
@@ -1146,6 +1145,9 @@ test_apply_stats_line(void)
 	if (err == 0)
 		err = rt_create_file(d.rtd_os, d.rtd_root, "ed",
 		    "e", 1, &bobj);
+	if (err == 0)
+		err = rt_create_file(d.rtd_os, d.rtd_root, "mv",
+		    "v", 1, NULL);
 	rt_close(&d);
 	RT_CHECK(err, "base files");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
@@ -1160,6 +1162,9 @@ test_apply_stats_line(void)
 		err = rt_remove_entry(d.rtd_os, d.rtd_root, "gone");
 	if (err == 0)
 		err = rt_edit_file(d.rtd_os, bobj, "E", 1);
+	if (err == 0)
+		err = rt_rename_file(d.rtd_os, d.rtd_root, "mv",
+		    d.rtd_root, "mvd");
 	rt_close(&d);
 	RT_CHECK(err, "right changes");
 
@@ -1168,14 +1173,15 @@ test_apply_stats_line(void)
 	if (err == 0) {
 		fnvlist_free(nvl);
 		serr = rt_apply_stats(&copies, &writes, &severs,
-		    &unlinks, &deferred);
+		    &links, &unlinks, &deferred);
 	}
 	RT_CHECK(err, "rebase failed");
 	RT_CHECK(serr, "no tally line");
 	TEST_EXPECT(copies == 2, "wrong copies");
 	TEST_EXPECT(writes == 1, "wrong writes");
 	TEST_EXPECT(severs == 0, "wrong severs");
-	TEST_EXPECT(unlinks == 1, "wrong unlinks");
+	TEST_EXPECT(links == 1, "wrong links");
+	TEST_EXPECT(unlinks == 2, "wrong unlinks");
 	TEST_EXPECT(deferred == 0, "wrong deferred");
 	TEST_PASS();
 }
@@ -1191,8 +1197,8 @@ static int
 test_apply_roundtrip_acceptance(void)
 {
 	rt_ds_t d;
-	uint64_t copies = 9, writes = 9, severs = 9, unlinks = 9;
-	uint64_t deferred = 0;
+	uint64_t copies = 9, writes = 9, severs = 9, links = 9;
+	uint64_t unlinks = 9, deferred = 0;
 	int err, serr = -1;
 	nvlist_t *nvl;
 
@@ -1226,11 +1232,12 @@ test_apply_roundtrip_acceptance(void)
 	TEST_EXPECT(rt_manifest_nconflicts(nvl) == 0,
 	    "second run found conflicts");
 	fnvlist_free(nvl);
-	serr = rt_apply_stats(&copies, &writes, &severs, &unlinks,
-	    &deferred);
+	serr = rt_apply_stats(&copies, &writes, &severs, &links,
+	    &unlinks, &deferred);
 	RT_CHECK(serr, "no tally line");
 	TEST_EXPECT(copies == 0 && writes == 0 && severs == 0 &&
-	    unlinks == 0, "second run had work to do");
+	    links == 0 && unlinks == 0,
+	    "second run had work to do");
 	TEST_PASS();
 }
 
@@ -1968,8 +1975,8 @@ test_apply_edit_pool_group_write(void)
 	rt_ds_t d;
 	char back[8];
 	uint64_t bobj, pobj = 0, qobj = 0, links = 0;
-	uint64_t copies = 0, writes = 0, severs = 0, unlinks = 0;
-	uint64_t deferred = 0;
+	uint64_t copies = 0, writes = 0, severs = 0, alinks = 0;
+	uint64_t unlinks = 0, deferred = 0;
 	int err, cmp = -1, serr = -1;
 	nvlist_t *nvl;
 
@@ -1995,7 +2002,7 @@ test_apply_edit_pool_group_write(void)
 	if (err == 0) {
 		fnvlist_free(nvl);
 		serr = rt_apply_stats(&copies, &writes, &severs,
-		    &unlinks, &deferred);
+		    &alinks, &unlinks, &deferred);
 	}
 	RT_CHECK(err, "rebase failed");
 	RT_CHECK(serr, "no tally line");
@@ -2023,25 +2030,24 @@ test_apply_edit_pool_group_write(void)
 }
 
 /*
- * AE17: a WRITE behind a deferred LINK (right MOVE_EDITed a
- * file) DEFERS instead of failing: the parked object keeps its
- * old content, and the tally moves the write into the deferred
- * bucket. Expectations here are rewritten when apply-structural
- * lands, like AP6.
+ * AE17 rewritten at apply-structural (AS3): a MOVE_EDIT applies
+ * WHOLE. The LINK creates the new name first (path order puts a
+ * path's LINK before its WRITE), then the WRITE lands right's
+ * bytes in place on the moved object. Nothing defers.
  */
 static int
-test_apply_edit_write_deferred(void)
+test_apply_move_edit_whole(void)
 {
 	rt_ds_t d;
 	char back[8];
-	uint64_t bobj, obj, links = 1;
-	uint64_t copies = 0, writes = 9, severs = 0, unlinks = 0;
-	uint64_t deferred = 0;
-	boolean_t old_gone, new_absent;
+	uint64_t bobj, obj = 0, links = 1;
+	uint64_t copies = 0, writes = 9, severs = 0, alinks = 0;
+	uint64_t unlinks = 0, deferred = 9;
+	boolean_t old_gone;
 	int err, cmp = -1, serr = -1;
 	nvlist_t *nvl;
 
-	TEST_START("AE: write behind deferred link defers");
+	TEST_START("AE: move+edit applies whole (AS3)");
 	RT_CHECK(rt_scaffold_empty_base(), "scaffold failed");
 	RT_CHECK(rt_open(RT_DS_SRC, &d), "hold src");
 	err = rt_create_file(d.rtd_os, d.rtd_root, "m", "M", 1,
@@ -2063,7 +2069,7 @@ test_apply_edit_write_deferred(void)
 	if (err == 0) {
 		fnvlist_free(nvl);
 		serr = rt_apply_stats(&copies, &writes, &severs,
-		    &unlinks, &deferred);
+		    &alinks, &unlinks, &deferred);
 	}
 	RT_CHECK(err, "rebase failed");
 	RT_CHECK(serr, "no tally line");
@@ -2071,23 +2077,23 @@ test_apply_edit_write_deferred(void)
 	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
 	old_gone = (rt_dir_lookup(d.rtd_os, d.rtd_root, "m",
 	    &obj) == ENOENT);
-	new_absent = (rt_dir_lookup(d.rtd_os, d.rtd_root, "m2",
-	    &obj) == ENOENT);
-	err = rt_read_data(d.rtd_os, bobj, 0, 1, back);
+	obj = 0;
+	err = rt_dir_lookup(d.rtd_os, d.rtd_root, "m2", &obj);
+	if (err == 0)
+		err = rt_read_data(d.rtd_os, bobj, 0, 1, back);
 	if (err == 0) {
-		cmp = memcmp("M", back, 1);
+		cmp = memcmp("E", back, 1);
 		err = rt_get_sa_u64(d.rtd_os, bobj, ZPL_LINKS,
 		    &links);
 	}
 	rt_close(&d);
 	RT_CHECK(err, "inspect");
 	TEST_EXPECT(old_gone, "old name survived");
-	TEST_EXPECT(new_absent, "new name already present "
-	    "(apply-structural landed? rewrite this cell)");
-	TEST_EXPECT(cmp == 0, "parked object was rewritten");
-	TEST_EXPECT(links == 0, "expected parked link count 0");
-	TEST_EXPECT(writes == 0 && unlinks == 1 && deferred == 2,
-	    "tally shape wrong");
+	TEST_EXPECT(obj == bobj, "new name missing or wrong object");
+	TEST_EXPECT(cmp == 0, "edited content did not land");
+	TEST_EXPECT(links == 1, "wrong link count after move");
+	TEST_EXPECT(writes == 1 && alinks == 1 && unlinks == 1 &&
+	    deferred == 0, "tally shape wrong");
 	TEST_PASS();
 }
 
@@ -2103,8 +2109,8 @@ test_apply_sever_basic(void)
 	rt_ds_t d;
 	char back[8];
 	uint64_t bobj, zobj = 0, qobj = 0, zlinks = 0, blinks = 0;
-	uint64_t copies = 0, writes = 0, severs = 0, unlinks = 0;
-	uint64_t deferred = 0;
+	uint64_t copies = 0, writes = 0, severs = 0, links = 0;
+	uint64_t unlinks = 0, deferred = 0;
 	int err, zcmp = -1, bcmp = -1, serr = -1;
 	nvlist_t *nvl;
 
@@ -2133,7 +2139,7 @@ test_apply_sever_basic(void)
 	if (err == 0) {
 		fnvlist_free(nvl);
 		serr = rt_apply_stats(&copies, &writes, &severs,
-		    &unlinks, &deferred);
+		    &links, &unlinks, &deferred);
 	}
 	RT_CHECK(err, "rebase failed");
 	RT_CHECK(serr, "no tally line");
@@ -2247,8 +2253,8 @@ test_apply_sever_all_members(void)
 	rt_ds_t d;
 	char back[8];
 	uint64_t bobj, aobj = 0, cobj = 0;
-	uint64_t copies = 0, writes = 0, severs = 0, unlinks = 0;
-	uint64_t deferred = 0;
+	uint64_t copies = 0, writes = 0, severs = 0, links = 0;
+	uint64_t unlinks = 0, deferred = 0;
 	boolean_t pool_gone;
 	int err, acmp = -1, ccmp = -1, serr = -1;
 	nvlist_t *nvl;
@@ -2283,7 +2289,7 @@ test_apply_sever_all_members(void)
 	if (err == 0) {
 		fnvlist_free(nvl);
 		serr = rt_apply_stats(&copies, &writes, &severs,
-		    &unlinks, &deferred);
+		    &links, &unlinks, &deferred);
 	}
 	RT_CHECK(err, "rebase failed");
 	RT_CHECK(serr, "no tally line");
@@ -2511,8 +2517,8 @@ test_apply_edit_roundtrip(void)
 {
 	rt_ds_t d;
 	uint64_t bobj;
-	uint64_t copies = 9, writes = 9, severs = 9, unlinks = 9;
-	uint64_t deferred = 9;
+	uint64_t copies = 9, writes = 9, severs = 9, links = 9;
+	uint64_t unlinks = 9, deferred = 9;
 	int err, serr = -1;
 	nvlist_t *nvl, *xn;
 
@@ -2550,11 +2556,11 @@ test_apply_edit_roundtrip(void)
 	TEST_EXPECT(rt_manifest_nconflicts(nvl) == 0,
 	    "second run found conflicts");
 	fnvlist_free(nvl);
-	serr = rt_apply_stats(&copies, &writes, &severs, &unlinks,
-	    &deferred);
+	serr = rt_apply_stats(&copies, &writes, &severs, &links,
+	    &unlinks, &deferred);
 	RT_CHECK(serr, "no tally line");
 	TEST_EXPECT(copies == 0 && writes == 0 && severs == 0 &&
-	    unlinks == 0 && deferred == 0,
+	    links == 0 && unlinks == 0 && deferred == 0,
 	    "second run had work to do");
 	TEST_PASS();
 }
@@ -2575,8 +2581,8 @@ test_apply_edit_pool_shrink_survivor(void)
 	rt_ds_t d;
 	char back[8];
 	uint64_t bobj, obj = 0, links = 0;
-	uint64_t copies = 0, writes = 0, severs = 9, unlinks = 0;
-	uint64_t deferred = 0;
+	uint64_t copies = 0, writes = 0, severs = 9, alinks = 0;
+	uint64_t unlinks = 0, deferred = 0;
 	boolean_t a_gone = B_FALSE;
 	int err, cmp = -1, serr = -1;
 	nvlist_t *nvl;
@@ -2605,7 +2611,7 @@ test_apply_edit_pool_shrink_survivor(void)
 	if (err == 0) {
 		fnvlist_free(nvl);
 		serr = rt_apply_stats(&copies, &writes, &severs,
-		    &unlinks, &deferred);
+		    &alinks, &unlinks, &deferred);
 	}
 	RT_CHECK(err, "rebase failed");
 	RT_CHECK(serr, "no tally line");
@@ -2629,6 +2635,711 @@ test_apply_edit_pool_shrink_survivor(void)
 	TEST_EXPECT(links == 1, "wrong link count");
 	TEST_EXPECT(writes == 1 && severs == 0 && unlinks == 1,
 	    "tally shape wrong");
+	TEST_PASS();
+}
+
+/*
+ * AS2: a move across directories -- the entry leaves the old
+ * parent for the new one and ZPL_PARENT follows.
+ */
+static int
+test_apply_link_move_across_dirs(void)
+{
+	rt_ds_t d;
+	uint64_t d1obj, d2obj, fobj, obj = 0, parent = 0, links = 0;
+	boolean_t old_gone;
+	int err;
+	nvlist_t *nvl;
+
+	TEST_START("AS: move across directories");
+	RT_CHECK(rt_scaffold_empty_base(), "scaffold failed");
+	RT_CHECK(rt_open(RT_DS_SRC, &d), "hold src");
+	err = rt_create_dir(d.rtd_os, d.rtd_root, "d1", &d1obj);
+	if (err == 0)
+		err = rt_create_dir(d.rtd_os, d.rtd_root, "d2",
+		    &d2obj);
+	if (err == 0)
+		err = rt_create_file(d.rtd_os, d1obj, "f", "ff", 2,
+		    &fobj);
+	rt_close(&d);
+	RT_CHECK(err, "base tree");
+	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
+
+	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	err = rt_rename_file(d.rtd_os, d1obj, "f", d2obj, "f");
+	rt_close(&d);
+	RT_CHECK(err, "right move");
+
+	rt_sync_pool();
+	err = rt_run_rebase(&nvl);
+	if (err == 0)
+		fnvlist_free(nvl);
+	RT_CHECK(err, "rebase failed");
+
+	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	old_gone = (rt_dir_lookup(d.rtd_os, d1obj, "f",
+	    &obj) == ENOENT);
+	obj = 0;
+	err = rt_dir_lookup(d.rtd_os, d2obj, "f", &obj);
+	if (err == 0)
+		err = rt_get_sa_u64(d.rtd_os, fobj, ZPL_PARENT,
+		    &parent);
+	if (err == 0)
+		err = rt_get_sa_u64(d.rtd_os, fobj, ZPL_LINKS,
+		    &links);
+	rt_close(&d);
+	RT_CHECK(err, "inspect");
+	TEST_EXPECT(old_gone, "old entry survived");
+	TEST_EXPECT(obj == fobj, "new entry missing or wrong");
+	TEST_EXPECT(parent == d2obj, "parent did not follow");
+	TEST_EXPECT(links == 1, "wrong link count");
+	TEST_PASS();
+}
+
+/*
+ * AS4 + AS6: a directory move with children. The dir object
+ * keeps its number, the children ride the moved ZAP (their
+ * dirents never changed, so the action list carries NOTHING for
+ * them -- the nactions pin), and one link transfers between the
+ * parents.
+ */
+static int
+test_apply_link_dir_move(void)
+{
+	rt_ds_t d;
+	char back[4];
+	uint64_t p1obj, p2obj, ddobj, c1obj, obj = 0;
+	uint64_t p1_before = 0, p2_before = 0;
+	uint64_t p1_after = 9, p2_after = 0;
+	boolean_t old_gone;
+	int err, cmp = -1;
+	nvlist_t *nvl;
+
+	TEST_START("AS: dir move -- children ride the ZAP");
+	RT_CHECK(rt_scaffold_empty_base(), "scaffold failed");
+	RT_CHECK(rt_open(RT_DS_SRC, &d), "hold src");
+	err = rt_create_dir(d.rtd_os, d.rtd_root, "p1", &p1obj);
+	if (err == 0)
+		err = rt_create_dir(d.rtd_os, d.rtd_root, "p2",
+		    &p2obj);
+	if (err == 0)
+		err = rt_create_dir(d.rtd_os, p1obj, "dd", &ddobj);
+	if (err == 0)
+		err = rt_create_file(d.rtd_os, ddobj, "c1", "one",
+		    3, &c1obj);
+	if (err == 0)
+		err = rt_create_file(d.rtd_os, ddobj, "c2", "two",
+		    3, NULL);
+	rt_close(&d);
+	RT_CHECK(err, "base tree");
+	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
+
+	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	err = rt_get_sa_u64(d.rtd_os, p1obj, ZPL_LINKS, &p1_before);
+	if (err == 0)
+		err = rt_get_sa_u64(d.rtd_os, p2obj, ZPL_LINKS,
+		    &p2_before);
+	rt_close(&d);
+	RT_CHECK(err, "record parent links");
+
+	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	err = rt_rename_file(d.rtd_os, p1obj, "dd", p2obj, "dd");
+	rt_close(&d);
+	RT_CHECK(err, "right dir move");
+
+	rt_sync_pool();
+	err = rt_run_rebase(&nvl);
+	RT_CHECK(err, "rebase failed");
+	TEST_EXPECT(rt_manifest_nactions(nvl) == 2,
+	    "expected UNLINK + LINK only (children suppressed)");
+	fnvlist_free(nvl);
+
+	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	old_gone = (rt_dir_lookup(d.rtd_os, p1obj, "dd",
+	    &obj) == ENOENT);
+	obj = 0;
+	err = rt_dir_lookup(d.rtd_os, p2obj, "dd", &obj);
+	if (err == 0)
+		err = rt_read_data(d.rtd_os, c1obj, 0, 3, back);
+	if (err == 0) {
+		cmp = memcmp("one", back, 3);
+		err = rt_get_sa_u64(d.rtd_os, p1obj, ZPL_LINKS,
+		    &p1_after);
+	}
+	if (err == 0)
+		err = rt_get_sa_u64(d.rtd_os, p2obj, ZPL_LINKS,
+		    &p2_after);
+	rt_close(&d);
+	RT_CHECK(err, "inspect");
+	TEST_EXPECT(old_gone, "old dir entry survived");
+	TEST_EXPECT(obj == ddobj, "dir object changed");
+	TEST_EXPECT(cmp == 0, "child content unreachable");
+	TEST_EXPECT(p1_after == p1_before - 1 &&
+	    p2_after == p2_before + 1, "parent link transfer wrong");
+	TEST_PASS();
+}
+
+/*
+ * AS5: a rename INSIDE a moved directory -- the dir move
+ * suppresses the children, but the inner rename's dirent
+ * genuinely changed (same parent object, different leaf) and
+ * replays.
+ */
+static int
+test_apply_link_rename_in_moved_dir(void)
+{
+	rt_ds_t d;
+	char back[4];
+	uint64_t ddobj, c1obj, obj = 0;
+	boolean_t dd_gone, c1_gone;
+	int err, cmp = -1;
+	nvlist_t *nvl;
+
+	TEST_START("AS: rename inside a moved dir");
+	RT_CHECK(rt_scaffold_empty_base(), "scaffold failed");
+	RT_CHECK(rt_open(RT_DS_SRC, &d), "hold src");
+	err = rt_create_dir(d.rtd_os, d.rtd_root, "dd", &ddobj);
+	if (err == 0)
+		err = rt_create_file(d.rtd_os, ddobj, "c1", "one",
+		    3, &c1obj);
+	if (err == 0)
+		err = rt_create_file(d.rtd_os, ddobj, "c2", "two",
+		    3, NULL);
+	rt_close(&d);
+	RT_CHECK(err, "base tree");
+	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
+
+	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	err = rt_rename_file(d.rtd_os, d.rtd_root, "dd",
+	    d.rtd_root, "ee");
+	if (err == 0)
+		err = rt_rename_file(d.rtd_os, ddobj, "c1", ddobj,
+		    "c9");
+	rt_close(&d);
+	RT_CHECK(err, "right renames");
+
+	rt_sync_pool();
+	err = rt_run_rebase(&nvl);
+	if (err == 0)
+		fnvlist_free(nvl);
+	RT_CHECK(err, "rebase failed");
+
+	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	dd_gone = (rt_dir_lookup(d.rtd_os, d.rtd_root, "dd",
+	    &obj) == ENOENT);
+	c1_gone = (rt_dir_lookup(d.rtd_os, ddobj, "c1",
+	    &obj) == ENOENT);
+	obj = 0;
+	err = rt_dir_lookup(d.rtd_os, d.rtd_root, "ee", &obj);
+	if (err == 0 && obj == ddobj)
+		err = rt_dir_lookup(d.rtd_os, ddobj, "c9", &obj);
+	if (err == 0)
+		err = rt_read_data(d.rtd_os, obj, 0, 3, back);
+	if (err == 0)
+		cmp = memcmp("one", back, 3);
+	rt_close(&d);
+	RT_CHECK(err, "inspect");
+	TEST_EXPECT(dd_gone && c1_gone, "old names survived");
+	TEST_EXPECT(obj == c1obj, "renamed child wrong");
+	TEST_EXPECT(cmp == 0, "child content wrong");
+	TEST_PASS();
+}
+
+/*
+ * AS7: the GROW join -- right hardlinks a new name onto a base
+ * pool. The new name resolves to the pool object and ZPL_LINKS
+ * counts up; the tally shows the link.
+ */
+static int
+test_apply_link_pool_join(void)
+{
+	rt_ds_t d;
+	uint64_t bobj, obj = 0, links = 0;
+	uint64_t copies = 0, writes = 0, severs = 0, alinks = 0;
+	uint64_t unlinks = 0, deferred = 0;
+	int err, serr = -1;
+	nvlist_t *nvl;
+
+	TEST_START("AS: hardlink joins a base pool");
+	RT_CHECK(rt_scaffold_empty_base(), "scaffold failed");
+	RT_CHECK(rt_open(RT_DS_SRC, &d), "hold src");
+	err = rt_create_file(d.rtd_os, d.rtd_root, "pa", "pp", 2,
+	    &bobj);
+	if (err == 0)
+		err = rt_add_hardlink(d.rtd_os, d.rtd_root, "pb",
+		    bobj);
+	rt_close(&d);
+	RT_CHECK(err, "base pool");
+	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
+
+	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	err = rt_add_hardlink(d.rtd_os, d.rtd_root, "pc", bobj);
+	rt_close(&d);
+	RT_CHECK(err, "right join");
+
+	rt_sync_pool();
+	err = rt_run_rebase(&nvl);
+	if (err == 0) {
+		fnvlist_free(nvl);
+		serr = rt_apply_stats(&copies, &writes, &severs,
+		    &alinks, &unlinks, &deferred);
+	}
+	RT_CHECK(err, "rebase failed");
+	RT_CHECK(serr, "no tally line");
+
+	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	err = rt_dir_lookup(d.rtd_os, d.rtd_root, "pc", &obj);
+	if (err == 0)
+		err = rt_get_sa_u64(d.rtd_os, bobj, ZPL_LINKS,
+		    &links);
+	rt_close(&d);
+	RT_CHECK(err, "inspect");
+	TEST_EXPECT(obj == bobj, "join missed the pool object");
+	TEST_EXPECT(links == 3, "wrong link count after join");
+	TEST_EXPECT(alinks == 1, "expected one link in the tally");
+	TEST_PASS();
+}
+
+/*
+ * AS8: a novel right pool materializes through its links -- the
+ * first creates by full copy (content and xattrs), the second
+ * reuses it. No WRITE is emitted (the nactions pin) and nothing
+ * defers.
+ */
+static int
+test_apply_link_novel_pool(void)
+{
+	rt_ds_t d;
+	char back[4], xv[8];
+	uint64_t robj, aobj = 0, cobj = 0, links = 0;
+	uint64_t copies = 0, writes = 0, severs = 0, alinks = 0;
+	uint64_t unlinks = 0, deferred = 9;
+	uint_t xlen = 0;
+	int err, cmp = -1, xerr = -1, serr = -1;
+	nvlist_t *nvl, *xn;
+
+	TEST_START("AS: novel pool created by its links");
+	RT_CHECK(rt_scaffold_empty_base(), "scaffold failed");
+	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
+
+	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	err = rt_create_file(d.rtd_os, d.rtd_root, "na", "nn", 2,
+	    &robj);
+	if (err == 0)
+		err = rt_add_hardlink(d.rtd_os, d.rtd_root, "nb",
+		    robj);
+	if (err == 0) {
+		xn = ae_xattrs("user.n", "nv");
+		err = rt_set_dxattr(d.rtd_os, robj, xn);
+		fnvlist_free(xn);
+	}
+	rt_close(&d);
+	RT_CHECK(err, "right pool");
+
+	rt_sync_pool();
+	err = rt_run_rebase(&nvl);
+	if (err == 0) {
+		serr = rt_apply_stats(&copies, &writes, &severs,
+		    &alinks, &unlinks, &deferred);
+	}
+	RT_CHECK(err, "rebase failed");
+	RT_CHECK(serr, "no tally line");
+	TEST_EXPECT(rt_manifest_nactions(nvl) == 2,
+	    "expected two LINKs, no WRITE");
+	fnvlist_free(nvl);
+
+	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	err = rt_dir_lookup(d.rtd_os, d.rtd_root, "na", &aobj);
+	if (err == 0)
+		err = rt_dir_lookup(d.rtd_os, d.rtd_root, "nb",
+		    &cobj);
+	if (err == 0)
+		err = rt_read_data(d.rtd_os, aobj, 0, 2, back);
+	if (err == 0) {
+		cmp = memcmp("nn", back, 2);
+		xerr = rt_xattr_read(d.rtd_os, aobj, "user.n", xv,
+		    sizeof (xv), &xlen);
+		err = rt_get_sa_u64(d.rtd_os, aobj, ZPL_LINKS,
+		    &links);
+	}
+	rt_close(&d);
+	RT_CHECK(err, "inspect");
+	TEST_EXPECT(aobj != 0 && aobj == cobj,
+	    "names disagree on the object");
+	TEST_EXPECT(cmp == 0, "content wrong");
+	TEST_EXPECT(xerr == 0 && xlen == 2 &&
+	    memcmp(xv, "nv", 2) == 0, "xattr did not carry");
+	TEST_EXPECT(links == 2, "wrong link count");
+	TEST_EXPECT(alinks == 2 && deferred == 0,
+	    "tally shape wrong");
+	TEST_PASS();
+}
+
+/*
+ * AS9: X1's matched-group shape APPLIES -- the group WRITE lands
+ * right's content in place on left's object and the LINK adds
+ * the uncontested second name. The CREATE_CREATE conflict at the
+ * contested name persists for phase 2 either way.
+ */
+static int
+test_apply_link_matched_novel(void)
+{
+	rt_ds_t d;
+	char back[8];
+	uint64_t lobj, pobj = 0, qobj = 0, links = 0;
+	int err, cmp = -1;
+	nvlist_t *nvl;
+
+	TEST_START("AS: matched novel group applies");
+	RT_CHECK(rt_scaffold_empty_base(), "scaffold failed");
+	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
+
+	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	err = rt_create_file(d.rtd_os, d.rtd_root, "P", "mine", 4,
+	    &lobj);
+	rt_close(&d);
+	RT_CHECK(err, "left create");
+
+	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	err = rt_create_file(d.rtd_os, d.rtd_root, "Q", "theirs",
+	    6, &qobj);
+	if (err == 0)
+		err = rt_add_hardlink(d.rtd_os, d.rtd_root, "P",
+		    qobj);
+	rt_close(&d);
+	RT_CHECK(err, "right pool create");
+
+	rt_sync_pool();
+	err = rt_run_rebase(&nvl);
+	RT_CHECK(err, "rebase failed");
+	TEST_EXPECT(rt_manifest_nconflicts(nvl) == 1,
+	    "expected the CREATE_CREATE to persist");
+	fnvlist_free(nvl);
+
+	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	err = rt_dir_lookup(d.rtd_os, d.rtd_root, "P", &pobj);
+	if (err == 0)
+		err = rt_dir_lookup(d.rtd_os, d.rtd_root, "Q",
+		    &qobj);
+	if (err == 0)
+		err = rt_read_data(d.rtd_os, lobj, 0, 6, back);
+	if (err == 0) {
+		cmp = memcmp("theirs", back, 6);
+		err = rt_get_sa_u64(d.rtd_os, lobj, ZPL_LINKS,
+		    &links);
+	}
+	rt_close(&d);
+	RT_CHECK(err, "inspect");
+	TEST_EXPECT(pobj == lobj && qobj == lobj,
+	    "names left left's object");
+	TEST_EXPECT(cmp == 0, "group content did not land");
+	TEST_EXPECT(links == 2, "wrong link count");
+	TEST_PASS();
+}
+
+/*
+ * AS10: a pool member moves -- the handoff completes. Old member
+ * name gone, new name on the pool object, count preserved.
+ */
+static int
+test_apply_link_pool_member_move(void)
+{
+	rt_ds_t d;
+	uint64_t bobj, obj = 0, qobj = 0, links = 0;
+	boolean_t old_gone;
+	int err;
+	nvlist_t *nvl;
+
+	TEST_START("AS: pool member move completes");
+	RT_CHECK(rt_scaffold_empty_base(), "scaffold failed");
+	RT_CHECK(rt_open(RT_DS_SRC, &d), "hold src");
+	err = rt_create_file(d.rtd_os, d.rtd_root, "pa", "pp", 2,
+	    &bobj);
+	if (err == 0)
+		err = rt_add_hardlink(d.rtd_os, d.rtd_root, "pb",
+		    bobj);
+	rt_close(&d);
+	RT_CHECK(err, "base pool");
+	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
+
+	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	err = rt_rename_file(d.rtd_os, d.rtd_root, "pa",
+	    d.rtd_root, "pc");
+	rt_close(&d);
+	RT_CHECK(err, "right member move");
+
+	rt_sync_pool();
+	err = rt_run_rebase(&nvl);
+	if (err == 0)
+		fnvlist_free(nvl);
+	RT_CHECK(err, "rebase failed");
+
+	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	old_gone = (rt_dir_lookup(d.rtd_os, d.rtd_root, "pa",
+	    &obj) == ENOENT);
+	obj = 0;
+	err = rt_dir_lookup(d.rtd_os, d.rtd_root, "pc", &obj);
+	if (err == 0)
+		err = rt_dir_lookup(d.rtd_os, d.rtd_root, "pb",
+		    &qobj);
+	if (err == 0)
+		err = rt_get_sa_u64(d.rtd_os, bobj, ZPL_LINKS,
+		    &links);
+	rt_close(&d);
+	RT_CHECK(err, "inspect");
+	TEST_EXPECT(old_gone, "old member name survived");
+	TEST_EXPECT(obj == bobj && qobj == bobj,
+	    "pool identity broken");
+	TEST_EXPECT(links == 2, "wrong link count");
+	TEST_PASS();
+}
+
+/*
+ * AS15: USER CANCEL among structural actions -- two renames
+ * pending, stop after the first LINK. Rollback restores both
+ * names and removes both new ones.
+ */
+static int
+test_apply_link_cancel(void)
+{
+	rt_ds_t d;
+	uint64_t m1, m2, obj;
+	boolean_t m1_there, m2_there, n1_gone, n2_gone, fence;
+	int err;
+
+	TEST_START("AS: cancel mid-links restores names");
+	RT_CHECK(rt_scaffold_empty_base(), "scaffold failed");
+	RT_CHECK(rt_open(RT_DS_SRC, &d), "hold src");
+	err = rt_create_file(d.rtd_os, d.rtd_root, "m1", "1", 1,
+	    &m1);
+	if (err == 0)
+		err = rt_create_file(d.rtd_os, d.rtd_root, "m2",
+		    "2", 1, &m2);
+	rt_close(&d);
+	RT_CHECK(err, "base files");
+	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
+
+	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	err = rt_rename_file(d.rtd_os, d.rtd_root, "m1",
+	    d.rtd_root, "n1");
+	if (err == 0)
+		err = rt_rename_file(d.rtd_os, d.rtd_root, "m2",
+		    d.rtd_root, "n2");
+	rt_close(&d);
+	RT_CHECK(err, "right renames");
+
+	rt_sync_pool();
+	rt_apply_inject(1, 0);
+	err = dsl_rebase(RT_DS_LEFT, RT_DS_RIGHT, NULL);
+	rt_apply_inject(0, 0);
+	TEST_EXPECT(err == EINTR, "expected EINTR from injection");
+
+	fence = rt_fence_exists();
+	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	m1_there = (rt_dir_lookup(d.rtd_os, d.rtd_root, "m1",
+	    &obj) == 0);
+	m2_there = (rt_dir_lookup(d.rtd_os, d.rtd_root, "m2",
+	    &obj) == 0);
+	n1_gone = (rt_dir_lookup(d.rtd_os, d.rtd_root, "n1",
+	    &obj) == ENOENT);
+	n2_gone = (rt_dir_lookup(d.rtd_os, d.rtd_root, "n2",
+	    &obj) == ENOENT);
+	rt_close(&d);
+	TEST_EXPECT(m1_there && m2_there, "old names not restored");
+	TEST_EXPECT(n1_gone && n2_gone, "new names left behind");
+	TEST_EXPECT(fence, "fence missing after cancel");
+	TEST_PASS();
+}
+
+/*
+ * AS16: CRASH between the passes -- the LINK applied, the UNLINK
+ * never ran, and the transient double-name becomes durable. The
+ * fence rollback heals it.
+ */
+static int
+test_apply_link_crash_double_name(void)
+{
+	rt_ds_t d;
+	uint64_t bobj, mobj = 0, nobj = 0, links = 0;
+	boolean_t fence, n_gone;
+	int err;
+
+	TEST_START("AS: crash makes the double-name durable");
+	RT_CHECK(rt_scaffold_empty_base(), "scaffold failed");
+	RT_CHECK(rt_open(RT_DS_SRC, &d), "hold src");
+	err = rt_create_file(d.rtd_os, d.rtd_root, "m", "mm", 2,
+	    &bobj);
+	rt_close(&d);
+	RT_CHECK(err, "base file");
+	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
+
+	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	err = rt_rename_file(d.rtd_os, d.rtd_root, "m",
+	    d.rtd_root, "n");
+	rt_close(&d);
+	RT_CHECK(err, "right rename");
+
+	rt_sync_pool();
+	rt_apply_inject(1, 1);
+	err = dsl_rebase(RT_DS_LEFT, RT_DS_RIGHT, NULL);
+	rt_apply_inject(0, 0);
+	TEST_EXPECT(err == EINTR, "expected EINTR from injection");
+
+	fence = rt_fence_exists();
+	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	err = rt_dir_lookup(d.rtd_os, d.rtd_root, "m", &mobj);
+	if (err == 0)
+		err = rt_dir_lookup(d.rtd_os, d.rtd_root, "n",
+		    &nobj);
+	if (err == 0)
+		err = rt_get_sa_u64(d.rtd_os, bobj, ZPL_LINKS,
+		    &links);
+	rt_close(&d);
+	RT_CHECK(err, "inspect");
+	TEST_EXPECT(mobj == bobj && nobj == bobj,
+	    "expected BOTH names durably present");
+	TEST_EXPECT(links == 2, "expected the transient count 2");
+	TEST_EXPECT(fence, "fence missing after crash");
+
+	rt_sync_pool();
+	RT_CHECK(rt_rollback_to_fence(), "manual rollback failed");
+	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	n_gone = (rt_dir_lookup(d.rtd_os, d.rtd_root, "n",
+	    &nobj) == ENOENT);
+	err = rt_get_sa_u64(d.rtd_os, bobj, ZPL_LINKS, &links);
+	rt_close(&d);
+	RT_CHECK(err, "inspect recovery");
+	TEST_EXPECT(n_gone && links == 1, "recovery did not restore");
+	TEST_PASS();
+}
+
+/*
+ * AS18: acceptance -- a structural-heavy apply (move, edit, pool
+ * join), fence cleared, rebased again: silence in every bucket.
+ */
+static int
+test_apply_link_roundtrip(void)
+{
+	rt_ds_t d;
+	uint64_t f2obj, pobj;
+	uint64_t copies = 9, writes = 9, severs = 9, links = 9;
+	uint64_t unlinks = 9, deferred = 9;
+	int err, serr = -1;
+	nvlist_t *nvl;
+
+	TEST_START("AS: acceptance -- moved result re-rebases silent");
+	RT_CHECK(rt_scaffold_empty_base(), "scaffold failed");
+	RT_CHECK(rt_open(RT_DS_SRC, &d), "hold src");
+	err = rt_create_file(d.rtd_os, d.rtd_root, "f1", "aa", 2,
+	    NULL);
+	if (err == 0)
+		err = rt_create_file(d.rtd_os, d.rtd_root, "f2",
+		    "bb", 2, &f2obj);
+	if (err == 0)
+		err = rt_create_file(d.rtd_os, d.rtd_root, "pa",
+		    "pp", 2, &pobj);
+	if (err == 0)
+		err = rt_add_hardlink(d.rtd_os, d.rtd_root, "pb",
+		    pobj);
+	rt_close(&d);
+	RT_CHECK(err, "base files");
+	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
+
+	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	err = rt_rename_file(d.rtd_os, d.rtd_root, "f1",
+	    d.rtd_root, "g1");
+	if (err == 0)
+		err = rt_edit_file(d.rtd_os, f2obj, "BB", 2);
+	if (err == 0)
+		err = rt_add_hardlink(d.rtd_os, d.rtd_root, "pc",
+		    pobj);
+	rt_close(&d);
+	RT_CHECK(err, "right changes");
+
+	rt_sync_pool();
+	err = rt_run_rebase(&nvl);
+	if (err == 0)
+		fnvlist_free(nvl);
+	RT_CHECK(err, "first rebase failed");
+
+	RT_CHECK(rt_destroy_fence(), "fence clear failed");
+	rt_sync_pool();
+	err = rt_run_rebase(&nvl);
+	RT_CHECK(err, "second rebase failed");
+	TEST_EXPECT(rt_manifest_nconflicts(nvl) == 0,
+	    "second run found conflicts");
+	fnvlist_free(nvl);
+	serr = rt_apply_stats(&copies, &writes, &severs, &links,
+	    &unlinks, &deferred);
+	RT_CHECK(serr, "no tally line");
+	TEST_EXPECT(copies == 0 && writes == 0 && severs == 0 &&
+	    links == 0 && unlinks == 0 && deferred == 0,
+	    "second run had work to do");
+	TEST_PASS();
+}
+
+/*
+ * AS21 (flips AE22): a sever to a DIRECTORY with children -- the
+ * SEVER creates the fresh dir first (path order), then the
+ * children COPY into it; the survivor keeps the old pool object.
+ */
+static int
+test_apply_sever_to_dir(void)
+{
+	rt_ds_t d;
+	char back[4];
+	uint64_t bobj, zobj = 0, qobj = 0, cobj = 0;
+	int err, cmp = -1;
+	nvlist_t *nvl;
+
+	TEST_START("AS: sever to a dir, children copy in");
+	RT_CHECK(rt_scaffold_empty_base(), "scaffold failed");
+	RT_CHECK(rt_open(RT_DS_SRC, &d), "hold src");
+	err = rt_create_file(d.rtd_os, d.rtd_root, "pa", "pp", 2,
+	    &bobj);
+	if (err == 0)
+		err = rt_add_hardlink(d.rtd_os, d.rtd_root, "pb",
+		    bobj);
+	rt_close(&d);
+	RT_CHECK(err, "base pool");
+	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
+
+	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	err = rt_remove_entry(d.rtd_os, d.rtd_root, "pa");
+	if (err == 0) {
+		uint64_t rdir;
+
+		err = rt_create_dir(d.rtd_os, d.rtd_root, "pa",
+		    &rdir);
+		if (err == 0)
+			err = rt_create_file(d.rtd_os, rdir, "cf",
+			    "cc", 2, NULL);
+	}
+	rt_close(&d);
+	RT_CHECK(err, "right sever-to-dir");
+
+	rt_sync_pool();
+	err = rt_run_rebase(&nvl);
+	if (err == 0)
+		fnvlist_free(nvl);
+	RT_CHECK(err, "rebase failed");
+
+	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	err = rt_dir_lookup(d.rtd_os, d.rtd_root, "pa", &zobj);
+	if (err == 0)
+		err = rt_dir_lookup(d.rtd_os, zobj, "cf", &cobj);
+	if (err == 0)
+		err = rt_read_data(d.rtd_os, cobj, 0, 2, back);
+	if (err == 0) {
+		cmp = memcmp("cc", back, 2);
+		err = rt_dir_lookup(d.rtd_os, d.rtd_root, "pb",
+		    &qobj);
+	}
+	rt_close(&d);
+	RT_CHECK(err, "inspect");
+	TEST_EXPECT(zobj != bobj, "severed path kept pool object");
+	TEST_EXPECT(cmp == 0, "child did not copy in");
+	TEST_EXPECT(qobj == bobj, "survivor lost its object");
 	TEST_PASS();
 }
 
@@ -2677,7 +3388,7 @@ run_apply_tests(void)
 	(void) test_apply_edit_xattr_to_bare();
 	(void) test_apply_edit_pool_group_write();
 	(void) test_apply_edit_pool_shrink_survivor();
-	(void) test_apply_edit_write_deferred();
+	(void) test_apply_move_edit_whole();
 	(void) test_apply_sever_basic();
 	(void) test_apply_sever_xattrs();
 	(void) test_apply_sever_all_members();
@@ -2685,4 +3396,17 @@ run_apply_tests(void)
 	(void) test_apply_edit_cancel();
 	(void) test_apply_edit_crash_partial();
 	(void) test_apply_edit_roundtrip();
+
+	(void) printf("\n[apply-structural: links and moves (AS)]\n");
+	(void) test_apply_link_move_across_dirs();
+	(void) test_apply_link_dir_move();
+	(void) test_apply_link_rename_in_moved_dir();
+	(void) test_apply_link_pool_join();
+	(void) test_apply_link_novel_pool();
+	(void) test_apply_link_matched_novel();
+	(void) test_apply_link_pool_member_move();
+	(void) test_apply_link_cancel();
+	(void) test_apply_link_crash_double_name();
+	(void) test_apply_link_roundtrip();
+	(void) test_apply_sever_to_dir();
 }
