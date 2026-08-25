@@ -792,3 +792,77 @@ contract; acceptance.
 | AE27 | acceptance: edit-heavy apply, clear the fence, re-rebase | silence: zero conflicts, zero actions of any kind against the applied result | covered: test_apply_edit_roundtrip |
 | AE28 | pool shrinks around a SILENT survivor | no action for the survivor's row: same object, same content, links counted down by the removals alone | mapped: AP3's fixture is exactly this shape and reads it all back |
 | AE29 | pool shrinks around an EDITED survivor | in-place WRITE on the pool object: same object number, new bytes, links correct; tally one write + one unlink, zero severs | covered: test_apply_edit_pool_shrink_survivor |
+
+## Apply structural matrix (AS) -- links, moves, novel pools
+
+Plotted 2026-08-25, before its code. REBASE_ACTION_LINK lands:
+the move handoff completes, novel right pools materialize, and
+pool joins count up. Design decisions the cells encode, settled
+against the source before plotting:
+
+- LINK applies in pass one, in list order, alongside COPY,
+  WRITE, and SEVER. Emit order already serves it: a directory's
+  LINK precedes its children's COPYs, and a path's LINK precedes
+  its WRITE, so the WRITE-defer machinery simply stops
+  triggering. UNLINKs stay in pass two, so a move briefly holds
+  BOTH names -- apply owns the unmounted HEAD, nothing observes
+  the gap, and the parked-at-zero era ends (nlink now travels
+  2 -> 1 instead of 1 -> 0 -> 1).
+- ra_obj keeps its header meaning, "dnode in the left HEAD the
+  action targets (0 = created)": nonzero links to that object
+  (move destinations -- emission now stamps the moved object --
+  pool joins, X1's matched group); zero means the target does
+  not exist in left and the FIRST such LINK creates it by full
+  copy from ra_src_obj (novel right pools), with a per-run
+  source-to-created map so the group's later LINKs reuse it.
+  The pure-novel group WRITE is no longer emitted -- creation
+  carries the content -- so the deferred bucket goes to zero.
+- LINK mirrors apply_unlink's accounting exactly: non-directory
+  targets get ZPL_LINKS++, directory targets never touch their
+  own count but move the PARENT's (old parent decremented by the
+  unlink, new parent incremented by the link); parent size and
+  times stamp like the copy path; ZPL_PARENT updates best-effort
+  (multi-link files have no single truth by design).
+- The dirent-identity rule: a collapsed MOVE whose base dirent
+  and right dirent are LITERALLY identical -- same parent
+  directory OBJECT and same leaf name -- emits no UNLINK and no
+  LINK, because nothing in any ZAP changed: that is every child
+  of a moved directory (their entries ride the moved ZAP), and
+  blindly replaying them would EEXIST in pass one and corrupt
+  the shared ZAP in pass two. A rename inside a moved directory
+  still differs in leaf name and replays normally. MOVE_EDIT
+  keeps its WRITE either way.
+
+Dimensions: LINK target resolution {existing object, create on
+first link, reuse of created}; move shapes {rename, cross-dir,
+dir with children, rename inside moved dir, MOVE_EDIT}; the
+dirent-identity suppression; accounting {nlink, dir parent-link
+transfer, ZPL_PARENT, size/times}; pool shapes {grow-join, novel
+pool, member move, member under moved dir}; guards {occupied
+destination, missing target, sever-park-then-link}; interruption
+{cancel, crash between passes}; the six-bucket tally; acceptance;
+the AP6/AE17 rewrites; AE22's revisit.
+
+| Cell | Scenario | Expect | Disposition |
+|------|----------|--------|-------------|
+| AS1  | file rename within a directory | old name gone, new name present, SAME object, links 1, data and attrs intact | planned (AP6's rewrite covers the root-dir case) |
+| AS2  | move across directories | entry leaves the old parent for the new one; ZPL_PARENT points at the new parent | planned |
+| AS3  | MOVE_EDIT applies whole | moved name carries right's new bytes, nothing deferred (AE17's rewrite) | planned |
+| AS4  | directory move with children | dir object unchanged, children reachable at new paths and gone from old, old parent ZPL_LINKS down one and new parent up one | planned |
+| AS5  | rename inside a moved directory | both the dir move and the inner rename land | planned |
+| AS6  | child-of-moved-dir suppression | the action list carries NO unlink/link for children whose dirents did not change (action-count pin) | planned |
+| AS7  | right hardlinks a new name onto a base pool (the GROW join) | new name resolves to the pool object, ZPL_LINKS counted up, ZPL_PARENT best-effort points at the link's parent | planned |
+| AS8  | novel right pool, two names | first LINK creates by full copy (content and xattrs), second reuses it: both names one fresh object, links 2, no WRITE emitted, deferred 0 | planned |
+| AS9  | X1's matched-group shape applied | WRITE lands right's content in place on left's object, LINK adds the second name: both names, links 2 | planned |
+| AS10 | pool member moved (the handoff completes) | old member name gone, new name on the pool object, link count preserved | planned |
+| AS11 | pool member under a moved directory | -- | deferred: row-driven actions lack the dirent-identity guard; unblocking work: extend the suppression to member rows |
+| AS12 | sever parks the old pool object, a later LINK re-names it | object kept by the tripwire, link lands on it | deferred: not honestly fixturable (the emitting shape self-contradicts); the tripwire is the guard and AE23 maps it |
+| AS13 | LINK destination occupied | loud EEXIST (the merge said the name is free) | mapped: trusted-manifest guard, fires only on compiler self-contradiction |
+| AS14 | LINK target object missing | loud EIO | mapped: same guard family |
+| AS15 | USER CANCEL among structural actions | EINTR, rollback restores the pre-state completely | planned |
+| AS16 | CRASH between passes: LINK applied, UNLINK never ran | BOTH names durably present (the transient made real); fence rollback heals to exactly the pre-state | planned |
+| AS17 | the six-bucket tally | "rebase: apply copies N writes N severs N links N unlinks N deferred N"; deferred 0 on a full non-conflict apply | planned |
+| AS18 | acceptance: move-heavy apply, clear the fence, re-rebase | silence | planned |
+| AS19 | AP6 rewritten | the move lands whole: new name present, links 1 | planned (rewrites test_apply_move_handoff) |
+| AS20 | AE17 rewritten | the once-deferred WRITE applies through its LINK | planned (rewrites test_apply_edit_write_deferred) |
+| AS21 | sever to a directory with children (AE22's revisit) | SEVER creates the dir, the children COPY into it | planned (flips AE22) |
