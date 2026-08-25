@@ -22,8 +22,10 @@ Matrices so far: setup (S), walk (W), linkpool (LP/LV), hysteria (H),
 standalone-diff (D), move-collapse (M), linkpool-anchor (A
 classification/rescue, T membership targets), membership-merge (U
 unification, R resolution), content-merge-emit (E content, F
-warnings/actions/emit, P samepath). All six cross-reference phases
-are plotted.
+warnings/actions/emit, P samepath), cross-domain seam (X), and the
+apply copy primitives (CP, plotted ahead of its tests -- the rows
+are "planned" until apply-additions makes the helpers observable).
+All six cross-reference phases are plotted.
 
 THE CONTRACT FLIP (2026-08-23, with content-merge-emit, as
 retrospective iceberg 5 mandated): the engine's success return is
@@ -579,17 +581,78 @@ conflict bucket and the sum invariant still holds.
 | X18 | X-REG regression: plain left standalone rename, nobody contests | diff tuples unchanged from M1; the widened synthesis adds the old path's GONE row (finals gone +1); zero conflicts, zero actions | covered: test_seam_reg_standalone_move |
 | X19 | fragment winner: right splits fragment {P3,P4} out of base pool N; left independently creates P3, different content | CREATE_CREATE keyed by the fragment; pins the FRAGMENT arm of the consultation (parent lineage for on-lineage, side table for the compare object) | covered: test_seam_fragment_winner |
 
-## Apply primitives (deferral marker, 2026-08-24)
+## Apply copy primitives matrix (CP) -- object copy, logical xattrs
 
-The xattr-dir-helpers commit (e7e5452e1) landed the apply epic's
-DMU-level primitives: rebase_copy_object, rebase_copy_xattrs /
-rebase_write_xattrs (logical gather, destination-form write),
-rebase_stamp_node, and rebase_free_xattr_dir. They are static
-functions with no callers until apply-additions wires them to the
-action list, so NOTHING about them is observable through the
-ioctl yet. Their problem space (object kinds, attribute presence
-combinations, SA-vs-directory xattr splits at both size gates,
-xattr=off refusal, mixed-form round-trips) gets its matrix WITH
-apply-additions' matrix, plotted before that phase's tests per
-the standing rule. This marker exists so the hole is named, not
-silent.
+Plotted 2026-08-24, right after the xattr-dir-helpers commit
+(e7e5452e1) and BEFORE any of its tests can exist: the helpers
+are static functions with no callers until apply-additions wires
+them to the action list, so nothing here is observable through
+the ioctl yet. Every row is therefore "planned": it names the
+intended test and what it needs, and flips to covered when
+apply-additions' test pass lands. No skeleton test code is
+mocked out ahead of that -- written-but-never-executed
+enforcement is where bodies live (the retrospective-7 rule), so
+test code arrives only when it can actually run and fail.
+
+Dimensions: source object kind {plain file, directory, symlink
+with SA-resident target, symlink with data-block target, device
+node}; data shape {empty, single block, multi-block}; attribute
+presence {standard set, with ACL, optional attributes absent};
+xattr source form {none, SA-only, directory-only, mixed};
+destination xattr= mode {sa, dir, off}; value size class {small,
+per-entry overflow past DXATTR_MAX_ENTRY_SIZE, aggregate
+overflow past DXATTR_MAX_SA_SIZE, zero-length}; fidelity
+properties (parent override, xattr-state-free copy, owner
+stamping); faults.
+
+Observation mechanism, once apply-additions lands: inspect the
+APPLIED left head directly -- rt_open it, walk dirents, read SA
+attributes and data, and read xattrs logically. New accessors the
+apply harness pass owes this matrix: rt_get_sa_u64 (read one
+attribute), rt_sa_absent (assert an attribute is NOT present),
+rt_xattr_read (logical per-name value read merging both physical
+forms, mirroring the engine's gatherer), rt_xattr_forms (report
+which physical forms an object carries: DXATTR, directory, both,
+neither), and rt_read_data (content compare). The strongest
+single check is the round-trip: re-run the DIFF engine with the
+applied result on one side and assert silence -- recorded as this
+family's acceptance cell (CP24).
+
+One dimension is documented as unrepresentable rather than
+celled: SOURCE AND DESTINATION SA TABLES THAT GENUINELY DIFFER.
+The per-side-table parameters exist because attribute numbers are
+registered per objset (the sprint-1 code used one table for both,
+a real latent bug), but every dataset a fixture can build
+registers the identical layout -- the same zfs version registers
+the same attributes in the same order -- so no in-harness fixture
+can make the tables diverge. The rule is held by the signatures
+themselves and by review; it would first bite (and first be
+testable) across pool-version skew, which is upstream-review
+territory, not harness territory.
+
+| Cell | Scenario | Expect | Disposition |
+|------|----------|--------|-------------|
+| CP1  | plain file, multi-block data, standard attributes | copied object: right DMU kind, byte-identical data, ZPL_PARENT = destination parent, links/times/mode/uid/gid carried | planned: test_apply_copy_file (apply-additions + rt_read_data) |
+| CP2  | empty file (no data blocks) | size 0, no data-copy loop entered, attributes intact | planned: test_apply_copy_empty |
+| CP3  | directory | ZAP object allocated, directory attributes carried; child recursion is apply-additions' own cell, not this one | planned: test_apply_copy_dir |
+| CP4  | symlink, SA-resident target | ZPL_SYMLINK carried; target readable and equal | planned: test_apply_copy_symlink_sa |
+| CP5  | symlink, data-block target (long target) | target crosses via the data copy | planned: test_apply_copy_symlink_data |
+| CP6  | device node | ZPL_RDEV carried; plain-file dnode kind | planned: test_apply_copy_device |
+| CP7  | file with ACL | ZPL_DACL_ACES + ZPL_DACL_COUNT both cross | planned: test_apply_copy_acl |
+| CP8  | optional attributes ABSENT on source (no RDEV/PROJID) | destination has them ABSENT too -- presence-conditional copy never invents defaults (the sprint-1 correction this family exists to pin) | planned: test_apply_copy_no_invented_attrs (rt_sa_absent) |
+| CP9  | multi-link source file, one COPY action | the HELPER copies ZPL_LINKS as-is; apply-additions must overwrite with merged-namespace truth -- the cell lives in apply-additions' matrix and is cross-referenced here so neither matrix drops it | planned: apply-additions matrix owns it |
+| CP10 | src/dst SA table skew | unrepresentable in-harness (see preamble); held by signatures + review | documented above |
+| CP11 | no xattrs on source | destination carries neither xattr form | planned: test_apply_xattr_none (rt_xattr_forms) |
+| CP12 | SA-only source, dst xattr=sa, small values | SA-resident on destination; logical set round-trips | planned: test_apply_xattr_sa_to_sa |
+| CP13 | DIRECTORY-only source, dst xattr=sa, small values | representation CONVERTS to SA-resident -- the destination-form decision's core: never replicate the source's form | planned: test_apply_xattr_dir_to_sa |
+| CP14 | SA-only source, dst xattr=dir | converts to a hidden directory; directory stamped 0041777 + ZFS_XATTR + links 2 + size 2+n, children stamped regular + ZFS_XATTR | planned: test_apply_xattr_sa_to_dir |
+| CP15 | MIXED source (SA and directory at once), dst xattr=sa | gatherer merges both forms into one logical set; all small values land SA | planned: test_apply_xattr_mixed_merge |
+| CP16 | one value past DXATTR_MAX_ENTRY_SIZE under xattr=sa | that value overflows to the directory, the rest stay SA -- BOTH forms on one object, as ZPL leaves it; round-trip equal | planned: test_apply_xattr_entry_overflow |
+| CP17 | aggregate past DXATTR_MAX_SA_SIZE (many small values) | some values spill to the directory; assert the PROPERTY, not the split: round-trip equal, both forms present, packed SA size within the cap (which entries spill follows nvlist order and is not contract) | planned: test_apply_xattr_total_overflow |
+| CP18 | zero-length xattr value | legal; survives the round-trip in whichever form | planned: test_apply_xattr_empty_value |
+| CP19 | dst xattr=off, source HAS xattrs | EOPNOTSUPP from the writer -- the policy hook; what apply turns it into (conflict, warning, abort) is apply-additions' policy cell | planned: shared with apply-additions |
+| CP20 | dst xattr=off, source has NO xattrs | clean no-op: the empty-set short-circuit runs before the mode gate | planned: test_apply_xattr_off_empty |
+| CP21 | source file owned by nonzero uid/gid, dir-form write | xattr directory and value children carry the OWNING file's uid/gid (no caller credential exists in a sync task) | planned: test_apply_xattr_owner (fixture sets ZPL_UID/GID on source) |
+| CP22 | rebase_free_xattr_dir on a populated dir; on an empty dir | directory and every child unallocated afterward (dmu_object_info ENOENT) | planned: lands with apply-edits/apply-deletions, whichever first replaces or removes xattr state |
+| CP23 | corrupt DXATTR blob on the copy SOURCE | EIO through the gatherer -- rebase_copy_xattrs is the gatherer's third caller; H36 and U9 pinned the walk and phase-C readers, this pins the apply reader | planned: test_apply_xattr_corrupt_source |
+| CP24 | ACCEPTANCE: apply a right-side object, then re-run the diff engine against the applied result | silence -- no content, attribute, or xattr differences; the copy is invisible to the engine's own eyes | planned: test_apply_roundtrip_acceptance |
