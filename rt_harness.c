@@ -551,3 +551,125 @@ rt_manifest_dump(nvlist_t *nvl)
 		}
 	}
 }
+
+/*
+ * ==== Apply-era flow helpers (AP matrix) ====
+ */
+
+/*
+ * Scrape the apply tally line: copies / unlinks / deferred.
+ */
+int
+rt_apply_stats(uint64_t *copies, uint64_t *unlinks, uint64_t *deferred)
+{
+	char line[512];
+	unsigned long long c, u, d;
+	int err;
+
+	err = rt_dbgmsg_last("rebase: apply copies", line,
+	    sizeof (line));
+	if (err != 0)
+		return (err);
+	if (sscanf(line, "rebase: apply copies %llu unlinks %llu "
+	    "deferred %llu", &c, &u, &d) != 3)
+		return (ENOENT);
+	*copies = c;
+	*unlinks = u;
+	*deferred = d;
+	return (0);
+}
+
+/*
+ * Drive the engine's crash/cancel injection tunables. Tests MUST
+ * reset to (0, 0) immediately after the rebase call returns, on
+ * every path, or the leak poisons every later test.
+ */
+void
+rt_apply_inject(uint64_t stop_after, int skip_rollback)
+{
+	rebase_apply_inject_stop_after = stop_after;
+	rebase_apply_inject_skip_rollback = skip_rollback;
+}
+
+boolean_t
+rt_fence_exists(void)
+{
+	objset_t *os;
+
+	if (dmu_objset_hold(RT_DS_LEFT "@" ZFS_REBASE_SNAP_SUFFIX,
+	    FTAG, &os) != 0)
+		return (B_FALSE);
+	dmu_objset_rele(os, FTAG);
+	return (B_TRUE);
+}
+
+int
+rt_destroy_fence(void)
+{
+	return (dsl_destroy_snapshot(
+	    RT_DS_LEFT "@" ZFS_REBASE_SNAP_SUFFIX, B_FALSE));
+}
+
+/*
+ * Roll the left HEAD back to its fence snapshot -- the recovery
+ * the abort flow will run; crash-simulation tests rehearse it
+ * here. The rollback sync task requires a real result nvlist.
+ */
+int
+rt_rollback_to_fence(void)
+{
+	nvlist_t *rnvl = fnvlist_alloc();
+	int err;
+
+	err = dsl_dataset_rollback(RT_DS_LEFT,
+	    RT_DS_LEFT "@" ZFS_REBASE_SNAP_SUFFIX, NULL, rnvl);
+	nvlist_free(rnvl);
+	return (err);
+}
+
+/*
+ * Read-only open of a snapshot (rt_open owns, which a snapshot
+ * refuses for writing): hold, SA setup, root lookup. Close with
+ * rt_close_snap.
+ */
+int
+rt_open_snap(const char *name, rt_ds_t *ds)
+{
+	sa_attr_type_t *tbl;
+	int err;
+
+	err = dmu_objset_hold(name, ds, &ds->rtd_os);
+	if (err != 0)
+		return (err);
+	err = rt_sa_setup(ds->rtd_os, &tbl);
+	if (err == 0)
+		err = zap_lookup(ds->rtd_os, MASTER_NODE_OBJ,
+		    ZFS_ROOT_OBJ, 8, 1, &ds->rtd_root);
+	if (err != 0) {
+		dmu_objset_rele(ds->rtd_os, ds);
+		ds->rtd_os = NULL;
+	}
+	return (err);
+}
+
+void
+rt_close_snap(rt_ds_t *ds)
+{
+	dmu_objset_rele(ds->rtd_os, ds);
+	ds->rtd_os = NULL;
+}
+
+/*
+ * Set one numeric dsl property (e.g. xattr=sa) on a dataset.
+ */
+int
+rt_set_dsl_prop_u64(const char *dsname, const char *prop, uint64_t val)
+{
+	nvlist_t *nvl = fnvlist_alloc();
+	int err;
+
+	fnvlist_add_uint64(nvl, prop, val);
+	err = dsl_props_set(dsname, ZPROP_SRC_LOCAL, nvl);
+	nvlist_free(nvl);
+	return (err);
+}

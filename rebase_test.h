@@ -36,7 +36,9 @@
 #include <sys/dmu_objset.h>
 #include <sys/dmu_tx.h>
 #include <sys/dsl_dataset.h>
+#include <sys/dsl_destroy.h>
 #include <sys/dsl_pool.h>
+#include <sys/dsl_prop.h>
 #include <sys/dsl_scan.h>
 #include <sys/dsl_rebase.h>
 #include <sys/zap.h>
@@ -204,6 +206,22 @@ void rt_close(rt_ds_t *ds);
 void rt_sync_pool(void);
 int rt_run_rebase(nvlist_t **nvlp);
 void rt_rebase_diag(void);
+
+/* apply-era flow helpers (AP matrix) */
+int rt_apply_stats(uint64_t *copies, uint64_t *unlinks,
+    uint64_t *deferred);
+void rt_apply_inject(uint64_t stop_after, int skip_rollback);
+boolean_t rt_fence_exists(void);
+int rt_destroy_fence(void);
+int rt_rollback_to_fence(void);
+int rt_open_snap(const char *name, rt_ds_t *ds);
+void rt_close_snap(rt_ds_t *ds);
+int rt_set_dsl_prop_u64(const char *dsname, const char *prop,
+    uint64_t val);
+
+/* the engine's crash/cancel injection tunables (dsl_rebase.c) */
+extern uint64_t rebase_apply_inject_stop_after;
+extern int rebase_apply_inject_skip_rollback;
 int rt_walk_stats(rt_walk_stats_t *ws);
 int rt_changelist_counts(uint64_t *leftp, uint64_t *rightp);
 int rt_move_stats(rt_move_stats_t *ms);
@@ -269,6 +287,20 @@ int rt_set_sa_u64(objset_t *os, uint64_t obj, int zpl_attr,
     uint64_t value);
 int rt_set_sa_blob(objset_t *os, uint64_t obj, int zpl_attr,
     const void *buf, uint32_t len);
+
+/* post-apply inspection accessors (AP/CP matrices) */
+int rt_get_sa_u64(objset_t *os, uint64_t obj, int zpl_attr,
+    uint64_t *valp);
+boolean_t rt_sa_absent(objset_t *os, uint64_t obj, int zpl_attr);
+boolean_t rt_object_exists(objset_t *os, uint64_t obj);
+int rt_read_data(objset_t *os, uint64_t obj, uint64_t off,
+    uint64_t len, void *buf);
+int rt_read_symlink(objset_t *os, uint64_t obj, char *buf,
+    size_t buflen);
+int rt_xattr_forms(objset_t *os, uint64_t obj, boolean_t *sa_formp,
+    boolean_t *dir_formp);
+int rt_xattr_read(objset_t *os, uint64_t obj, const char *name,
+    void *buf, uint_t buflen, uint_t *lenp);
 int rt_remove_sa_attr(objset_t *os, uint64_t obj, int zpl_attr);
 int rt_touch(objset_t *os, uint64_t obj);
 int rt_write_range(objset_t *os, uint64_t obj, uint64_t offset,
@@ -292,6 +324,7 @@ void run_anchor_tests(void);
 void run_merge_tests(void);
 void run_emit_tests(void);
 void run_seam_tests(void);
+void run_apply_tests(void);
 void run_linkpool_tests(void);
 void run_crossref_tests(void);
 

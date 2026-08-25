@@ -270,6 +270,43 @@ void rt_close(rt_ds_t *ds);
 void rt_sync_pool(void);
 int rt_run_rebase(nvlist_t **nvlp);
 void rt_rebase_diag(void);
+
+/* apply-era flow helpers + inspection accessors (AP/CP) */
+int rt_apply_stats(uint64_t *, uint64_t *, uint64_t *);
+void rt_apply_inject(uint64_t, int);
+boolean_t rt_fence_exists(void);
+int rt_destroy_fence(void);
+int rt_rollback_to_fence(void);
+int rt_open_snap(const char *, rt_ds_t *);
+void rt_close_snap(rt_ds_t *);
+int rt_set_dsl_prop_u64(const char *, const char *, uint64_t);
+int rt_get_sa_u64(objset_t *, uint64_t, int, uint64_t *);
+boolean_t rt_sa_absent(objset_t *, uint64_t, int);
+boolean_t rt_object_exists(objset_t *, uint64_t);
+int rt_read_data(objset_t *, uint64_t, uint64_t, uint64_t, void *);
+int rt_read_symlink(objset_t *, uint64_t, char *, size_t);
+int rt_xattr_forms(objset_t *, uint64_t, boolean_t *, boolean_t *);
+int rt_xattr_read(objset_t *, uint64_t, const char *, void *,
+    uint_t, uint_t *);
+extern uint64_t rebase_apply_inject_stop_after;
+extern int rebase_apply_inject_skip_rollback;
+#define	ZFS_REBASE_SNAP_SUFFIX "%rebase-snap"
+#define	DMU_READ_NO_PREFETCH 8
+#define	MIN(a, b) ((a) < (b) ? (a) : (b))
+void *kmem_alloc(size_t, int);
+void kmem_free(void *, size_t);
+int dmu_objset_hold(const char *, const void *, objset_t **);
+void dmu_objset_rele(objset_t *, const void *);
+int dmu_read(objset_t *, uint64_t, uint64_t, uint64_t, void *,
+    uint32_t);
+int dsl_dataset_rollback(const char *, const char *, void *,
+    nvlist_t *);
+int dsl_destroy_snapshot(const char *, boolean_t);
+typedef enum { ZPROP_SRC_LOCAL = 1 } zprop_source_t;
+int dsl_props_set(const char *, zprop_source_t, nvlist_t *);
+int nvlist_unpack(char *, size_t, nvlist_t **, int);
+int nvlist_lookup_byte_array(nvlist_t *, const char *, uchar_t **,
+    uint_t *);
 int rt_walk_stats(rt_walk_stats_t *ws);
 int rt_changelist_counts(uint64_t *leftp, uint64_t *rightp);
 int rt_move_stats(rt_move_stats_t *ms);
@@ -348,6 +385,7 @@ void run_anchor_tests(void);
 void run_merge_tests(void);
 void run_emit_tests(void);
 void run_seam_tests(void);
+void run_apply_tests(void);
 void run_linkpool_tests(void);
 void run_crossref_tests(void);
 

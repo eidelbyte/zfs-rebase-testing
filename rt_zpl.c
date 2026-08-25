@@ -1010,3 +1010,190 @@ rt_rename_file(objset_t *os, uint64_t src_dir, const char *old_name,
 	dmu_tx_commit(tx);
 	return (0);
 }
+
+/*
+ * ==== Post-apply inspection accessors (AP/CP matrices) ====
+ *
+ * Read the APPLIED left HEAD back so tests assert what apply
+ * actually wrote, not merely that it returned success. These are
+ * deliberately independent implementations -- they do not reuse
+ * the engine's readers, so a bug shared with the engine cannot
+ * hide itself.
+ */
+
+int
+rt_get_sa_u64(objset_t *os, uint64_t obj, int zpl_attr, uint64_t *valp)
+{
+	sa_attr_type_t *sa_tbl = get_sa_table(os);
+	sa_handle_t *hdl;
+	int err;
+
+	err = sa_handle_get(os, obj, NULL, SA_HDL_PRIVATE, &hdl);
+	if (err != 0)
+		return (err);
+	err = sa_lookup(hdl, sa_tbl[zpl_attr], valp, sizeof (uint64_t));
+	sa_handle_destroy(hdl);
+	return (err);
+}
+
+boolean_t
+rt_sa_absent(objset_t *os, uint64_t obj, int zpl_attr)
+{
+	uint64_t v;
+
+	return (rt_get_sa_u64(os, obj, zpl_attr, &v) == ENOENT);
+}
+
+boolean_t
+rt_object_exists(objset_t *os, uint64_t obj)
+{
+	dmu_object_info_t doi;
+
+	return (dmu_object_info(os, obj, &doi) == 0);
+}
+
+int
+rt_read_data(objset_t *os, uint64_t obj, uint64_t off, uint64_t len,
+    void *buf)
+{
+	return (dmu_read(os, obj, off, len, buf, DMU_READ_NO_PREFETCH));
+}
+
+int
+rt_read_symlink(objset_t *os, uint64_t obj, char *buf, size_t buflen)
+{
+	sa_attr_type_t *sa_tbl = get_sa_table(os);
+	sa_handle_t *hdl;
+	int len;
+	int err;
+
+	err = sa_handle_get(os, obj, NULL, SA_HDL_PRIVATE, &hdl);
+	if (err != 0)
+		return (err);
+	err = sa_size(hdl, sa_tbl[ZPL_SYMLINK], &len);
+	if (err == 0 && (size_t)len >= buflen)
+		err = ERANGE;
+	if (err == 0)
+		err = sa_lookup(hdl, sa_tbl[ZPL_SYMLINK], buf, len);
+	sa_handle_destroy(hdl);
+	if (err == 0)
+		buf[len] = '\0';
+	return (err);
+}
+
+/*
+ * Which physical xattr forms does this object carry? SA-resident
+ * means a nonempty ZPL_DXATTR; directory means a nonzero
+ * ZPL_XATTR (apply writes an explicit zero for "none").
+ */
+int
+rt_xattr_forms(objset_t *os, uint64_t obj, boolean_t *sa_formp,
+    boolean_t *dir_formp)
+{
+	sa_attr_type_t *sa_tbl = get_sa_table(os);
+	sa_handle_t *hdl;
+	uint64_t xd = 0;
+	int sz = 0;
+	int err;
+
+	err = sa_handle_get(os, obj, NULL, SA_HDL_PRIVATE, &hdl);
+	if (err != 0)
+		return (err);
+	err = sa_size(hdl, sa_tbl[ZPL_DXATTR], &sz);
+	if (err == ENOENT) {
+		err = 0;
+		sz = 0;
+	}
+	if (err == 0) {
+		err = sa_lookup(hdl, sa_tbl[ZPL_XATTR], &xd,
+		    sizeof (xd));
+		if (err == ENOENT) {
+			err = 0;
+			xd = 0;
+		}
+	}
+	sa_handle_destroy(hdl);
+	if (err != 0)
+		return (err);
+	*sa_formp = (sz > 0);
+	*dir_formp = (xd != 0);
+	return (0);
+}
+
+/*
+ * Logical xattr read: find one named value in whichever physical
+ * form holds it (SA-resident first, then the hidden directory).
+ * Copies at most buflen bytes and reports the full length.
+ * Returns ENOENT when the name exists in neither form.
+ */
+int
+rt_xattr_read(objset_t *os, uint64_t obj, const char *name, void *buf,
+    uint_t buflen, uint_t *lenp)
+{
+	sa_attr_type_t *sa_tbl = get_sa_table(os);
+	sa_handle_t *hdl;
+	uint64_t xd = 0;
+	int sz = 0;
+	int err;
+
+	err = sa_handle_get(os, obj, NULL, SA_HDL_PRIVATE, &hdl);
+	if (err != 0)
+		return (err);
+
+	err = sa_size(hdl, sa_tbl[ZPL_DXATTR], &sz);
+	if (err == 0 && sz > 0) {
+		char *packed = kmem_alloc(sz, KM_SLEEP);
+		nvlist_t *nvl = NULL;
+		uchar_t *val;
+		uint_t vlen;
+
+		err = sa_lookup(hdl, sa_tbl[ZPL_DXATTR], packed, sz);
+		if (err == 0)
+			err = nvlist_unpack(packed, sz, &nvl, KM_SLEEP);
+		kmem_free(packed, sz);
+		if (err == 0 && nvlist_lookup_byte_array(nvl, name,
+		    &val, &vlen) == 0) {
+			memcpy(buf, val, MIN(vlen, buflen));
+			*lenp = vlen;
+			nvlist_free(nvl);
+			sa_handle_destroy(hdl);
+			return (0);
+		}
+		nvlist_free(nvl);
+		if (err != 0) {
+			sa_handle_destroy(hdl);
+			return (err);
+		}
+	} else if (err == ENOENT) {
+		err = 0;
+	}
+
+	if (err == 0) {
+		err = sa_lookup(hdl, sa_tbl[ZPL_XATTR], &xd,
+		    sizeof (xd));
+		if (err == ENOENT) {
+			err = 0;
+			xd = 0;
+		}
+	}
+	sa_handle_destroy(hdl);
+	if (err != 0)
+		return (err);
+	if (xd != 0) {
+		uint64_t child, vsz;
+
+		err = rt_dir_lookup(os, xd, name, &child);
+		if (err != 0)
+			return (err);
+		err = rt_get_sa_u64(os, child, ZPL_SIZE, &vsz);
+		if (err != 0)
+			return (err);
+		if (vsz > 0)
+			err = dmu_read(os, child, 0, MIN(vsz, buflen),
+			    buf, DMU_READ_NO_PREFETCH);
+		if (err == 0)
+			*lenp = (uint_t)vsz;
+		return (err);
+	}
+	return (ENOENT);
+}

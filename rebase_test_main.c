@@ -29,6 +29,7 @@ static const struct {
 	{ "merge",	run_merge_tests },
 	{ "emit",	run_emit_tests },
 	{ "seam",	run_seam_tests },
+	{ "apply",	run_apply_tests },
 	{ "linkpool",	run_linkpool_tests },
 	{ "crossref",	run_crossref_tests },
 };

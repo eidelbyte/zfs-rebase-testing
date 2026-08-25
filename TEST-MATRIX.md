@@ -632,27 +632,72 @@ territory, not harness territory.
 
 | Cell | Scenario | Expect | Disposition |
 |------|----------|--------|-------------|
-| CP1  | plain file, multi-block data, standard attributes | copied object: right DMU kind, byte-identical data, ZPL_PARENT = destination parent, links/times/mode/uid/gid carried | planned: test_apply_copy_file (apply-additions + rt_read_data) |
-| CP2  | empty file (no data blocks) | size 0, no data-copy loop entered, attributes intact | planned: test_apply_copy_empty |
-| CP3  | directory | ZAP object allocated, directory attributes carried; child recursion is apply-additions' own cell, not this one | planned: test_apply_copy_dir |
-| CP4  | symlink, SA-resident target | ZPL_SYMLINK carried; target readable and equal | planned: test_apply_copy_symlink_sa |
+| CP1  | plain file, multi-block data, standard attributes | copied object: right DMU kind, byte-identical data, ZPL_PARENT = destination parent, links/times/mode/uid/gid carried | covered: test_apply_copy_file |
+| CP2  | empty file (no data blocks) | size 0, no data-copy loop entered, attributes intact | covered: test_apply_copy_empty |
+| CP3  | directory | ZAP object allocated, directory attributes carried; child recursion is apply-additions' own cell, not this one | covered: test_apply_copy_dir |
+| CP4  | symlink, SA-resident target | ZPL_SYMLINK carried; target readable and equal | covered: test_apply_copy_symlink_sa |
 | CP5  | symlink, data-block target (long target) | target crosses via the data copy | planned: test_apply_copy_symlink_data |
-| CP6  | device node | ZPL_RDEV carried; plain-file dnode kind | planned: test_apply_copy_device |
+| CP6  | device node | ZPL_RDEV carried; plain-file dnode kind | covered: test_apply_copy_device |
 | CP7  | file with ACL | ZPL_DACL_ACES + ZPL_DACL_COUNT both cross | planned: test_apply_copy_acl |
-| CP8  | optional attributes ABSENT on source (no RDEV/PROJID) | destination has them ABSENT too -- presence-conditional copy never invents defaults (the sprint-1 correction this family exists to pin) | planned: test_apply_copy_no_invented_attrs (rt_sa_absent) |
+| CP8  | optional attributes ABSENT on source (no RDEV/PROJID) | destination has them ABSENT too -- presence-conditional copy never invents defaults (the sprint-1 correction this family exists to pin) | covered: test_apply_no_invented_attrs |
 | CP9  | multi-link source file, one COPY action | the HELPER copies ZPL_LINKS as-is; apply-additions must overwrite with merged-namespace truth -- the cell lives in apply-additions' matrix and is cross-referenced here so neither matrix drops it | planned: apply-additions matrix owns it |
 | CP10 | src/dst SA table skew | unrepresentable in-harness (see preamble); held by signatures + review | documented above |
-| CP11 | no xattrs on source | destination carries neither xattr form | planned: test_apply_xattr_none (rt_xattr_forms) |
+| CP11 | no xattrs on source | destination carries neither xattr form | covered: test_apply_xattr_none |
 | CP12 | SA-only source, dst xattr=sa, small values | SA-resident on destination; logical set round-trips | planned: test_apply_xattr_sa_to_sa |
-| CP13 | DIRECTORY-only source, dst xattr=sa, small values | representation CONVERTS to SA-resident -- the destination-form decision's core: never replicate the source's form | planned: test_apply_xattr_dir_to_sa |
-| CP14 | SA-only source, dst xattr=dir | converts to a hidden directory; directory stamped 0041777 + ZFS_XATTR + links 2 + size 2+n, children stamped regular + ZFS_XATTR | planned: test_apply_xattr_sa_to_dir |
+| CP13 | DIRECTORY-only source, dst xattr=sa, small values | representation CONVERTS to SA-resident -- the destination-form decision's core: never replicate the source's form | covered: test_apply_xattr_dir_to_sa |
+| CP14 | SA-only source, dst xattr=dir | converts to a hidden directory; directory stamped 0041777 + ZFS_XATTR + links 2 + size 2+n, children stamped regular + ZFS_XATTR | covered: test_apply_xattr_dir_form (destination default is the directory form; the sa-source half rides rt_set_dxattr fixtures when CP15 lands) |
 | CP15 | MIXED source (SA and directory at once), dst xattr=sa | gatherer merges both forms into one logical set; all small values land SA | planned: test_apply_xattr_mixed_merge |
-| CP16 | one value past DXATTR_MAX_ENTRY_SIZE under xattr=sa | that value overflows to the directory, the rest stay SA -- BOTH forms on one object, as ZPL leaves it; round-trip equal | planned: test_apply_xattr_entry_overflow |
+| CP16 | one value past DXATTR_MAX_ENTRY_SIZE under xattr=sa | that value overflows to the directory, the rest stay SA -- BOTH forms on one object, as ZPL leaves it; round-trip equal | covered: test_apply_xattr_entry_overflow |
 | CP17 | aggregate past DXATTR_MAX_SA_SIZE (many small values) | some values spill to the directory; assert the PROPERTY, not the split: round-trip equal, both forms present, packed SA size within the cap (which entries spill follows nvlist order and is not contract) | planned: test_apply_xattr_total_overflow |
-| CP18 | zero-length xattr value | legal; survives the round-trip in whichever form | planned: test_apply_xattr_empty_value |
-| CP19 | dst xattr=off, source HAS xattrs | EOPNOTSUPP from the writer -- the policy hook; what apply turns it into (conflict, warning, abort) is apply-additions' policy cell | planned: shared with apply-additions |
-| CP20 | dst xattr=off, source has NO xattrs | clean no-op: the empty-set short-circuit runs before the mode gate | planned: test_apply_xattr_off_empty |
+| CP18 | zero-length xattr value | legal; survives the round-trip in whichever form | covered: inside test_apply_xattr_dir_form (a zero-length value in the fixture) |
+| CP19 | dst xattr=off, source HAS xattrs | EOPNOTSUPP from the writer -- the policy hook; what apply turns it into (conflict, warning, abort) is apply-additions' policy cell | covered: test_apply_xattr_off (EOPNOTSUPP propagates, apply fails, rollback restores; the v1 policy is refusal) |
+| CP20 | dst xattr=off, source has NO xattrs | clean no-op: the empty-set short-circuit runs before the mode gate | covered: inside test_apply_xattr_off (control file without xattrs applies cleanly first) |
 | CP21 | source file owned by nonzero uid/gid, dir-form write | xattr directory and value children carry the OWNING file's uid/gid (no caller credential exists in a sync task) | planned: test_apply_xattr_owner (fixture sets ZPL_UID/GID on source) |
-| CP22 | rebase_free_xattr_dir on a populated dir; on an empty dir | directory and every child unallocated afterward (dmu_object_info ENOENT) | planned: lands with apply-edits/apply-deletions, whichever first replaces or removes xattr state |
-| CP23 | corrupt DXATTR blob on the copy SOURCE | EIO through the gatherer -- rebase_copy_xattrs is the gatherer's third caller; H36 and U9 pinned the walk and phase-C readers, this pins the apply reader | planned: test_apply_xattr_corrupt_source |
-| CP24 | ACCEPTANCE: apply a right-side object, then re-run the diff engine against the applied result | silence -- no content, attribute, or xattr differences; the copy is invisible to the engine's own eyes | planned: test_apply_roundtrip_acceptance |
+| CP22 | rebase_free_xattr_dir on a populated dir; on an empty dir | directory and every child unallocated afterward (dmu_object_info ENOENT) | covered (delete half): test_apply_unlink_xattr_file frees a populated directory through the unlink path; the replace half (clearing before rewrite) stays planned for apply-edits |
+| CP23 | corrupt DXATTR blob on the copy SOURCE | EIO through the gatherer -- rebase_copy_xattrs is the gatherer's third caller; H36 and U9 pinned the walk and phase-C readers, this pins the apply reader | covered: test_apply_corrupt_xattr_source (AP11) |
+| CP24 | ACCEPTANCE: apply a right-side object, then re-run the diff engine against the applied result | silence -- no content, attribute, or xattr differences; the copy is invisible to the engine's own eyes | covered: test_apply_roundtrip_acceptance (AP13) |
+
+## Apply matrix (AP) -- applied-state inspection, crashes, cancels
+
+Plotted 2026-08-24, before its tests, covering the apply surface
+for additions and deletions plus the failure contract. This is
+the pass that pays the inspection debt: until now no test read
+the applied HEAD back, so a copy writing garbage would have gone
+green. The observation mechanism is direct post-apply inspection
+of the left HEAD through new accessors -- rt_get_sa_u64,
+rt_sa_absent, rt_read_data, rt_object_exists, rt_xattr_read,
+rt_xattr_forms, rt_read_symlink, rt_dir_lookup -- plus the apply
+tally line via rt_apply_stats, the fence helpers
+(rt_fence_exists, rt_rollback_to_fence, rt_open_snap), and the
+engine's injection tunables (rebase_apply_inject_stop_after,
+rebase_apply_inject_skip_rollback) driven through
+rt_apply_inject.
+
+Dimensions: applied-state fidelity {data, attributes, absent
+attributes, xattr forms and values, link counts, object
+liveness}; deletion shapes {standalone file, directory tree,
+pool member, dead pool, xattr satellite}; the move handoff
+(nlink parked at zero between phases); interruption {user cancel
+= injected stop with automatic rollback, crash = injected stop
+with rollback suppressed, real mid-apply failure}; recovery {the
+fence as rollback anchor and revert point}; the tally line.
+
+CP rows flipped to covered by this pass are re-dispositioned in
+the CP table itself; AP cells below cover the driver, deletions,
+and interruption surface the CP family never claimed.
+
+| Cell | Scenario | Expect | Disposition |
+|------|----------|--------|-------------|
+| AP1  | right deletes a standalone file | dirent gone, object unallocated, base data untouched elsewhere | covered: test_apply_unlink_file |
+| AP2  | right deletes a directory tree | children and directory all gone, objects unallocated (bottom-up order exercised) | covered: test_apply_unlink_tree |
+| AP3  | right unlinks one member of a base pool | that dirent gone, object ALIVE with ZPL_LINKS decremented, surviving member's name and data intact | covered: test_apply_unlink_pool_member |
+| AP4  | right unlinks EVERY member, left silent (dead pool, no edit) | all dirents gone, object freed | covered: test_apply_unlink_dead_pool |
+| AP5  | right deletes a file carrying an xattr directory | file, hidden directory, and every value child unallocated | covered: test_apply_unlink_xattr_file (flips CP22's file half; the apply-edits replace half stays with that issue) |
+| AP6  | right renames a standalone file (the LINK-phase handoff) | old name gone, new name NOT yet present, object alive with ZPL_LINKS 0 -- this cell's expectation CHANGES when apply-structural lands (new name present, links 1) and must be rewritten then | covered: test_apply_move_handoff |
+| AP7  | USER CANCEL: three copies pending, injected stop after 1 | EINTR; automatic rollback ran: NO addition present, pre-state intact, fence present | covered: test_apply_cancel_rollback |
+| AP8  | CRASH: same fixture, stop after 1 with rollback suppressed | EINTR; HEAD is PARTIAL (exactly the first action's file present -- pins list-order determinism too); fence present; manual rollback-to-fence then restores pre-state exactly (pioneers the abort flow) | covered: test_apply_crash_partial |
+| AP9  | cancel inside the SECOND pass: one copy + one unlink, stop after 1 | the copy lands, the unlink loop stops, EINTR, rollback restores both (added file gone, deleted file back) | covered: test_apply_cancel_unlinks |
+| AP10 | the fence is the revert point | after a fully successful apply, the fence snapshot still exists and READS as the pre-apply state (deleted file present in it, added file absent) | covered: test_apply_fence_content |
+| AP11 | real mid-apply failure (not injected): corrupt DXATTR blob on the copy source | EIO through the gatherer (flips CP23), rollback restores the HEAD, fence present | covered: test_apply_corrupt_xattr_source |
+| AP12 | the tally line | copies/unlinks/deferred buckets match the fixture arithmetic | covered: test_apply_stats_line (rt_apply_stats) |
+| AP13 | acceptance: apply, clear the fence, re-run the rebase | second run sees convergent adds and left-changed paths: zero conflicts, zero copies, zero unlinks -- the applied result is invisible to the engine's own diff (flips CP24; also the first fence-lifecycle exercise: the second run only proceeds because the test destroyed the fence, rehearsing finish/abort) | covered: test_apply_roundtrip_acceptance |
