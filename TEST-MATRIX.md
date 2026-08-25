@@ -699,5 +699,87 @@ and interruption surface the CP family never claimed.
 | AP9  | cancel inside the SECOND pass: one copy + one unlink, stop after 1 | the copy lands, the unlink loop stops, EINTR, rollback restores both (added file gone, deleted file back) | covered: test_apply_cancel_unlinks |
 | AP10 | the fence is the revert point | after a fully successful apply, the fence snapshot still exists and READS as the pre-apply state (deleted file present in it, added file absent) | covered: test_apply_fence_content |
 | AP11 | real mid-apply failure (not injected): corrupt DXATTR blob on the copy source | EIO through the gatherer (flips CP23), rollback restores the HEAD, fence present | covered: test_apply_corrupt_xattr_source |
-| AP12 | the tally line | copies/unlinks/deferred buckets match the fixture arithmetic | covered: test_apply_stats_line (rt_apply_stats) |
+| AP12 | the tally line | copies/unlinks/deferred buckets match the fixture arithmetic -- LINE SHAPE CHANGED by apply-edits (writes and severs buckets added); AE26 owns the current contract | covered: test_apply_stats_line (rt_apply_stats) |
 | AP13 | acceptance: apply, clear the fence, re-run the rebase | second run sees convergent adds and left-changed paths: zero conflicts, zero copies, zero unlinks -- the applied result is invisible to the engine's own diff (flips CP24; also the first fence-lifecycle exercise: the second run only proceeds because the test destroyed the fence, rehearsing finish/abort) | covered: test_apply_roundtrip_acceptance |
+
+## Apply edits matrix (AE) -- in-place writes, severs, type flips
+
+Plotted 2026-08-25, before its tests and before any destructive
+code landed -- these are the first apply operations that can
+damage pre-existing user data, which is exactly why the AP pass
+recorded this precondition. Design decisions the cells encode,
+settled against the source before plotting:
+
+- WRITE is IN-PLACE on the destination's object number. The
+  walker already collapsed delete-create into EDIT
+  (rebase_content_diff is path-scoped by design), right's object
+  numbers are objset-local and unreproducible anyway, and every
+  identity-based mechanism in future diffs of the result
+  (fork-txg fast path, linkpool tables, move detection) depends
+  on stable object numbers. A fresh dnode happens exactly when
+  the action says SEVER -- when the engine decided identity must
+  change -- and never when it says WRITE.
+- Type flips among non-directory kinds apply in place through
+  dmu_object_reclaim (same object number, new type -- the zfs
+  receive precedent). Flips that change whether the object is a
+  directory are REFUSED in v1 (EOPNOTSUPP, the xattr=off
+  precedent): their child actions land in the wrong pass order
+  (dir->file needs the write AFTER the unlink pass, file->dir
+  needs it BEFORE the copy pass), so refusal is the only honest
+  v1 answer.
+- WRITE preserves ZPL_LINKS, ZPL_GEN, and ZPL_PARENT (pool
+  truth, lineage continuity, tree truth); everything else --
+  data, mode, owner, times, xattrs -- is the source's. A
+  dir-dir WRITE additionally preserves ZPL_SIZE (entry count is
+  the child actions' business) and never touches the ZAP.
+- A WRITE whose destination path does not exist yet DEFERS when
+  a LINK action targets that path (MOVE_EDIT and novel-pool
+  shapes: the LINK that creates the name is apply-structural's),
+  and is a compiler-contradiction error when none does.
+- SEVER decrements the old pool object's link count and frees
+  it when the last name drops (behind the same pending-LINK
+  tripwire as UNLINK) -- without this, an all-members-sever
+  pool leaks its object: no UNLINK row exists to carry
+  ra_frees_object. Emission now stamps ra_obj with the base
+  pool object so apply can cross-check the dirent it repoints.
+
+Dimensions: content shape {grow, shrink, to/from empty,
+multi-block, blocksize divergence}; type axis {same kind,
+reg/symlink flips, dir-involved flips}; xattr transitions on a
+live destination {SA-form cleared, dir-form satellites freed,
+source-none-dest-some}; identity {preserved vs landed fields};
+action shape {standalone WRITE, group WRITE, deferred-LINK
+WRITE, dir WRITE, SEVER}; sever consequences {survivor
+untouched, decrement, last-name free, tripwire}; interruption
+{cancel, crash, now over destructive writes}; the tally
+contract; acceptance.
+
+| Cell | Scenario | Expect | Disposition |
+|------|----------|--------|-------------|
+| AE1  | standalone edit, content grows | byte-identical new data, ZPL_SIZE grown | planned |
+| AE2  | standalone edit, content shrinks | byte-identical new data, no stale tail past EOF | planned |
+| AE3  | edit to empty; edit from empty | zero-length result lands; content onto an empty file lands | planned |
+| AE4  | multi-block edit | full byte identity across every block | planned |
+| AE5  | blocksize divergence: right's dataset uses a different recordsize, multi-block file | reclaim re-shapes the destination to the source's block size, byte-identical | planned |
+| AE6  | identity fields land | mode, uid, gid, times are right's after the write | planned |
+| AE7  | the in-place promise | object number unchanged, ZPL_GEN preserved, ZPL_PARENT preserved -- the lineage cell: a future diff must see this as the same object edited, never a recycle | planned |
+| AE8  | type flip reg->symlink | destination reads as a symlink with right's target, SAME object number | planned |
+| AE9  | type flip symlink->reg | destination reads as a file with right's bytes, same object number | planned |
+| AE10 | dir-involved flip (file->dir and dir->file) | EOPNOTSUPP refusal, rollback ran, fence present, pre-state intact | planned (v1 policy refusal) |
+| AE11 | dir attribute edit (chmod/chown on the dir itself on right) | dir WRITE stamps mode/uid/gid; children, entries, and ZPL_SIZE untouched | planned |
+| AE12 | dir xattr edit | dir's xattrs replaced logically; ZAP entries untouched | planned |
+| AE13 | destination had SA-form xattrs, source carries different ones | replaced wholesale: exactly the source's set remains, destination form | planned |
+| AE14 | destination had dir-form satellites | hidden dir and value children unallocated after the write (flips CP22's replace half), source's xattrs land | planned |
+| AE15 | source has no xattrs, destination had some | destination ends bare: both forms absent | planned |
+| AE16 | group WRITE: base pool of two, right edits the shared content | BOTH member paths read the new bytes, ZPL_LINKS still 2, exactly one write in the tally | planned |
+| AE17 | WRITE behind a deferred LINK (right MOVE_EDITs a file) | the write DEFERS: no failure, tallied deferred, the parked object's content untouched -- expectations rewritten when apply-structural lands, like AP6 | planned |
+| AE18 | SEVER: base pool of two, right delete-creates one member | severed path: NEW object number with right's content and a correct dirent type nibble; survivor: old object, old content, ZPL_LINKS 2->1 | planned |
+| AE19 | SEVER carries xattrs; parent times stamped | new object's xattrs are right's in destination form; parent mtime/ctime updated | planned |
+| AE20 | every member severs | old pool object FREED (the leak this matrix exists to catch) | planned |
+| AE21 | sever to a different kind (file member -> symlink) | fresh symlink at the path, survivor intact | planned |
+| AE22 | sever to a directory | -- | deferred: the fresh dir's children arrive as COPY actions and the interplay is unverified; unblocking work: a dedicated fixture once apply-structural's ordering work lands |
+| AE23 | sever drops the last name while a LINK still references the old object | object kept, loud dbgmsg | mapped: same guard as UNLINK's (rebase_apply_link_pending); fires only on compiler self-contradiction, not separately fixtured |
+| AE24 | USER CANCEL mid-edit run: two edits pending, stop after 1 | EINTR, rollback ran: ORIGINAL bytes back in both files -- the first destructive-write recovery proof | planned |
+| AE25 | CRASH mid-edit run: stop after 1, rollback suppressed | first file carries right's bytes, second still left's (partial in-place damage is real); manual rollback-to-fence restores both exactly | planned |
+| AE26 | the tally line, new shape | "rebase: apply copies N writes N severs N unlinks N deferred N" matches fixture arithmetic; LINKs still count deferred (re-points AP12) | planned |
+| AE27 | acceptance: edit-heavy apply, clear the fence, re-rebase | silence: zero conflicts, zero actions of any kind against the applied result | planned |
