@@ -823,6 +823,19 @@ against the source before plotting:
   unlink, new parent incremented by the link); parent size and
   times stamp like the copy path; ZPL_PARENT updates best-effort
   (multi-link files have no single truth by design).
+- The passes iterate a PATH-ORDERED index (path, then emission
+  sequence), not raw list order: pass one forward (parents
+  before children across all three emission loops -- a novel
+  pool's LINKs must follow the COPY of the directory right
+  created around it), pass two in reverse (children before
+  parents -- a pool member's unlink must precede its deleted
+  parent directory's). Raw list order interleaves the emission
+  loops and breaks both shapes; the deferred-LINK era hid it.
+- Rename chains and swaps do not fit the two-pass design at all:
+  a pass-one LINK collides with a name pass two has not yet
+  vacated. v1 defers them LOUDLY -- the occupied-destination
+  guard fails the rebase and the fence rolls it back, never
+  corruption.
 - The dirent-identity rule: a collapsed MOVE whose base dirent
   and right dirent are LITERALLY identical -- same parent
   directory OBJECT and same leaf name -- emits no UNLINK and no
@@ -866,3 +879,7 @@ the AP6/AE17 rewrites; AE22's revisit.
 | AS19 | AP6 rewritten | the move lands whole: new name present, links 1 | planned (rewrites test_apply_move_handoff) |
 | AS20 | AE17 rewritten | the once-deferred WRITE applies through its LINK | planned (rewrites test_apply_edit_write_deferred) |
 | AS21 | sever to a directory with children (AE22's revisit) | SEVER creates the dir, the children COPY into it | planned (flips AE22) |
+| AS22 | novel pool inside a directory right also created | the directory's COPY precedes the members' LINKs (global path order); the pool lands inside the new directory | planned |
+| AS23 | pool member inside a directory right deleted | pass two runs children before parents ACROSS emission loops: the member's unlink precedes the directory's | planned |
+| AS24 | rename chain (mv B to C, then A to B) | -- | deferred: pass-one LINKs collide with names pass two has not vacated; loud EEXIST plus rollback, never corruption; unblocking work: dependency-ordered structural application with temp-name cycle breaking |
+| AS25 | name swap (A and B exchange names) | -- | deferred: same class as AS24 (a two-cycle) |
