@@ -320,9 +320,12 @@ test_apply_xattr_none(void)
 }
 
 /*
- * CP14 + CP18: directory-form xattrs under the default xattr=dir
- * destination land in the directory form, values intact --
- * including a zero-length value.
+ * CP14 + CP18: directory-form xattrs land in the directory form
+ * when the destination says xattr=dir, values intact -- including
+ * a zero-length value. The property is set EXPLICITLY: the
+ * upstream default moved from dir to sa (zfs_prop.c registers
+ * ZFS_XATTR_SA), and this test's first run failed by leaning on
+ * the old default -- xattr fixtures never trust defaults again.
  */
 static int
 test_apply_xattr_dir_form(void)
@@ -338,6 +341,8 @@ test_apply_xattr_dir_form(void)
 	TEST_START("AP: dir-form xattrs land dir-form");
 	RT_CHECK(rt_scaffold_empty_base(), "scaffold failed");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
+	RT_CHECK(rt_set_dsl_prop_u64(RT_DS_LEFT, "xattr", 1),
+	    "set xattr=dir");
 	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
 	err = rt_create_file(d.rtd_os, d.rtd_root, "xf", "x", 1,
 	    &robj);
