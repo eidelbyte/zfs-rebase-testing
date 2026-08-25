@@ -578,3 +578,18 @@ conflict bucket and the sum invariant still holds.
 | X17 | X-CTL-BASEPOOL control: base pool N {A,A2,P} (three names, so the right-side remnant is still a pool and the dead-pool rules stay out of the picture); left edits N's content; right repoints P into a pool around M2 | ZERO consultation conflicts (base-lineage exemption): P final ANCHOR(M2), left's edit lands through N's surviving group; catches a consultation missing the exemption. E6 pins the FRAGMENT-winner variant of the same exemption | covered: test_seam_ctl_basepool |
 | X18 | X-REG regression: plain left standalone rename, nobody contests | diff tuples unchanged from M1; the widened synthesis adds the old path's GONE row (finals gone +1); zero conflicts, zero actions | covered: test_seam_reg_standalone_move |
 | X19 | fragment winner: right splits fragment {P3,P4} out of base pool N; left independently creates P3, different content | CREATE_CREATE keyed by the fragment; pins the FRAGMENT arm of the consultation (parent lineage for on-lineage, side table for the compare object) | covered: test_seam_fragment_winner |
+
+## Apply primitives (deferral marker, 2026-08-24)
+
+The xattr-dir-helpers commit (e7e5452e1) landed the apply epic's
+DMU-level primitives: rebase_copy_object, rebase_copy_xattrs /
+rebase_write_xattrs (logical gather, destination-form write),
+rebase_stamp_node, and rebase_free_xattr_dir. They are static
+functions with no callers until apply-additions wires them to the
+action list, so NOTHING about them is observable through the
+ioctl yet. Their problem space (object kinds, attribute presence
+combinations, SA-vs-directory xattr splits at both size gates,
+xattr=off refusal, mixed-form round-trips) gets its matrix WITH
+apply-additions' matrix, plotted before that phase's tests per
+the standing rule. This marker exists so the hole is named, not
+silent.
