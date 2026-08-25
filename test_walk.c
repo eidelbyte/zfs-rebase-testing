@@ -170,7 +170,15 @@ test_walk_kind_matrix(void)
 	err = dsl_rebase(RT_DS_LEFT, RT_DS_RIGHT, NULL);
 	rt_scaffold_teardown();
 
-	TEST_EXPECT(err == 0, "expected success");
+	/*
+	 * k_ffd is a right-only dir-ization with a silent left --
+	 * the one cell here whose replay the apply phase REFUSES
+	 * in v1 (AE10's dir-flip refusal). The walk itself
+	 * classified every cell before that refusal fired, which
+	 * is this test's subject; any other error still fails.
+	 */
+	TEST_EXPECT(err == EOPNOTSUPP,
+	    "expected the AE10 dir-flip refusal");
 	TEST_PASS();
 }
 

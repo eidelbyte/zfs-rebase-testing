@@ -2559,6 +2559,79 @@ test_apply_edit_roundtrip(void)
 	TEST_PASS();
 }
 
+/*
+ * AE29: a pool shrinks around an EDITED survivor. Right removed
+ * one member and edited the remainder in place: the survivor's
+ * row compiles an in-place WRITE, never a SEVER -- right's
+ * object at the path IS the base pool object, so identity did
+ * not change. Same object number, new bytes, one link left, and
+ * a tally of one write, one unlink, zero severs. (AE28, the
+ * silent-survivor half of this rule, is AP3's fixture: no action
+ * at all for the survivor.)
+ */
+static int
+test_apply_edit_pool_shrink_survivor(void)
+{
+	rt_ds_t d;
+	char back[8];
+	uint64_t bobj, obj = 0, links = 0;
+	uint64_t copies = 0, writes = 0, severs = 9, unlinks = 0;
+	uint64_t deferred = 0;
+	boolean_t a_gone = B_FALSE;
+	int err, cmp = -1, serr = -1;
+	nvlist_t *nvl;
+
+	TEST_START("AE: shrink survivor edits in place");
+	RT_CHECK(rt_scaffold_empty_base(), "scaffold failed");
+	RT_CHECK(rt_open(RT_DS_SRC, &d), "hold src");
+	err = rt_create_file(d.rtd_os, d.rtd_root, "A", "old!", 4,
+	    &bobj);
+	if (err == 0)
+		err = rt_add_hardlink(d.rtd_os, d.rtd_root, "B",
+		    bobj);
+	rt_close(&d);
+	RT_CHECK(err, "base pool");
+	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
+
+	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	err = rt_remove_entry(d.rtd_os, d.rtd_root, "A");
+	if (err == 0)
+		err = rt_edit_file(d.rtd_os, bobj, "EDT!", 4);
+	rt_close(&d);
+	RT_CHECK(err, "right shrink+edit");
+
+	rt_sync_pool();
+	err = rt_run_rebase(&nvl);
+	if (err == 0) {
+		fnvlist_free(nvl);
+		serr = rt_apply_stats(&copies, &writes, &severs,
+		    &unlinks, &deferred);
+	}
+	RT_CHECK(err, "rebase failed");
+	RT_CHECK(serr, "no tally line");
+
+	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	a_gone = (rt_dir_lookup(d.rtd_os, d.rtd_root, "A",
+	    &obj) == ENOENT);
+	err = rt_dir_lookup(d.rtd_os, d.rtd_root, "B", &obj);
+	if (err == 0)
+		err = rt_read_data(d.rtd_os, bobj, 0, 4, back);
+	if (err == 0) {
+		cmp = memcmp("EDT!", back, 4);
+		err = rt_get_sa_u64(d.rtd_os, bobj, ZPL_LINKS,
+		    &links);
+	}
+	rt_close(&d);
+	RT_CHECK(err, "inspect");
+	TEST_EXPECT(a_gone, "removed name survived");
+	TEST_EXPECT(obj == bobj, "survivor identity changed");
+	TEST_EXPECT(cmp == 0, "edited content wrong");
+	TEST_EXPECT(links == 1, "wrong link count");
+	TEST_EXPECT(writes == 1 && severs == 0 && unlinks == 1,
+	    "tally shape wrong");
+	TEST_PASS();
+}
+
 void
 run_apply_tests(void)
 {
@@ -2603,6 +2676,7 @@ run_apply_tests(void)
 	(void) test_apply_edit_xattr_dirform_cleared();
 	(void) test_apply_edit_xattr_to_bare();
 	(void) test_apply_edit_pool_group_write();
+	(void) test_apply_edit_pool_shrink_survivor();
 	(void) test_apply_edit_write_deferred();
 	(void) test_apply_sever_basic();
 	(void) test_apply_sever_xattrs();

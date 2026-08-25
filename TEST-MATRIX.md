@@ -85,7 +85,7 @@ Dimension 3, tree shape. Dimension 4, faults and non-files.
 | W6  | (-,-,R) right-only add | ENOSYS | covered: presence matrix "p_r" |
 | W7  | (-,B,-) both removed | ENOSYS | covered: presence matrix "p_b" |
 | W8  | dir on all three, children changed each side (unchanged-parent recursion) | ENOSYS | covered: test_walk_kind_matrix "d_rec" |
-| W9  | same-name file/dir mixes: dff, ffd, dfd, fdf, ddf, fdd + both-add dir-vs-file | ENOSYS | covered: kind matrix "k_*" |
+| W9  | same-name file/dir mixes: dff, ffd, dfd, fdf, ddf, fdd + both-add dir-vs-file | EOPNOTSUPP since apply-edits: k_ffd is a right-only dir-ization whose replay v1 refuses (AE10); the walk completes first | covered: kind matrix "k_*" |
 | W10 | empty directory on all sides | ENOSYS | covered: kind matrix "d_empty" |
 | W11 | left-only nested subtree (with a hardlink pair inside: LP discovery through phase-2 recursion) | ENOSYS | covered: test_walk_side_subtrees "ldir" |
 | W12 | right-only nested subtree | ENOSYS | covered: side subtrees "rdir" |
@@ -742,6 +742,13 @@ settled against the source before plotting:
   pool leaks its object: no UNLINK row exists to carry
   ra_frees_object. Emission now stamps ra_obj with the base
   pool object so apply can cross-check the dirent it repoints.
+- A STANDALONE row is a SEVER only when right put a NOVEL object
+  at the path. When right's object IS the base pool object the
+  pool merely shrank around a survivor: an edit is an in-place
+  WRITE and silence is silence (first box run caught the old
+  emission severing -- and thereby freeing -- untouched pool
+  objects out from under their survivors: AP3 and both sever
+  cells read the wreckage back).
 
 Dimensions: content shape {grow, shrink, to/from empty,
 multi-block, blocksize divergence}; type axis {same kind,
@@ -783,3 +790,5 @@ contract; acceptance.
 | AE25 | CRASH mid-edit run: stop after 1, rollback suppressed | first file carries right's bytes, second still left's (partial in-place damage is real); manual rollback-to-fence restores both exactly | covered: test_apply_edit_crash_partial |
 | AE26 | the tally line, new shape | "rebase: apply copies N writes N severs N unlinks N deferred N" matches fixture arithmetic; LINKs still count deferred (re-points AP12) | covered: test_apply_stats_line (five-bucket line; its fixture's edit now applies) |
 | AE27 | acceptance: edit-heavy apply, clear the fence, re-rebase | silence: zero conflicts, zero actions of any kind against the applied result | covered: test_apply_edit_roundtrip |
+| AE28 | pool shrinks around a SILENT survivor | no action for the survivor's row: same object, same content, links counted down by the removals alone | mapped: AP3's fixture is exactly this shape and reads it all back |
+| AE29 | pool shrinks around an EDITED survivor | in-place WRITE on the pool object: same object number, new bytes, links correct; tally one write + one unlink, zero severs | covered: test_apply_edit_pool_shrink_survivor |
