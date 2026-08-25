@@ -559,7 +559,7 @@ conflict bucket and the sum invariant still holds.
 
 | Cell | Scenario | Expect | Disposition |
 |------|----------|--------|-------------|
-| X1  | X-A: left creates plain P (new name); right creates P as a member of a novel two-name pool, different content | CREATE_CREATE keyed by the destination, row undecided (finals conflict 1); the undecided row compiles nothing at P, but the pool's uncontested other member still LINKs (nactions 1 -- first box run corrected this from 0: row-driven actions are guarded by row state, conflict coverage guards the record-driven sweep) | covered: test_seam_create_vs_pool |
+| X1  | X-A: left creates plain P (new name); right creates P as a member of a novel two-name pool, different content | CREATE_CREATE keyed by the destination, row undecided (finals conflict 1); the undecided row compiles nothing at P, but the uncontested remainder proceeds: the right-won group's WRITE plus the other member's LINK (nactions 2 -- two box runs calibrated this pin from 0 and 1: row/group actions are guarded by row state and group source, conflict coverage guards the record-driven sweep) | covered: test_seam_create_vs_pool |
 | X2  | X-A mirror: right creates plain P; left pools it, different content | CREATE_CREATE, symmetric | covered: test_seam_create_vs_pool_mirror |
 | X3  | X-A convergent: left creates P with bytes identical to the file right linked P to (ANCHOR winner) | zero conflicts; P joins the pool (final ANCHOR); convergence defers | covered: test_seam_create_convergent |
 | X4  | X-B edit flavor: base standalone M at P; left edits M in place; right repoints P into a pool around foreign base file M2 | BOTH_MODIFIED, row undecided; the edit is no longer silently discarded | covered: test_seam_edit_vs_repoint |
