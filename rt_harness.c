@@ -80,6 +80,7 @@ rt_run_rebase(nvlist_t **nvlp)
 		return (0);
 	}
 	fnvlist_free(nvl);
+	rt_rebase_diag();
 	return (err);
 }
 
@@ -129,6 +130,35 @@ rt_dbgmsg_last(const char *needle, char *line_out, size_t outlen)
 	(void) unlink(tmpl);
 
 	return (found ? 0 : ENOENT);
+}
+
+/*
+ * Print the engine's apply-era failure diagnostics, if any are in
+ * the dbgmsg ring, so a failed rebase's FAIL line carries its
+ * reason without a second run. The probes match only failure
+ * lines ("apply copy" does not match the success tally's "apply
+ * copies"), so tests that never reach a failing apply print
+ * nothing. Each line is the LAST of its kind in the ring, so
+ * output after an earlier test's failure can be stale -- read it
+ * as "most recent occurrence", not necessarily "this test".
+ */
+void
+rt_rebase_diag(void)
+{
+	static const char *const probes[] = {
+		"rebase: apply own", "rebase: apply setup",
+		"rebase: apply parent missing",
+		"rebase: apply destination exists",
+		"rebase: apply copy", "rebase: rollback of"
+	};
+	char line[512];
+
+	for (size_t i = 0; i < sizeof (probes) / sizeof (probes[0]);
+	    i++) {
+		if (rt_dbgmsg_last(probes[i], line,
+		    sizeof (line)) == 0)
+			(void) printf("\n    [diag] %s", line);
+	}
 }
 
 /*

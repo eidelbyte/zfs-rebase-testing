@@ -269,6 +269,7 @@ int rt_open(const char *dsname, rt_ds_t *ds);
 void rt_close(rt_ds_t *ds);
 void rt_sync_pool(void);
 int rt_run_rebase(nvlist_t **nvlp);
+void rt_rebase_diag(void);
 int rt_walk_stats(rt_walk_stats_t *ws);
 int rt_changelist_counts(uint64_t *leftp, uint64_t *rightp);
 int rt_move_stats(rt_move_stats_t *ms);

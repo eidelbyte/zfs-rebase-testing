@@ -24,6 +24,8 @@ test_smoke_no_changes(void)
 	RT_CHECK(rt_scaffold_basic(), "scaffold failed");
 
 	err = dsl_rebase(RT_DS_LEFT, RT_DS_RIGHT, NULL);
+	if (err != 0)
+		rt_rebase_diag();
 	rt_scaffold_teardown();
 
 	TEST_EXPECT(err == 0,
@@ -48,6 +50,8 @@ test_left_add(void)
 
 	rt_sync_pool();
 	err = dsl_rebase(RT_DS_LEFT, RT_DS_RIGHT, NULL);
+	if (err != 0)
+		rt_rebase_diag();
 	rt_scaffold_teardown();
 
 	TEST_EXPECT(err == 0, "expected success");
@@ -71,6 +75,8 @@ test_right_add(void)
 
 	rt_sync_pool();
 	err = dsl_rebase(RT_DS_LEFT, RT_DS_RIGHT, NULL);
+	if (err != 0)
+		rt_rebase_diag();
 	rt_scaffold_teardown();
 
 	TEST_EXPECT(err == 0, "expected success");
@@ -93,6 +99,8 @@ test_left_delete(void)
 
 	rt_sync_pool();
 	err = dsl_rebase(RT_DS_LEFT, RT_DS_RIGHT, NULL);
+	if (err != 0)
+		rt_rebase_diag();
 	rt_scaffold_teardown();
 
 	TEST_EXPECT(err == 0, "expected success");
@@ -121,6 +129,8 @@ test_left_edit(void)
 
 	rt_sync_pool();
 	err = dsl_rebase(RT_DS_LEFT, RT_DS_RIGHT, NULL);
+	if (err != 0)
+		rt_rebase_diag();
 	rt_scaffold_teardown();
 
 	TEST_EXPECT(err == 0, "expected success");
@@ -150,6 +160,8 @@ test_both_add_different(void)
 
 	rt_sync_pool();
 	err = dsl_rebase(RT_DS_LEFT, RT_DS_RIGHT, NULL);
+	if (err != 0)
+		rt_rebase_diag();
 	rt_scaffold_teardown();
 
 	TEST_EXPECT(err == 0, "expected success");
@@ -185,6 +197,8 @@ test_both_edit(void)
 
 	rt_sync_pool();
 	err = dsl_rebase(RT_DS_LEFT, RT_DS_RIGHT, NULL);
+	if (err != 0)
+		rt_rebase_diag();
 	rt_scaffold_teardown();
 
 	TEST_EXPECT(err == 0, "expected success");
@@ -210,6 +224,8 @@ test_nested_edit(void)
 
 	rt_sync_pool();
 	err = dsl_rebase(RT_DS_LEFT, RT_DS_RIGHT, NULL);
+	if (err != 0)
+		rt_rebase_diag();
 	rt_scaffold_teardown();
 
 	TEST_EXPECT(err == 0, "expected success");
@@ -245,6 +261,8 @@ test_mixed_operations(void)
 
 	rt_sync_pool();
 	err = dsl_rebase(RT_DS_LEFT, RT_DS_RIGHT, NULL);
+	if (err != 0)
+		rt_rebase_diag();
 	rt_scaffold_teardown();
 
 	TEST_EXPECT(err == 0, "expected success");
