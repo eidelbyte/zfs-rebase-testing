@@ -149,7 +149,8 @@ rt_rebase_diag(void)
 		"rebase: apply own", "rebase: apply setup",
 		"rebase: apply parent missing",
 		"rebase: apply destination exists",
-		"rebase: apply copy", "rebase: rollback of"
+		"rebase: apply copy", "rebase: apply unlink",
+		"rebase: rollback of"
 	};
 	char line[512];
 
