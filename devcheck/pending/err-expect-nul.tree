@@ -1,0 +1,29 @@
+title NUL in an expect path
+
+# NOT in the cross-parser diff yet, because the two parsers disagree
+# and the C side is the one that is right.
+#
+# The reference decodes \000 in an expect path and ACCEPTS it, so the
+# argument ends up holding a real NUL. The C side rejects it. Left
+# alone, C would truncate the path at the NUL and compare a shorter
+# string, silently -- and the leaf decoder already rejects NUL, so
+# accepting it here is also inconsistent with the same parser's own
+# treatment of the same byte.
+#
+# It is worth noting HOW this showed up. The reference's dump gains a
+# raw NUL byte, so diff reports "binary files differ" rather than
+# showing a line -- which is a loud way to be told that something is
+# emitting a byte no text format should contain.
+#
+# Proposed message, matching the leaf one, which quotes nothing
+# because a string holding a NUL cannot be quoted usefully:
+#
+#   expect path contains NUL, which no file name may hold
+#
+# Move this into devcheck/treecases/ once the reference rejects it.
+
+tree base
+  1-1: /
+    2-100: plain
+
+expect quarantined /a\000b

@@ -1,0 +1,18 @@
+title an escape above 377 names no byte
+
+# Three octal digits reach 511; a byte does not.
+#
+# This case spent a round in devcheck/pending/ because the two
+# parsers disagreed, and it is the best thing the cross-parser diff
+# has caught. The reference accepted \400 and built a character with
+# code 256 -- not a byte -- which re-encoded to "\400" in the dump
+# and so looked entirely correct. A value that survives a round trip
+# and is still wrong is the worst shape a bug can take. In C the same
+# escape truncates to NUL, smuggling in the one byte the NUL check
+# exists to reject.
+#
+# Both parsers reject it now, in the same words.
+
+tree base
+  1-1: /
+    2-100: over\400flow

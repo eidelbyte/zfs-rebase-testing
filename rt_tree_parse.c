@@ -262,7 +262,7 @@ join_path(const char *parent, const char *leaf)
  * RT_UNESC_ codes; *outp is set only on success.
  */
 static int
-unescape_leaf(const char *in, char **outp)
+unescape_name(const char *in, char **outp)
 {
 	char *out = rt_xmalloc(strlen(in) + 1);
 	const char *r = in;
@@ -821,6 +821,60 @@ rt_spec_parse_text(const char *text, const char *origin, rt_spec_t *sp)
 					kind = RT_EXP_QUARANTINED;
 				}
 				free(verb);
+
+				/*
+				 * A quarantined argument is a PATH, so it
+				 * carries the same escapes a leaf does and
+				 * has to be decoded or it could never match
+				 * a decoded name.  Its '/' separators are
+				 * legitimate, so unlike a leaf there is no
+				 * slash check -- and \057 simply decodes to
+				 * one more separator.
+				 *
+				 * A conflict argument is deliberately NOT
+				 * decoded.  It is drawn from a closed
+				 * vocabulary of five words, where an escape
+				 * cannot make anything more expressible and
+				 * could only admit new spellings of a word
+				 * that has exactly one.
+				 */
+				if (kind == RT_EXP_QUARANTINED) {
+					char *dec = NULL;
+					int urc = unescape_name(val, &dec);
+
+					if (urc == RT_UNESC_OK) {
+						free(val);
+						val = dec;
+					} else {
+						if (urc == RT_UNESC_BADSLASH) {
+							add_error(sp, lineno,
+							    "expect path '%s' "
+							    "has a backslash "
+							    "that is not "
+							    "followed by three "
+							    "octal digits",
+							    val);
+						} else if (urc ==
+						    RT_UNESC_NUL) {
+							add_error(sp, lineno,
+							    "expect path "
+							    "contains NUL, "
+							    "which no file "
+							    "name may hold");
+						} else {
+							add_error(sp, lineno,
+							    "expect path '%s' "
+							    "has an escape "
+							    "above \\377, "
+							    "which names no "
+							    "byte", val);
+						}
+						free(val);
+						free(arg);
+						goto next;
+					}
+				}
+
 				if (kind != 0) {
 					ex = APPEND(sp->rts_expects,
 					    sp->rts_nexpects, rt_expect_t);
@@ -965,7 +1019,7 @@ rt_spec_parse_text(const char *text, const char *origin, rt_spec_t *sp)
 			{
 				char *dec = NULL;
 
-				switch (unescape_leaf(leaf, &dec)) {
+				switch (unescape_name(leaf, &dec)) {
 				case RT_UNESC_OK:
 					free(leaf);
 					leaf = dec;
