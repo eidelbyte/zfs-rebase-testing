@@ -217,6 +217,18 @@ main(void)
 		check_line("green edges, and fullness sees the hardlink",
 		    "rebase: faces",
 		    "green 4 4 4, full 4 3 3, red 4 4, derived 4");
+		/*
+		 * Pairing.  Every base pool has both nominations
+		 * agreeing on the same partner, so all four pair on
+		 * both base faces, and the derived red plus the sole
+		 * green edge pair the same four across the cut.  The
+		 * file onto added has neither nomination -- no base
+		 * counterpart, no shared name -- so it pairs with
+		 * nothing and must not inflate these counts.
+		 */
+		check_line("pools pair where both nominations agree",
+		    "rebase: pairing",
+		    "paired 4 4 4");
 	}
 
 	/*
