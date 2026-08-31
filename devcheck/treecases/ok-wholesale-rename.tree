@@ -5,24 +5,37 @@ title wholesale rename: a pool whose every name changes at once
 #
 # Off-of renames every name of three pools. Onto is identical to
 # base, so nothing conflicts. The decision materializes all three
-# rather than reusing their onto dnodes, and the chain is coherent:
-# a move of two names to two names has no unambiguous successor, so
-# succession records nothing; with no substitution each output name
-# looks itself up and finds nothing in base or onto; with no
-# contributors, Definition 9.7 leaves the pool with no onto
-# contributor, and Section 12 says such a pool is created fresh.
+# rather than reusing their onto dnodes: a move of two names to two
+# names has no unambiguous successor, so succession records nothing;
+# with no substitution each output name looks itself up and finds
+# nothing in onto; with no contributor, Section 12 creates the pool
+# fresh. Seven unlinks and three materializations where no material
+# changed.
 #
-# The CONSEQUENCE is a question for the theory rather than a bug in
-# either implementation: a hard-linked pair that one side renamed
-# wholesale comes out on a brand-new dnode while its old dnode is
-# deleted. On a real filesystem "mv x aa; mv y bb" preserves the
-# inode. A plan that preserved it exists -- link the new names off
-# an old one, then unlink the old ones, which never drops the link
-# count to zero -- so identity is lost by the definition of
-# contributors rather than by necessity.
+# WHERE THE PROBLEM IS NOT. An earlier version of this comment said
+# a plan preserving identity exists -- link the new names off an old
+# one, then unlink -- and that is a workaround for a problem the
+# plan does not have. At the filesystem level "mv x aa; mv y bb"
+# keeps the pool trivially: after the first move it holds {aa, y},
+# the same dnode, and the link count never approaches zero.
 #
-# Pinned here so the behaviour is recorded whichever way the theory
-# settles it.
+# WHERE IT IS. Realization asks a POOL-level question -- which onto
+# dnode does this output pool reuse -- through a NAME-level
+# mechanism: substitute a name, ask who holds it in onto. Names are
+# exactly what goes blank when succession is ambiguous, which is
+# open problem 6. Meanwhile the pool-level answer is sitting in the
+# model the whole time: base, onto and off-of all carry (5, 100), so
+# red edges put the three in ONE COMPONENT, and components span all
+# three trees by construction.
+#
+# So the cost of OP6's caution is not only an unnamed successor. It
+# is the pool losing its dnode -- data copied rather than relinked,
+# and any external inode reference broken -- because a fact the
+# component already holds is being derived through names instead.
+# That is a decide-side question and is with the lead and the
+# researcher.
+#
+# Pinned here so the behaviour is recorded whichever way it settles.
 
 tree base
   1-1: /

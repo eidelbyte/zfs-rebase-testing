@@ -54,6 +54,23 @@ function without(names, drop) {
 	return (out);
 }
 
+/*
+ * Which name a new link or a write should hang off.
+ *
+ * Prefer a KEPT name -- one the clone already holds -- because it
+ * exists before the plan starts and so depends on nothing.  Anchoring
+ * on a name the plan itself creates is equally correct and strictly
+ * worse: it invents a dependency that ordering then has to carry.
+ * Only when the pool keeps no name at all does the lowest-sorted
+ * decided name serve, and that case is reachable -- a materialized
+ * pool keeps nothing by construction, so every name after its first
+ * arrives here.
+ */
+function anchorName(kept, decided) {
+	if (kept.length > 0) return (kept[0]);
+	return (decided.length > 0 ? decided[0] : null);
+}
+
 function asSet(names) {
 	var s = {}, i;
 
@@ -155,7 +172,8 @@ function compileEdits(spec, res) {
 			    pool: op.id });
 			for (j = 1; j < gained.length; j++) {
 				edits.push({ verb: "link", path: gained[j],
-				    from: gained[0], pool: op.id });
+				    from: anchorName([], gained),
+				    pool: op.id });
 			}
 			continue;
 		}
@@ -182,8 +200,7 @@ function compileEdits(spec, res) {
 		 * hangs off a name the pool already has on the clone --
 		 * a kept one, or the target of the first rename.
 		 */
-		var anchor = kept.length > 0 ? kept[0] :
-		    (npair > 0 ? gained[0] : null);
+		var anchor = anchorName(kept, outNames);
 		for (j = npair; j < gained.length; j++) {
 			if (anchor === null) {
 				warnings.push("pool " + op.id + " gains " +
@@ -205,9 +222,16 @@ function compileEdits(spec, res) {
 		var ontoPool = hasOwn(ontoPoolOf, key) ? ontoPoolOf[key] :
 		    null;
 		if (ontoPool !== null && op.token !== ontoPool.token) {
+			/*
+			 * Any name of the pool reaches its dnode, so the
+			 * write may carry any of them -- and the same
+			 * argument as the link anchor applies: naming a
+			 * name the plan creates makes the write wait for
+			 * the edit that creates it, where a kept name
+			 * waits for nothing.
+			 */
 			edits.push({ verb: "write",
-			    path: outNames.length > 0 ? outNames[0] : null,
-			    pool: op.id });
+			    path: anchorName(kept, outNames), pool: op.id });
 		}
 	}
 
