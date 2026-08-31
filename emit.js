@@ -281,6 +281,19 @@ function compileEdits(spec, res) {
  * reported fact rather than a failure: it says this fixture needs the
  * ordering pass, and names which edits are waiting on each other.
  */
+/* Does any live name sit strictly beneath this path? */
+function hasDescendant(state, path) {
+	var prefix = (path === "/") ? "/" : path + "/";
+	var name;
+
+	for (name in state) {
+		if (!hasOwn(state, name)) continue;
+		if (name !== path && name.indexOf(prefix) === 0)
+			return (true);
+	}
+	return (false);
+}
+
 function verifyEdits(spec, res, edits) {
 	var onto = spec.trees.onto;
 	var held = heldNameSet(res);
@@ -324,7 +337,15 @@ function verifyEdits(spec, res, edits) {
 			var ok = false;
 
 			if (e.verb === "unlink") {
-				if (hasOwn(state, e.path)) {
+				/*
+				 * Children first: a directory's entry
+				 * cannot go while anything still lives
+				 * beneath it.  Checked on the namespace
+				 * rather than on types, since a file
+				 * never has descendants anyway.
+				 */
+				if (hasOwn(state, e.path) &&
+				    !hasDescendant(state, e.path)) {
 					delete state[e.path];
 					ok = true;
 				}

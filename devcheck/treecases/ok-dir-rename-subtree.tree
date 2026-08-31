@@ -1,0 +1,34 @@
+title a renamed directory carrying a subtree
+
+# No fixture in the corpus renames a directory that still has live
+# children, so the theory's implicit-descendant rule has never been
+# exercised by either emission compiler.
+#
+# Section 12: "Under full-path naming, a directory rename implicitly
+# renames every decided descendant, so descendant edits are
+# expressed against the post-rename paths." So after /d becomes /e,
+# the child is ALREADY at /e/f -- and an explicit rename of
+# /d/f to /e/f would name a source that no longer exists.
+#
+# But a compiler that works pool by pool sees 3-100's names change
+# from /d/f to /e/f exactly as it sees 2-100's change from /d to /e,
+# and has no reason to treat one differently. Whether the descendant
+# rename should be emitted, suppressed, or emitted and skipped by
+# check-then-act is the question this fixture asks.
+#
+# Onto is quiet, so nothing conflicts and nothing is held.
+
+tree base
+  1-1: /
+    2-100: d/
+      3-100: f = fv0
+
+tree onto
+  1-1: /
+    2-100: d/
+      3-100: f = fv0
+
+tree offof
+  1-1: /
+    2-100: e/
+      3-100: f = fv0
