@@ -229,6 +229,17 @@ main(void)
 		check_line("pools pair where both nominations agree",
 		    "rebase: pairing",
 		    "paired 4 4 4");
+		/*
+		 * Components.  Thirteen pools across the three trees
+		 * (4 + 5 + 4) fall into five groups: each of base's
+		 * four objects gathers its counterparts from both
+		 * sides, and the file onto added stands alone because
+		 * it shares no name and has no base identity.  A run
+		 * that joined nothing would report thirteen.
+		 */
+		check_line("components gather each object's three copies",
+		    "rebase: components",
+		    "components 5 over 13 pools");
 	}
 
 	/*
