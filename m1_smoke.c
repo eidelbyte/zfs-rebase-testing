@@ -336,7 +336,53 @@ main(void)
 	}
 
 	/*
-	 * 5. Unrelated datasets share no ancestor: the $ORIGIN
+	 * 5. The first fixture that DISAGREES.  Onto deletes
+	 * /subdir/inner while off-of edits it: the modify/delete
+	 * that every merge tool has to answer for.
+	 *
+	 * What makes it worth asserting is where it is caught.  The
+	 * name cell for /subdir/inner does not conflict at all -- it
+	 * is home in off-of and absent from onto, so row 3 keeps
+	 * onto's arrangement, which is that the name is gone, and the
+	 * cell quietly records a death.  Pass 1 is structurally blind
+	 * here, because it asks where a name lives and this is an
+	 * argument about whether anything lives there.  Pass 0 is what
+	 * sees it: base's pool is DEAD on onto and continued-changed
+	 * on off-of, and Rule 7.2 conflicts that crossing.  The
+	 * quarantine then holds exactly that component back, so
+	 * off-of's edit is not silently discarded.
+	 */
+	err = rt_open(RT_DS_RIGHT, &d);
+	if (err == 0) {
+		uint64_t subdir = 0;
+
+		err = rt_dir_lookup(d.rtd_os, d.rtd_root, "subdir",
+		    &subdir);
+		if (err == 0)
+			err = rt_remove_entry(d.rtd_os, subdir, "inner");
+		rt_close(&d);
+	}
+	if (err != 0) {
+		(void) printf("FAIL  build conflict fixture: %d\n", err);
+		m1_checks++;
+		m1_failures++;
+	} else {
+		rt_sync_pool();
+		check("a conflicting merge still decides (ENOSYS)",
+		    dsl_rebase(RT_DS_LEFT, RT_DS_RIGHT, NULL), ENOSYS);
+		check_line("pass 0 sees the modify/delete pass 1 cannot",
+		    "rebase: lineage",
+		    "onto 3/0/1/0/0, offof 2/2/0/0/0, conflicts 1");
+		check_line("the deleted name dies without its cell "
+		    "conflicting", "rebase: pass1",
+		    "rows 3/1/2/0/0, survivors 5, deaths 1, conflicts 0");
+		check_line("the conflict holds back exactly its component",
+		    "rebase: quarantine",
+		    "quarantine 1 of 5 components, conflicts 1");
+	}
+
+	/*
+	 * 6. Unrelated datasets share no ancestor: the $ORIGIN
 	 * guard stops both chain walks, so discovery reports ENOENT
 	 * instead of finding the pool-global false ancestor.
 	 */
