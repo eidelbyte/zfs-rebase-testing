@@ -258,7 +258,60 @@ function compileEdits(spec, res) {
 			edits.push({ verb: "unlink", path: doomed[j] });
 	}
 
-	return ({ edits: applyImplicitRenames(edits), warnings: warnings });
+	edits = applyImplicitRenames(edits);
+	checkNameable(spec, edits, warnings);
+	return ({ edits: edits, warnings: warnings });
+}
+
+/*
+ * Every path a plan names must be a name the walk knows.
+ *
+ * The engine's name table is built once from the union of the three
+ * trees and never grows, and an edit refers to a path by its RANK in
+ * that table.  So a plan that names a path no tree contains is not
+ * merely awkward to represent -- it cannot be written down at all.
+ * That is a third category beside "awkward in the kernel" and
+ * "wrong": INEXPRESSIBLE, where the contract's record cannot say
+ * what the plan says.
+ *
+ * The contract already concedes that plans sometimes need names no
+ * tree has -- scratch names for rotations are exactly that, and are
+ * carried as an ordinal rather than a name id for exactly this
+ * reason.  It assumed rotations were the only source.  A subtree
+ * move is a second: renaming /d to /e while /d/f becomes /e/g needs
+ * the intermediate /e/f, and neither that nor /d/g is in any tree.
+ *
+ * This check exists so that this implementation finds such a plan
+ * itself, in every fixture, rather than learning about it from the
+ * lane whose types make it impossible.
+ */
+function checkNameable(spec, edits, warnings) {
+	var known = {};
+	var trees = ["base", "onto", "offof"];
+	var t, i, j;
+
+	for (t = 0; t < trees.length; t++) {
+		var pools = spec.trees[trees[t]].pools;
+
+		for (i = 0; i < pools.length; i++)
+			for (j = 0; j < pools[i].names.length; j++)
+				known[pools[i].names[j]] = true;
+	}
+
+	for (i = 0; i < edits.length; i++) {
+		var ed = edits[i];
+		var fields = ["path", "to", "from"];
+
+		for (j = 0; j < fields.length; j++) {
+			var v = ed[fields[j]];
+
+			if (v === undefined || v === null) continue;
+			if (hasOwn(known, v)) continue;
+			warnings.push(ed.verb + " names " + fields[j] + "=" +
+			    v + ", which no input tree contains -- the edit " +
+			    "record has no name id for it");
+		}
+	}
 }
 
 /*
@@ -335,6 +388,23 @@ function applyImplicitRenames(edits) {
  * reported fact rather than a failure: it says this fixture needs the
  * ordering pass, and names which edits are waiting on each other.
  */
+/*
+ * Parent first (Definition 12.1's first arrow): a name can only be
+ * created where its parent already exists AND is a directory.  The
+ * type half is what a type replacement needs -- while onto's old
+ * file still sits at the path, creating a child under it is the
+ * illegal move, and existence alone would allow it.
+ */
+function parentReady(state, kind, path) {
+	var i = path.lastIndexOf("/");
+	var parent;
+
+	if (path === "/" || i < 0) return (true);
+	parent = (i === 0) ? "/" : path.slice(0, i);
+	if (!hasOwn(state, parent)) return (false);
+	return (kind[state[parent]] === "dir");
+}
+
 /* Move a name and everything beneath it, as rename(2) does. */
 function renameSubtree(state, from, to) {
 	var prefix = from + "/";
@@ -376,6 +446,11 @@ function verifyEdits(spec, res, edits) {
 	 * sit on the same dnodes either way, and only the bytes differ. */
 	var content = {};
 	var wantContent = {};
+	/* Identity to type, so parent-first can require a DIRECTORY.
+	 * Existence alone is not enough: in a type replacement the old
+	 * file still occupies the parent path, and creating a child
+	 * under it is exactly the illegal move. */
+	var kind = {};
 	var problems = [];
 	var pending = edits.slice();
 	var i, j, p;
@@ -388,6 +463,7 @@ function verifyEdits(spec, res, edits) {
 			state[p.names[j]] = "onto:" + p.key;
 		}
 		content["onto:" + p.key] = p.token;
+		kind["onto:" + p.key] = p.type;
 	}
 
 	/* Where the decision says every name should end up. */
@@ -399,6 +475,7 @@ function verifyEdits(spec, res, edits) {
 		    "fresh:" + op.id;
 		for (j = 0; j < op.names.length; j++) want[op.names[j]] = ident;
 		wantContent[ident] = op.token;
+		kind[ident] = op.type;
 	}
 
 	var progress = true;
@@ -431,17 +508,21 @@ function verifyEdits(spec, res, edits) {
 				 * yet, so its source still existed.
 				 */
 				if (hasOwn(state, e.path) &&
-				    !hasOwn(state, e.to)) {
+				    !hasOwn(state, e.to) &&
+				    parentReady(state, kind, e.to)) {
 					renameSubtree(state, e.path, e.to);
 					ok = true;
 				}
 			} else if (e.verb === "link") {
-				if (hasOwn(state, e.from) && !hasOwn(state, e.path)) {
+				if (hasOwn(state, e.from) &&
+				    !hasOwn(state, e.path) &&
+				    parentReady(state, kind, e.path)) {
 					state[e.path] = state[e.from];
 					ok = true;
 				}
 			} else if (e.verb === "materialize") {
-				if (!hasOwn(state, e.path)) {
+				if (!hasOwn(state, e.path) &&
+				    parentReady(state, kind, e.path)) {
 					state[e.path] = "fresh:" + e.pool;
 					content["fresh:" + e.pool] =
 					    poolToken(res, e.pool);
