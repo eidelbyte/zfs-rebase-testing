@@ -1,0 +1,29 @@
+title NUL in an expect path
+
+# Both parsers reject this now, in the same words. It spent a round
+# in devcheck/pending/ because the reference decoded \000 and
+# ACCEPTED it, leaving a real NUL in the argument, while the C side
+# rejected it.
+#
+# What made it worth chasing was not the rarity but the shape: it was
+# one implementation giving two answers about one byte depending on
+# which field it landed in, since the same parser's LEAF decoder
+# already rejected NUL. A parser that disagrees with itself is worse
+# than two parsers that disagree with each other, because nothing
+# external can catch it.
+#
+# It announced itself oddly, too: the reference's dump gained a raw
+# NUL, so diff stopped printing lines and said "binary files differ".
+# A text gate that suddenly says binary is reporting that something
+# emitted a byte no text format should hold -- a signal we get for
+# free from tools we did not write.
+#
+# The message quotes nothing, because a string holding a NUL cannot
+# be quoted usefully: in C the quoted form would print as a truncated
+# fragment and actively misdescribe what was read.
+
+tree base
+  1-1: /
+    2-100: plain
+
+expect quarantined /a\000b

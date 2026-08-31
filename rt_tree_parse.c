@@ -797,6 +797,15 @@ rt_spec_parse_text(const char *text, const char *origin, rt_spec_t *sp)
 			char *sp2 = strpbrk(arg, " \t");
 			rt_expect_t *ex;
 
+			/*
+			 * A quarantined argument that is missing, or that
+			 * has whitespace in it, gets a message naming the
+			 * remedy rather than the generic one.  The remedy
+			 * differs by directive -- a space in a path is
+			 * under-escaped, while a space in a conflict kind
+			 * is simply wrong -- so the message names the
+			 * directive rather than being generic.
+			 */
 			if (sp2 == NULL) {
 				if (strcmp(arg, "clean") == 0) {
 					ex = APPEND(sp->rts_expects,
@@ -807,6 +816,13 @@ rt_spec_parse_text(const char *text, const char *origin, rt_spec_t *sp)
 					free(arg);
 					goto next;
 				}
+				if (strcmp(arg, "quarantined") == 0) {
+					add_error(sp, lineno, "expect "
+					    "quarantined takes one path; "
+					    "write \\040 for a space in it");
+					free(arg);
+					goto next;
+				}
 			} else {
 				char *verb = xstrndup(arg,
 				    (size_t)(sp2 - arg));
@@ -814,6 +830,16 @@ rt_spec_parse_text(const char *text, const char *origin, rt_spec_t *sp)
 				int kind = 0;
 
 				if (strpbrk(val, " \t") != NULL) {
+					if (strcmp(verb, "quarantined") == 0) {
+						add_error(sp, lineno, "expect "
+						    "quarantined takes one "
+						    "path; write \\040 for a "
+						    "space in it");
+						free(verb);
+						free(val);
+						free(arg);
+						goto next;
+					}
 					kind = 0;
 				} else if (strcmp(verb, "conflict") == 0) {
 					kind = RT_EXP_CONFLICT;

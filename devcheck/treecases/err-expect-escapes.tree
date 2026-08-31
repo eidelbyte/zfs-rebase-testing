@@ -2,21 +2,37 @@ title expect paths carry the same escapes names do
 
 # An expect path is a PATH, so it needs the same decoding a leaf
 # does -- otherwise it could never match a decoded name, and the two
-# would silently never meet. Its '/' separators are legitimate, so
-# unlike a leaf there is no slash check and \057 simply decodes to
-# one more separator.
+# would silently never meet.
 #
 # Conflict arguments are deliberately NOT decoded. A conflict kind is
 # drawn from a closed vocabulary of five words, where an escape
 # cannot make anything more expressible and could only admit new
 # spellings of a word that has exactly one.
 #
-# The NUL case is not here yet. It is in devcheck/pending/.
+# OVER-ESCAPING IS PERMITTED, and the two accepted lines below pin
+# it. mtree's encoding is byte-oriented: any byte may be written
+# \ooo, so \141 is a legal if pointless spelling of 'a'. \057 falls
+# out of the same permission -- it decodes to '/', which in a PATH is
+# a legal character, so it is an odd spelling of a legal path rather
+# than a special case. A leaf rejects the same escape only because
+# '/' is illegal CONTENT there, and that check runs on the decoded
+# byte rather than on the spelling. One rule: decode, then validate
+# what was decoded.
+#
+# The space message names the directive because the remedy differs by
+# directive -- a space in a path is under-escaped, while a space in a
+# conflict kind is simply wrong. It fires on a missing argument too,
+# where "takes one path" still reads correctly.
 
 tree base
   1-1: /
     2-100: eq\075uals
+    3-100: abc
 
 expect quarantined /eq\075uals
+expect quarantined /a\057b
+expect quarantined /\141bc
 expect quarantined /a\400b
 expect quarantined /a\slash
+expect quarantined /a b
+expect quarantined
