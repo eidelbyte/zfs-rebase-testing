@@ -258,7 +258,7 @@ main(void)
 		 * ran and found nothing rather than a stale build.
 		 */
 		check_line("the engine under test is the one built",
-		    "rebase: engine rev", "engine rev 5");
+		    "rebase: engine rev", "engine rev 7");
 		check_line("a new link attaches, it does not succeed",
 		    "rebase: succession",
 		    "antecedents 0 0, attachments 0 1, moved-both 0, "
@@ -319,6 +319,20 @@ main(void)
 		    "three-way", "rebase: pass3",
 		    "rules 3/0/2, onto-dnode 5, materialized 0, "
 		    "conflicts 0");
+		/*
+		 * Ancestry and quarantine.  Every survivor's parent
+		 * survived and decided to be a directory, and no
+		 * directory pool ended up with two names, so nothing
+		 * structural fires.  With no conflict anywhere there
+		 * is nothing to seed the quarantine, so all five
+		 * components emit -- which is the whole point of a
+		 * clean merge.
+		 */
+		check_line("nothing structural, so nothing is held back",
+		    "rebase: pass4", "structural conflicts 0");
+		check_line("a clean decision quarantines nothing",
+		    "rebase: quarantine",
+		    "quarantine 0 of 5 components, conflicts 0");
 	}
 
 	/*
