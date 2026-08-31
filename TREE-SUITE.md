@@ -313,6 +313,54 @@ letting you read it as a broken corpus.
 Neither gate can catch a wrong answer. The FreeBSD build and run
 remain the authority.
 
+## When the manifest lands
+
+The contract is `sprints/sprint-3/manifest-contract.md`. The mapping
+into `rt_dview_t` is direct, which is the point of having written the
+field list first:
+
+    name path=          dvn_name
+    name survived=      dvn_survives
+    name held=          dvn_quarantined
+    name pool=          dvn_outpool   (absent iff dead or held)
+    pool type=          dvp_isdir
+    pool realization=   dvp_materialized
+    pool source_tree= + source_path=  resolved against the fixture's
+                        own parsed tree -- no disk read
+    conflict kind=      dv_conflict_kinds
+
+Name records are exhaustive (one per name, deaths included with
+`survived=no`), so "must not survive" is asserted against a stated
+fact rather than an absence.
+
+**Two encodings, one rule, and do not harmonize them.** A `.tree`
+fixture *permits* over-escaping: `\141` is a legal if pointless
+spelling of `a`, and `err-expect-escapes.tree` pins that. A manifest
+*rejects* it, fatally, as a non-canonical escape.
+
+That asymmetry is deliberate and load-bearing in one direction. A
+manifest is machine-emitted and must be byte-exact between two
+conforming emitters, so permitting redundant spellings would destroy
+the guarantee its whole conformance section rests on. A fixture is
+hand-written, where a redundant spelling is merely redundant. The
+danger is a later reader noticing the difference and "fixing" it --
+relaxing the manifest would silently retire canonical form.
+
+The same applies to space. A `.tree` dump emits it literally, because
+`name <path>` runs to end of line; a manifest emits `\040`, because
+its values are whitespace-delimited. Same rule -- escape any byte the
+surrounding grammar would otherwise consume -- applied to two
+grammars.
+
+**If this suite ever checks an applied result**, the metadata an
+applier must reproduce is the engine's own compare set
+(`rebase_identity_fixed[]` / `rebase_identity_var[]`): MODE, UID,
+GID, FLAGS, RDEV, PROJID, SIZE, DACL_COUNT, DACL_ACES, SYMLINK, plus
+xattrs. Anything missed there stops applied work reading back as
+yellow-equal, so a re-run re-emits the same edit forever. That is
+non-convergence, not untidiness, and it is why the list is longer
+than the obvious four.
+
 ## Files
 
     rt_tree.h          parsed fixture types; no ZFS
