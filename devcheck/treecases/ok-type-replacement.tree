@@ -1,0 +1,35 @@
+title type replacement: a directory becomes a file, and a file a directory
+
+# The last emission case neither compiler has crossed.
+#
+# Off-of replaces a directory with a file and a file with a
+# directory, at the same two names. Onto is quiet throughout, so
+# nothing conflicts and nothing is held; the fixture is entirely
+# about what a type change compiles to.
+#
+# It is a realization question before it is an emission one. A pool
+# needs a SAME-TYPE onto contributor to reuse an onto dnode, and at
+# both names onto holds the other type -- so neither output pool can
+# take the dnode sitting at its name, however much the name matches.
+#
+# The directory being replaced also has a child, so the old subtree
+# has to come apart before its own entry can go: the children-first
+# arrow, in the smallest fixture that has one.
+
+tree base
+  1-1: /
+    2-100: dir2file/
+      3-100: child = cv0
+    4-100: file2dir = fv0
+
+tree onto
+  1-1: /
+    2-100: dir2file/
+      3-100: child = cv0
+    4-100: file2dir = fv0
+
+tree offof
+  1-1: /
+    5-300: dir2file = nv0
+    6-300: file2dir/
+      7-300: newchild = ncv0
