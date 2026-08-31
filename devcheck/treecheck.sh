@@ -100,18 +100,43 @@ cc -std=c99 -Wall -Wextra -Wcast-qual -Werror -O1 \
 }
 "$TMP/checkcheck" || fail=1
 
-# --- the deliberate divergence
-echo "--- deliberate divergences (C parser only)"
+# --- where the two parsers refuse the same thing in different words
+#
+# These used to be a real divergence: the reference accepted the
+# left/right aliases and bound them backwards. It refuses them now
+# too, so all that is left is wording -- the C parser says WHY, since
+# the person who hits it is writing a fixture and needs to know the
+# polarity, while the reference just calls the name unknown. Kept out
+# of the byte-exact diff for that reason, and checked here instead,
+# so "they only differ in wording" stays a verified claim.
+echo "--- deliberate divergences (wording only)"
 for f in "$ROOT"/devcheck/treecases/c-only/*.tree; do
 	[ -e "$f" ] || continue
 	case "$(basename "$f")" in
 	err-alias.tree)
-		got=$("$TMP/treedump" "$f" | grep -c "ambiguous against harness polarity" || true)
-		if [ "$got" -eq 2 ]; then
-			echo "refuses left/right aliases: OK (2 refusals)"
+		cgot=$("$TMP/treedump" "$f" |
+		    grep -c "ambiguous against harness polarity" || true)
+		if [ "$cgot" -eq 2 ]; then
+			echo "C parser refuses both aliases: OK"
 		else
-			echo "refuses left/right aliases: FAIL (got $got, want 2)"
+			echo "C parser refuses both aliases: FAIL" \
+			    "(got $cgot, want 2)"
 			fail=1
+		fi
+
+		if [ -x "$JSC" ] && [ -f "$DEMO/engine.js" ]; then
+			jgot=$( ( cd "$DEMO" && "$JSC" jsc-shim.js \
+			    "$ROOT/devcheck/tree-canon.js" -- "$f" ) |
+			    grep -c "unknown tree name" || true)
+			if [ "$jgot" -eq 2 ]; then
+				echo "reference refuses both aliases: OK"
+			else
+				echo "reference refuses both aliases: FAIL" \
+				    "(got $jgot, want 2) -- if it ACCEPTS" \
+				    "them again, the aliases are back and" \
+				    "bind backwards"
+				fail=1
+			fi
 		fi
 		;;
 	*)

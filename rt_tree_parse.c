@@ -15,13 +15,16 @@
  * here, which is the point: a fixture that means two different
  * things to two engines is worse than no fixture.
  *
- * The one deliberate divergence is the tree-name aliases.  The
- * reference parser accepts "left" and "right" as aliases for onto
- * and off-of, and maps them the opposite way round from the harness
- * (there, onto is RT_DS_RIGHT).  Silently mirroring a fixture is the
- * worst failure a fixture loader can have, so this parser refuses
- * the aliases and says why.  No corpus file uses them, so the gate
- * is unaffected; the refusal is there to keep it that way.
+ * The one divergence left is wording, on the tree-name aliases.  The
+ * reference parser used to ACCEPT "left" and "right", bound the
+ * opposite way round from the harness -- onto is RT_DS_RIGHT -- so a
+ * fixture using them would have mirrored silently and still looked
+ * plausible.  It refuses them now too, so both parsers agree on the
+ * answer; they differ only in what they say.  This one names the
+ * polarity, because whoever hits it is writing a fixture and that is
+ * the fact they need.  devcheck/treecheck.sh checks both refusals,
+ * so "only the wording differs" stays a verified claim rather than a
+ * stale comment.
  *
  * Allocation failure aborts, as it does elsewhere in the harness: a
  * test binary that cannot get memory has nothing useful to report.
@@ -740,11 +743,14 @@ rt_spec_parse_text(const char *text, const char *origin, rt_spec_t *sp)
 			int slot;
 
 			/*
-			 * The reference parser also accepts "left" and
-			 * "right" here, and binds them the opposite way
-			 * round from this harness, where onto is
-			 * RT_DS_RIGHT.  A loader that silently mirrors a
-			 * fixture is worse than one that refuses it.
+			 * "left" and "right" are refused rather than
+			 * mapped.  The reference parser once bound them
+			 * the opposite way round from this harness,
+			 * where onto is RT_DS_RIGHT, so a fixture using
+			 * them mirrored silently and still looked
+			 * plausible.  Both parsers refuse them now.  The
+			 * message names the polarity because whoever
+			 * hits it is writing a fixture.
 			 */
 			if (strcmp(name, "left") == 0 ||
 			    strcmp(name, "right") == 0) {

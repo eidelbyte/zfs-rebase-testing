@@ -216,11 +216,25 @@ different identity than base (the root dnode cannot be replaced).
 Onto is the substrate and lives in `RT_DS_RIGHT`. Off-of is the
 replayed side and lives in `RT_DS_LEFT`.
 
-The reference parser accepts `left` and `right` as tree-name aliases
-and binds them the **opposite** way round. No corpus file uses them,
-so nothing is broken today, but a loader that silently mirrors a
-fixture is the worst failure a loader can have -- every result stays
-plausible. So the C parser refuses those two names and says why.
+The reference parser used to accept `left` and `right` as tree-name
+aliases and bound them the **opposite** way round. No corpus file
+used them, so nothing was broken -- but a loader that silently
+mirrors a fixture is the worst failure a loader can have, because
+every result stays plausible.
+
+Both parsers refuse those names now. The C parser's message names the
+polarity, since whoever hits it is writing a fixture and that is the
+fact they need; the reference just calls the name unknown. That is
+the only divergence left between the two, and `treecheck.sh` asserts
+both refusals so it stays a wording difference rather than becoming a
+real one again.
+
+Worth knowing: the older `zfs-rebase-theory/examples/*.tree` corpus
+that `lpgraph.py` reads **is** written in left/base/right. That tool
+predates the onto/off-of distinction and never uses those words, so
+there was never a correct mapping to preserve -- those documents need
+a human to relabel them. Pointing `tree_suite` at them will
+(correctly) refuse them.
 
 ## What is checked on a laptop
 
