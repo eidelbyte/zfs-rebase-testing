@@ -105,17 +105,32 @@ int rt_tree_materialize(const rt_spec_t *sp, char *errbuf, size_t errlen);
  *       the better answer if the manifest is meant to be the reported
  *       result anyway, since it tests the thing users will see.
  *
- *   (b) A RECORD ACCESSOR.  sys/dsl_rebase.h says of
+ *   (b) AN INSPECTION SEAM.  sys/dsl_rebase.h says of
  *       rebase_decision_t: "the test interface: the harness asserts
  *       against this structure, never against scraped debug text."
  *       Every field above is already in it.  What is missing is any
- *       way to obtain one, since the arena is released before the
- *       caller is resumed.  In libzpool only, no ioctl surface:
+ *       way to reach one, since the arena is released before the
+ *       caller resumes.  The answer is not to extend the record's
+ *       lifetime but to invert the call, so it never has to outlive
+ *       the run:
  *
- *         int dsl_rebase_decide_test(const char *offof_snap,
- *             const char *onto_snap, const char *base_snap,
- *             rebase_decision_t **rdp, void **cookiep);
- *         void dsl_rebase_decide_test_free(void *cookie);
+ *         typedef int (*rebase_inspect_cb_t)(
+ *             const rebase_run_t *rr, void *arg);
+ *         int dsl_rebase_inspect(const char *offof_snap,
+ *             const char *onto_snap, rebase_inspect_cb_t cb,
+ *             void *arg);
+ *
+ *       cb runs after the decide passes and before teardown.  The
+ *       arena is alive inside it, so every pointer in the record is
+ *       valid, nothing is copied or serialized, and no new lifetime
+ *       rule enters the contract.  It is also the seam the manifest
+ *       emitter wants anyway, which is what makes it worth building
+ *       as contract rather than as test scaffolding.
+ *
+ *       This is why rt_decision_check() runs the whole comparison
+ *       INSIDE the callback rather than handing a record back: a
+ *       view built from the record points into the arena, and is
+ *       worthless one instruction after the callback returns.
  *
  * Either way, three obligations matter more than the shape:
  *
@@ -136,8 +151,18 @@ int rt_tree_materialize(const rt_spec_t *sp, char *errbuf, size_t errlen);
  * every line it prints.
  */
 int rt_decision_available(void);
-int rt_decision_get(const rebase_decision_t **rdp, void **cookiep);
-void rt_decision_put(void *cookie);
+
+/*
+ * Run the engine and check this fixture's gold against the decision,
+ * all within the engine's own inspection callback.  Returns 0 when
+ * the run completed and res holds the verdict; an errno with a
+ * sentence in errbuf when the engine could not decide at all.
+ *
+ * A conflicted run is a COMPLETED run and returns 0 -- the conflicts
+ * are in res, where the fixture said they should be.
+ */
+int rt_decision_check(const rt_spec_t *sp, rt_check_result_t *res,
+    char *errbuf, size_t errlen);
 
 /*
  * ------------------------------------------------------------------

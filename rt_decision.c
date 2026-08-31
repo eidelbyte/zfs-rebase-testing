@@ -27,9 +27,9 @@
 #include "rt_tree_suite.h"
 
 #ifdef	RT_HAVE_DECIDE_ACCESSOR
-extern int dsl_rebase_decide_test(const char *offof_snap,
-    const char *onto_snap, rebase_decision_t **rdp, void **cookiep);
-extern void dsl_rebase_decide_test_free(void *cookie);
+typedef int (*rebase_inspect_cb_t)(const rebase_run_t *rr, void *arg);
+extern int dsl_rebase_inspect(const char *offof_snap,
+    const char *onto_snap, rebase_inspect_cb_t cb, void *arg);
 #endif
 
 /*
@@ -54,36 +54,71 @@ rt_decision_available(void)
 #endif
 }
 
+/*
+ * The comparison runs INSIDE the engine's callback, where the arena
+ * is still alive.  Everything the view points at -- the name strings
+ * above all -- belongs to that arena, so carrying the view back out
+ * would be carrying dangling pointers out.  Doing the work here
+ * costs nothing and removes the question entirely.
+ */
+typedef struct inspect_ctx {
+	const rt_spec_t		*ic_spec;
+	rt_check_result_t	*ic_res;
+	char			*ic_err;
+	size_t			ic_errlen;
+	int			ic_rc;
+} inspect_ctx_t;
+
+#ifdef	RT_HAVE_DECIDE_ACCESSOR
+static int
+rt_inspect_cb(const rebase_run_t *rr, void *arg)
+{
+	inspect_ctx_t *ctx = arg;
+	rt_dview_t dv;
+
+	ctx->ic_rc = rt_decision_to_view(&rr->rr_decision, &dv, ctx->ic_err,
+	    ctx->ic_errlen);
+	if (ctx->ic_rc != 0)
+		return (ctx->ic_rc);
+
+	rt_tree_check_view(ctx->ic_spec, &dv, ctx->ic_res);
+	rt_dview_free(&dv);
+	return (0);
+}
+#endif
+
 int
-rt_decision_get(const rebase_decision_t **rdp, void **cookiep)
+rt_decision_check(const rt_spec_t *sp, rt_check_result_t *res, char *errbuf,
+    size_t errlen)
 {
 #ifdef	RT_HAVE_DECIDE_ACCESSOR
-	rebase_decision_t *rd = NULL;
+	inspect_ctx_t ctx;
 	int err;
 
-	*rdp = NULL;
-	*cookiep = NULL;
-	err = dsl_rebase_decide_test(RT_SNAP_OFFOF, RT_SNAP_ONTO,
-	    RT_SNAP_BASE, &rd, cookiep);
-	if (err != 0)
-		return (err);
-	*rdp = rd;
-	return (0);
-#else
-	*rdp = NULL;
-	*cookiep = NULL;
-	return (ENOTSUP);
-#endif
-}
+	ctx.ic_spec = sp;
+	ctx.ic_res = res;
+	ctx.ic_err = errbuf;
+	ctx.ic_errlen = errlen;
+	ctx.ic_rc = 0;
 
-void
-rt_decision_put(void *cookie)
-{
-#ifdef	RT_HAVE_DECIDE_ACCESSOR
-	if (cookie != NULL)
-		dsl_rebase_decide_test_free(cookie);
+	/*
+	 * A nonzero return means the engine could NOT decide.  A
+	 * conflicted run decides and returns zero, with the conflicts
+	 * in the record where the fixture expects to find them.
+	 */
+	err = dsl_rebase_inspect(RT_SNAP_OFFOF, RT_SNAP_ONTO,
+	    rt_inspect_cb, &ctx);
+	if (err != 0) {
+		(void) snprintf(errbuf, errlen, "engine could not decide: "
+		    "%s (%d)", strerror(err), err);
+		return (err);
+	}
+	return (ctx.ic_rc);
 #else
-	(void) cookie;
+	(void) sp;
+	(void) res;
+	(void) snprintf(errbuf, errlen, "built without the inspection seam");
+	return (ENOTSUP);
 #endif
 }
 

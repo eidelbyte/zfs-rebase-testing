@@ -47,16 +47,28 @@ cp devcheck/stub-suite/rebase_test.h "$TMP/rebase_test.h"
 cp rt_tree.h rt_tree_check.h rt_tree_suite.h $SRCS "$TMP/"
 
 fail=0
-for f in $SRCS; do
-	if cc -fsyntax-only -std=c99 -Wall -Wextra -Wcast-qual -Werror \
-	    -Wno-unused-function \
-	    -I"$TMP" -I"$HDRSTUB" -I"$ZFS_SRC/include" \
-	    "$TMP/$f" 2>&1; then
-		echo "compile OK: $f"
+
+# Compiled BOTH ways. Without the macro is what ships today; with it
+# is the inspection-seam path, which is dead code until the seam
+# lands and would therefore rot unwatched -- and it is precisely the
+# code that has to be right on the day it switches on.
+for mode in "" "-DRT_HAVE_DECIDE_ACCESSOR"; do
+	if [ -z "$mode" ]; then
+		label="census tier"
 	else
-		echo "compile FAIL: $f"
-		fail=1
+		label="inspection seam"
 	fi
+	for f in $SRCS; do
+		if cc -fsyntax-only -std=c99 -Wall -Wextra -Wcast-qual \
+		    -Werror -Wno-unused-function $mode \
+		    -I"$TMP" -I"$HDRSTUB" -I"$ZFS_SRC/include" \
+		    "$TMP/$f" 2>&1; then
+			echo "compile OK: $f ($label)"
+		else
+			echo "compile FAIL: $f ($label)"
+			fail=1
+		fi
+	done
 done
 
 echo "--- ASCII"

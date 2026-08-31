@@ -53,6 +53,15 @@ static int ts_failed;
 static int ts_skipped;
 static int ts_checks;
 static int ts_check_failures;
+/*
+ * Fixtures the engine refused with EINVAL.  Counted separately
+ * because there is one cause that makes EVERY fixture fail
+ * identically -- a libzpool older than the read-only rewrite, which
+ * links fine (the arity did not change) and then rejects the
+ * snapshots it is handed.  Said out loud at the end, because it
+ * otherwise reads as a corpus that is entirely wrong.
+ */
+static int ts_einval;
 
 /*
  * ------------------------------------------------------------------
@@ -309,26 +318,14 @@ run_fixture(const char *path)
 	}
 
 	if (rt_decision_available()) {
-		const rebase_decision_t *rd = NULL;
-		void *cookie = NULL;
-		rt_dview_t dv;
-
-		rc = rt_decision_get(&rd, &cookie);
+		rc = rt_decision_check(&spec, &res, err, sizeof (err));
 		if (rc != 0) {
-			(void) printf("FAIL  %-36s decide refused: %s (%d)\n",
-			    base, strerror(rc), rc);
-			ts_failed++;
-			goto out;
-		}
-		if (rt_decision_to_view(rd, &dv, err, sizeof (err)) != 0) {
 			(void) printf("FAIL  %-36s %s\n", base, err);
+			if (rc == EINVAL)
+				ts_einval++;
 			ts_failed++;
-			rt_decision_put(cookie);
 			goto out;
 		}
-		rt_tree_check_view(&spec, &dv, &res);
-		rt_dview_free(&dv);
-		rt_decision_put(cookie);
 	} else {
 		/*
 		 * Base is passed rather than discovered: a fixture
@@ -343,6 +340,8 @@ run_fixture(const char *path)
 		if (rc != ENOSYS && rc != 0) {
 			(void) printf("FAIL  %-36s engine refused: %s (%d)\n",
 			    base, strerror(rc), rc);
+			if (rc == EINVAL)
+				ts_einval++;
 			ts_failed++;
 			goto out;
 		}
@@ -477,6 +476,22 @@ main(int argc, char **argv)
 	 */
 	if (rt_dbgmsg_last("rebase: engine rev", line, sizeof (line)) == 0)
 		(void) printf("\n%s", line);
+
+	/*
+	 * Every fixture refused the same way is a statement about the
+	 * BUILD, not about the corpus.  The likeliest cause by far is
+	 * a libzpool from before the engine went read-only: the arity
+	 * of dsl_rebase() did not change in that rewrite, so a stale
+	 * one links happily and then rejects the snapshots.
+	 */
+	if (ts_einval > 0 && ts_einval == ts_fixtures - ts_skipped) {
+		(void) printf("\nEvery fixture was refused with EINVAL. "
+		    "That is almost certainly a stale\nlibzpool rather than "
+		    "a corpus problem -- the read-only rewrite kept\n"
+		    "dsl_rebase()'s arity, so an old one links and then "
+		    "rejects its inputs.\nRebuild and reinstall libzpool, "
+		    "then rerun.\n");
+	}
 
 	(void) printf("tree suite: %d/%d fixtures passed (%d skipped), "
 	    "%d/%d checks, %s\n", ts_fixtures - ts_failed - ts_skipped,

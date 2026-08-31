@@ -129,35 +129,47 @@ better answer if the manifest is meant to be the reported result
 anyway, because then the suite tests the thing users will actually
 see.
 
-**(b) A record accessor.** `sys/dsl_rebase.h` says of
+**(b) An inspection seam.** `sys/dsl_rebase.h` says of
 `rebase_decision_t`: *"the test interface: the harness asserts
 against this structure, never against scraped debug text."* Every
 field listed above is already in it. What is missing is any way to
-obtain one, since the arena is released before the caller resumes. In
-libzpool only, no ioctl surface:
+reach one, since the arena is released before the caller resumes.
 
-    int dsl_rebase_decide_test(const char *offof_snap,
-        const char *onto_snap, rebase_decision_t **rdp,
-        void **cookiep);
-    void dsl_rebase_decide_test_free(void *cookie);
+The answer is not to make the record outlive the run -- it is to
+invert the call so it never has to:
 
-Either way, three obligations matter more than the shape:
+    typedef int (*rebase_inspect_cb_t)(const rebase_run_t *rr,
+        void *arg);
+    int dsl_rebase_inspect(const char *offof_snap,
+        const char *onto_snap, rebase_inspect_cb_t cb, void *arg);
+
+`cb` runs after the decide passes and before teardown. The arena is
+alive inside it, so every pointer is valid, nothing is copied or
+serialized, and no new lifetime rule enters the contract. It is also
+the seam the manifest emitter wants anyway, which is what makes it
+worth building as contract rather than as test scaffolding.
+
+That lifetime is why `rt_decision_check()` runs the whole comparison
+*inside* the callback rather than handing a view back out: the view
+points into the arena and is worthless one instruction later.
+
+Three obligations matter more than the shape:
 
 1. **It reports what `dsl_rebase()` actually did** -- the same code
    path, not a reimplementation. If the two can diverge, the suite is
    testing the wrong engine.
 2. **It succeeds when the engine decided, conflicts and all.** A
-   conflict is a result, not a failure. A suite that cannot tell "the
-   engine found a conflict" from "the engine broke" cannot test the
-   conflict half of the theory -- which is the half the whole corpus
-   is about.
+   conflict is a result, not a failure. *(Settled: disposition is a
+   field in the output, never the return code. Nonzero means the
+   engine could not decide.)*
 3. **Names come back resolvable to paths.** A name id the harness
    cannot turn back into `/single/journal.txt` cannot be matched
    against gold.
 
-When one of them lands, build with
+When the seam lands, build with
 `CPPFLAGS+=-DRT_HAVE_DECIDE_ACCESSOR` and the suite switches tiers.
-Nothing else changes.
+Nothing else changes -- and that path is already compiled today, so
+it will not have rotted in the meantime.
 
 ## How a fixture becomes a pool
 
@@ -182,9 +194,15 @@ name and collected when its own key's turn comes -- the same trick
 the engine uses for rotation cycles, and for the same reason: without
 it, two names that swap places cannot be built at all.
 
-Finally both sides are snapshotted, because the engine reads
-snapshots. Base is *not* passed to it: the engine discovers the
-common ancestor from the snapshot chains, which means every fixture
+Finally both sides are snapshotted, because the engine is read-only
+and rejects a live head with `EINVAL` -- it creates nothing, so the
+caller supplies the immutability. Snapshotting is part of *building*
+the fixture rather than part of running it, which is where it
+belongs: a fixture is pinned once it is built, and every later
+decision reads the same thing.
+
+Base is *not* passed to the engine. It discovers the common ancestor
+from the two snapshot chains, which means every fixture in the corpus
 exercises that discovery for free.
 
 Two things the materializer refuses rather than fakes, reported as
@@ -229,8 +247,20 @@ checker is the one piece of test machinery nobody tests.
 **real** `sys/dsl_rebase.h`, with only the harness API stubbed. Using
 the real contract header rather than a fake is the point: a fake
 would make the check agree with itself instead of with the engine.
-This gate has already earned its keep -- it caught the `dsl_rebase()`
+It compiles them **both ways**, with and without
+`RT_HAVE_DECIDE_ACCESSOR`, because the inspection-seam path is dead
+code until the seam lands and would otherwise rot unwatched -- and it
+is exactly the code that has to be right on the day it switches on.
+
+This gate has already earned its keep: it caught the `dsl_rebase()`
 signature changing under the suite twice while it was being written.
+
+One failure it cannot catch, and which looks like a corpus disaster:
+a libzpool from before the engine went read-only links fine, because
+that rewrite did not change `dsl_rebase()`'s arity, and then rejects
+the snapshots it is handed. Every fixture fails identically with
+`EINVAL`. The suite watches for that shape and says so rather than
+letting you read it as a broken corpus.
 
 Neither gate can catch a wrong answer. The FreeBSD build and run
 remain the authority.
