@@ -1,19 +1,21 @@
-title the aliases both parsers now refuse
+title the position words both parsers refuse
 
 # Kept out of the byte-exact cross-parser diff because the two
 # parsers word this refusal differently, not because they disagree
-# about it.
+# about it. treecheck.sh asserts both refusals, so "they differ only
+# in wording" is a checked claim rather than a remembered one.
 #
-# The reference parser used to ACCEPT "left" and "right", bound the
-# opposite way round from the harness -- onto is RT_DS_RIGHT, off-of
-# is RT_DS_LEFT -- so a fixture written with them would have mirrored
-# silently and still produced a plausible result. It refuses them now
-# too, and engine-tests.js P7 guards that.
+# These names are refused because they carry NO DIRECTION, not
+# because they carry the wrong one. The reference parser used to
+# accept them as aliases, and it is tempting to record that the
+# aliases were backwards -- but two people who had both read this
+# project closely turned out to hold opposite mappings, and each
+# found the same fixture plausible. There was never a correct
+# direction to preserve.
 #
-# This parser says WHY, since whoever hits it is writing a fixture
-# and the polarity is the fact they need; the reference just calls
-# the name unknown. treecheck.sh asserts both refusals, so the claim
-# "they differ only in wording" is checked rather than asserted.
+# That is exactly how a mirrored fixture survives review, and it is
+# the argument for deleting the words rather than fixing them. The
+# roles are onto and off-of; positions cannot name them.
 
 tree left
   1-1: /

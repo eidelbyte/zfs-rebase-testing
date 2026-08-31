@@ -115,7 +115,7 @@ for f in "$ROOT"/devcheck/treecases/c-only/*.tree; do
 	case "$(basename "$f")" in
 	err-alias.tree)
 		cgot=$("$TMP/treedump" "$f" |
-		    grep -c "ambiguous against harness polarity" || true)
+		    grep -c "does not say which side it means" || true)
 		if [ "$cgot" -eq 2 ]; then
 			echo "C parser refuses both aliases: OK"
 		else

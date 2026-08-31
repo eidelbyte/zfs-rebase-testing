@@ -720,17 +720,18 @@ rt_tree_materialize(const rt_spec_t *sp, char *errbuf, size_t errlen)
 	}
 
 	/*
-	 * Polarity, the one place it is decided: onto is the substrate
-	 * and goes in RT_DS_RIGHT, off-of is replayed and goes in
-	 * RT_DS_LEFT, because rt_run_rebase() calls
-	 * dsl_rebase(RT_DS_LEFT, RT_DS_RIGHT).
+	 * Each side's tree goes into the dataset named for that side's
+	 * role.  This used to need a paragraph explaining which
+	 * positional dataset played which role; now the names say it,
+	 * and a fixture built into the wrong side would have to be
+	 * written wrong in a way that reads wrong.
 	 */
-	err = apply_side(RT_DS_RIGHT, &sp->rts_trees[RT_TREE_BASE],
+	err = apply_side(RT_DS_ONTO, &sp->rts_trees[RT_TREE_BASE],
 	    &sp->rts_trees[RT_TREE_ONTO], &base_km, errbuf, errlen);
 	if (err != 0)
 		goto out;
 
-	err = apply_side(RT_DS_LEFT, &sp->rts_trees[RT_TREE_BASE],
+	err = apply_side(RT_DS_OFFOF, &sp->rts_trees[RT_TREE_BASE],
 	    &sp->rts_trees[RT_TREE_OFFOF], &base_km, errbuf, errlen);
 	if (err != 0)
 		goto out;
@@ -743,12 +744,12 @@ rt_tree_materialize(const rt_spec_t *sp, char *errbuf, size_t errlen)
 	 */
 	rt_sync_pool();
 
-	err = rt_snapshot(RT_DS_RIGHT, "onto");
+	err = rt_snapshot(RT_DS_ONTO, "fixture");
 	if (err != 0) {
 		(void) snprintf(errbuf, errlen, "cannot snapshot onto");
 		goto out;
 	}
-	err = rt_snapshot(RT_DS_LEFT, "offof");
+	err = rt_snapshot(RT_DS_OFFOF, "fixture");
 	if (err != 0) {
 		(void) snprintf(errbuf, errlen, "cannot snapshot off-of");
 		goto out;

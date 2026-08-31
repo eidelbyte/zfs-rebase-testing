@@ -19,11 +19,20 @@
  *                     lane still owes, and the only one.
  *   rt_tree_check.c   compares gold to what came back.
  *
- * Polarity, stated once and relied on everywhere: ONTO is the
- * substrate and lives in RT_DS_RIGHT; OFF-OF is the replayed side and
- * lives in RT_DS_LEFT.  Getting this backwards mirrors every fixture
- * and still produces plausible-looking output, which is why the
- * parser refuses the "left"/"right" tree aliases outright.
+ * Polarity: onto is the substrate the output is built on, off-of is
+ * the side whose changes are replayed, and the datasets are named
+ * for those roles.  There is nothing to get backwards any more,
+ * which is the point of the naming -- a fixture built into the wrong
+ * side mirrors silently and still produces plausible output, so the
+ * failure has to be made impossible rather than caught.
+ *
+ * For the same reason the parser refuses "left" and "right" as tree
+ * names.  They are not the wrong way round; they carry no direction
+ * at all, and a reader supplies whichever mapping they happen to
+ * hold.  Two people who had both read this project closely turned
+ * out to hold opposite ones, and each found the same fixture
+ * plausible.  That is exactly how a mirrored fixture survives
+ * review.
  *
  * The engine reads SNAPSHOTS, not live datasets: a snapshot has
  * committed its ZIL, so on-disk state equals logical state, and it
@@ -47,8 +56,13 @@ extern "C" {
 #endif
 
 #define	RT_SNAP_BASE	RT_DS_SRC "@base"
-#define	RT_SNAP_OFFOF	RT_DS_LEFT "@offof"
-#define	RT_SNAP_ONTO	RT_DS_RIGHT "@onto"
+/*
+ * The tag says what the snapshot IS, not which side it is on: the
+ * dataset name already carries the role, and "offof@offof" would say
+ * it twice.
+ */
+#define	RT_SNAP_OFFOF	RT_DS_OFFOF "@fixture"
+#define	RT_SNAP_ONTO	RT_DS_ONTO "@fixture"
 
 /*
  * The ONLY place the suite spells dsl_rebase()'s signature.  That
@@ -65,7 +79,7 @@ int rt_engine_run(nvlist_t *outnvl);
  * ------------------------------------------------------------------
  *
  * Creates the pool, builds the base tree in RT_DS_SRC, snapshots it,
- * clones RT_DS_LEFT (off-of) and RT_DS_RIGHT (onto), and applies each
+ * clones RT_DS_OFFOF (off-of) and RT_DS_ONTO (onto), and applies each
  * side's delta.  On return the fixture is on disk and synced, ready
  * for a rebase.
  *

@@ -31,8 +31,8 @@
 
 #define	POOL_NAME	"rtest"
 #define	RT_DS_SRC	POOL_NAME "/src"
-#define	RT_DS_LEFT	POOL_NAME "/left"
-#define	RT_DS_RIGHT	POOL_NAME "/right"
+#define	RT_DS_OFFOF	POOL_NAME "/offof"
+#define	RT_DS_ONTO	POOL_NAME "/onto"
 
 #define	SPA_MODE_READ	1
 #define	SPA_MODE_WRITE	2

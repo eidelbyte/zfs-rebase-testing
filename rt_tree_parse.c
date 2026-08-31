@@ -15,16 +15,20 @@
  * here, which is the point: a fixture that means two different
  * things to two engines is worse than no fixture.
  *
- * The one divergence left is wording, on the tree-name aliases.  The
- * reference parser used to ACCEPT "left" and "right", bound the
- * opposite way round from the harness -- onto is RT_DS_RIGHT -- so a
- * fixture using them would have mirrored silently and still looked
- * plausible.  It refuses them now too, so both parsers agree on the
- * answer; they differ only in what they say.  This one names the
- * polarity, because whoever hits it is writing a fixture and that is
- * the fact they need.  devcheck/treecheck.sh checks both refusals,
- * so "only the wording differs" stays a verified claim rather than a
- * stale comment.
+ * The one divergence left is wording, on the tree names "left" and
+ * "right".  The reference parser used to accept them as aliases;
+ * both parsers refuse them now and differ only in what they say.
+ *
+ * They are refused because they carry no direction.  It is tempting
+ * to record instead that the old aliases were BACKWARDS, and that is
+ * the mistake to avoid: two people who had both read this project
+ * closely turned out to hold opposite mappings, and each found the
+ * same fixture plausible.  There was never a correct direction to
+ * preserve.  That is why the answer is to delete the words rather
+ * than fix them, and why this parser's message says the name does
+ * not identify a side rather than that it identifies the wrong one.
+ * devcheck/treecheck.sh checks both refusals, so "only the wording
+ * differs" stays verified rather than merely remembered.
  *
  * Allocation failure aborts, as it does elsewhere in the harness: a
  * test binary that cannot get memory has nothing useful to report.
@@ -744,19 +748,17 @@ rt_spec_parse_text(const char *text, const char *origin, rt_spec_t *sp)
 
 			/*
 			 * "left" and "right" are refused rather than
-			 * mapped.  The reference parser once bound them
-			 * the opposite way round from this harness,
-			 * where onto is RT_DS_RIGHT, so a fixture using
-			 * them mirrored silently and still looked
-			 * plausible.  Both parsers refuse them now.  The
-			 * message names the polarity because whoever
-			 * hits it is writing a fixture.
+			 * mapped, because there is no mapping to make:
+			 * the words name positions, and the roles they
+			 * would have to name are onto and off-of.  A
+			 * fixture that used them would be read by
+			 * whichever mapping its reader happened to hold.
 			 */
 			if (strcmp(name, "left") == 0 ||
 			    strcmp(name, "right") == 0) {
-				add_error(sp, lineno, "tree name '%s' is "
-				    "ambiguous against harness polarity; "
-				    "write 'onto' or 'offof'", name);
+				add_error(sp, lineno, "tree name '%s' does "
+				    "not say which side it means; write "
+				    "'onto' or 'offof'", name);
 				cur = -1;
 				free(name);
 				goto next;

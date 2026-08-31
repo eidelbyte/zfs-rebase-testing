@@ -213,21 +213,32 @@ different identity than base (the root dnode cannot be replaced).
 
 ## Polarity
 
-Onto is the substrate and lives in `RT_DS_RIGHT`. Off-of is the
-replayed side and lives in `RT_DS_LEFT`.
+Onto is the substrate the output is built on; off-of is the side
+whose changes are replayed. The datasets are named for those roles,
+`RT_DS_ONTO` and `RT_DS_OFFOF`, so there is nothing left to get
+backwards.
 
-The reference parser used to accept `left` and `right` as tree-name
-aliases and bound them the **opposite** way round. No corpus file
-used them, so nothing was broken -- but a loader that silently
-mirrors a fixture is the worst failure a loader can have, because
-every result stays plausible.
+`left` and `right` are refused as tree names. Not because they are
+the wrong way round -- **because they carry no direction at all.**
 
-Both parsers refuse those names now. The C parser's message names the
-polarity, since whoever hits it is writing a fixture and that is the
-fact they need; the reference just calls the name unknown. That is
-the only divergence left between the two, and `treecheck.sh` asserts
-both refusals so it stays a wording difference rather than becoming a
-real one again.
+That distinction cost this project an argument, and it is the useful
+part. The reference parser used to accept them as aliases. Two people
+who had both read the project closely turned out to hold *opposite*
+mappings of what `left` meant, and each found the same fixture
+plausible under their own reading. There was never a correct
+direction to preserve, so the fix is to delete the words rather than
+to reverse them -- reversing them would just relocate the ambiguity.
+
+This is exactly how a mirrored fixture survives review: the reader
+supplies the mapping, so the document agrees with whoever is reading
+it. A loader that silently mirrors a fixture is the worst failure a
+loader can have, because every result stays plausible.
+
+Both parsers refuse those names now. The C parser says the name does
+not identify a side; the reference just calls it unknown. That
+wording is the only divergence left between the two, and
+`treecheck.sh` asserts both refusals so it stays a wording difference
+rather than becoming a real one again.
 
 Worth knowing: the older `zfs-rebase-theory/examples/*.tree` corpus
 that `lpgraph.py` reads **is** written in left/base/right. That tool
