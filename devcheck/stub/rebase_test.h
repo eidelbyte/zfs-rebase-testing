@@ -274,6 +274,12 @@ typedef struct rt_conflict_stats {
 int rt_open(const char *dsname, rt_ds_t *ds);
 void rt_close(rt_ds_t *ds);
 void rt_sync_pool(void);
+/* Scrape the LAST debug-ring line containing needle; 0 on
+ * success. The generic form under the phase-specific
+ * scrapers, and what v3 tests assert census lines with. */
+int rt_dbgmsg_last(const char *needle, char *line_out,
+    size_t outlen);
+
 int rt_run_rebase(nvlist_t **nvlp);
 void rt_rebase_diag(void);
 

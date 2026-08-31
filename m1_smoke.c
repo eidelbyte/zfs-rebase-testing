@@ -1,11 +1,13 @@
 /*
- * m1_smoke.c -- sprint-3 milestone M1: the scaffolding smoke.
+ * m1_smoke.c -- sprint-3 smoke: milestones M1 and M2.
  *
- * Exercises the v3 dsl_rebase() substrate end to end on a real
- * pool: ancestor discovery, preconditions, fence-post snapshots,
- * long holds, run setup, and the teardown ladder.  At this stage
- * ENOSYS is the SUCCESS signal: it means every scaffolding stage
- * ran and the engine stopped exactly where the walk will begin.
+ * Exercises the v3 dsl_rebase() substrate and model end to end on
+ * a real pool: ancestor discovery, preconditions, fence-post
+ * snapshots, long holds, run setup, the three-tree walk, the name
+ * table, and the teardown ladder.  At this stage ENOSYS is the
+ * SUCCESS signal: it means every stage ran and the engine stopped
+ * exactly where the faces will begin.  Covers milestones M1
+ * (scaffolding) and M2 (model census).
  *
  * Deliberately separate from the 265-test battery, which asserts
  * revision-2 engine behavior and does not link against a v3
@@ -28,6 +30,31 @@ uint64_t rebase_apply_inject_stop_after = 0;
 int rebase_apply_inject_skip_rollback = 0;
 
 static int m1_failures;
+
+/*
+ * Assert that a stable debug line exists and carries the expected
+ * census.  Substring rather than exact match, so the line's prefix
+ * can gain context without breaking every caller.
+ */
+static void
+check_line(const char *what, const char *needle, const char *expect)
+{
+	char line[512];
+
+	if (rt_dbgmsg_last(needle, line, sizeof (line)) != 0) {
+		(void) printf("FAIL  %s: no debug line matching '%s'\n",
+		    what, needle);
+		m1_failures++;
+		return;
+	}
+	if (strstr(line, expect) == NULL) {
+		(void) printf("FAIL  %s:\n      expected: %s\n"
+		    "      in line:  %s\n", what, expect, line);
+		m1_failures++;
+		return;
+	}
+	(void) printf("PASS  %s\n", what);
+}
 
 static void
 check(const char *what, int got, int want)
@@ -63,6 +90,20 @@ main(void)
 	 */
 	check("substrate reaches the walk boundary (ENOSYS)",
 	    dsl_rebase(RT_DS_LEFT, RT_DS_RIGHT, NULL), ENOSYS);
+
+	/*
+	 * M2: the model built from that run.  rt_scaffold_basic()
+	 * makes exactly four objects per tree -- the root, hello,
+	 * subdir, and subdir/inner -- and left and right are clones
+	 * of one snapshot, so all three trees hold the same four
+	 * names and the shared universe is four names wide.
+	 */
+	check_line("walk census: four pools in each tree",
+	    "rebase: walk pools",
+	    "base 4 onto 4 off-of 4, distinct names 4");
+	check_line("name table census: four names, held by all three",
+	    "rebase: name table",
+	    "4 names, held base 4 onto 4 off-of 4");
 
 	/*
 	 * 2. Fences must not strand.  The pre-apply lifecycle
@@ -101,7 +142,7 @@ main(void)
 	rt_scaffold_teardown();
 	kernel_fini();
 
-	(void) printf("M1 smoke: %s\n",
+	(void) printf("smoke (M1 scaffolding + M2 model): %s\n",
 	    m1_failures == 0 ? "ALL CLEAN" : "FAILURES ABOVE");
 	return (m1_failures == 0 ? 0 : 1);
 }

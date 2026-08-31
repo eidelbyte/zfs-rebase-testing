@@ -94,7 +94,7 @@ rt_run_rebase(nvlist_t **nvlp)
  * same process cannot bleed in. Returns ENOENT when no line
  * matches.
  */
-static int
+int
 rt_dbgmsg_last(const char *needle, char *line_out, size_t outlen)
 {
 	char tmpl[] = "/tmp/rtest_dbgmsg.XXXXXX";
