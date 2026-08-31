@@ -29,6 +29,7 @@ extern void kernel_fini(void);
 uint64_t rebase_apply_inject_stop_after = 0;
 int rebase_apply_inject_skip_rollback = 0;
 
+static int m1_checks;
 static int m1_failures;
 
 /*
@@ -41,6 +42,7 @@ check_line(const char *what, const char *needle, const char *expect)
 {
 	char line[512];
 
+	m1_checks++;
 	if (rt_dbgmsg_last(needle, line, sizeof (line)) != 0) {
 		(void) printf("FAIL  %s: no debug line matching '%s'\n",
 		    what, needle);
@@ -59,6 +61,7 @@ check_line(const char *what, const char *needle, const char *expect)
 static void
 check(const char *what, int got, int want)
 {
+	m1_checks++;
 	if (got == want) {
 		(void) printf("PASS  %s (err %d)\n", what, got);
 	} else {
@@ -174,6 +177,7 @@ main(void)
 	}
 	if (err != 0) {
 		(void) printf("FAIL  build asymmetric fixture: %d\n", err);
+		m1_checks++;
 		m1_failures++;
 	} else {
 		rt_sync_pool();
@@ -208,6 +212,7 @@ main(void)
 	err = rt_create_zpl_dataset(POOL_NAME "/other");
 	if (err != 0) {
 		(void) printf("FAIL  create other: %d\n", err);
+		m1_checks++;
 		m1_failures++;
 	} else {
 		rt_sync_pool();
@@ -219,7 +224,8 @@ main(void)
 	rt_scaffold_teardown();
 	kernel_fini();
 
-	(void) printf("smoke (M1 scaffolding + M2 model): %s\n",
+	(void) printf("smoke (M1 scaffolding + M2 model): %d/%d passed, "
+	    "%s\n", m1_checks - m1_failures, m1_checks,
 	    m1_failures == 0 ? "ALL CLEAN" : "FAILURES ABOVE");
 	return (m1_failures == 0 ? 0 : 1);
 }
