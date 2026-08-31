@@ -202,6 +202,21 @@ main(void)
 		check_line("a hardlink is not a content change",
 		    "rebase: content",
 		    "base pools 4, unchanged in onto 4 off-of 3");
+		/*
+		 * Faces.  Each tree pair shares the same four names,
+		 * so four green edges apiece.  Fullness is where the
+		 * hardlink shows: off-of's file holds two names while
+		 * the edge carries one, so that edge is not full at
+		 * the off-of end -- on the base-offof face and on the
+		 * cut alike.  Red matches all four base objects on
+		 * both faces (a clone keeps its origin's object
+		 * numbers and generations), and composing those two
+		 * matchings through base derives four across the cut
+		 * without ever comparing the two sides directly.
+		 */
+		check_line("green edges, and fullness sees the hardlink",
+		    "rebase: faces",
+		    "green 4 4 4, full 4 3 3, red 4 4, derived 4");
 	}
 
 	/*
