@@ -258,7 +258,7 @@ main(void)
 		 * ran and found nothing rather than a stale build.
 		 */
 		check_line("the engine under test is the one built",
-		    "rebase: engine rev", "engine rev 3");
+		    "rebase: engine rev", "engine rev 4");
 		check_line("a new link attaches, it does not succeed",
 		    "rebase: succession",
 		    "antecedents 0 0, attachments 0 1, moved-both 0, "
@@ -290,6 +290,21 @@ main(void)
 		check_line("cells adopt one side's addition and keep "
 		    "the other's", "rebase: pass1",
 		    "rows 4/1/1/0/0, survivors 6, deaths 0, conflicts 0");
+		/*
+		 * Pooling.  Six survivors become five pools, because
+		 * /hello and /hello2 stay together -- and the clause
+		 * that keeps them is L3, not L1 or L2.  L1 cannot
+		 * fire: /hello2 has no base counterpart, so the pair
+		 * was never co-pooled in base.  L2 cannot either:
+		 * both names' material traces to the same base pool.
+		 * It is the ATTACHMENT rule that holds the hardlink
+		 * together, and if L3 were missing the count would be
+		 * six pools, one per name.
+		 */
+		check_line("an attachment keeps the hardlink in one pool",
+		    "rebase: pass2",
+		    "pools 5, links 1 (L1 0, L2 0, L3 1), exclusions 0, "
+		    "conflicts 0");
 	}
 
 	/*
