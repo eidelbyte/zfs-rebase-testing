@@ -136,13 +136,31 @@ main(void)
 	 */
 	err = rt_open(RT_DS_LEFT, &d);
 	if (err == 0) {
-		uint64_t hello = 0;
+		uint64_t hello = 0, subdir = 0, inner = 0;
 
 		err = rt_dir_lookup(d.rtd_os, d.rtd_root, "hello",
 		    &hello);
 		if (err == 0) {
 			err = rt_add_hardlink(d.rtd_os, d.rtd_root,
 			    "hello2", hello);
+		}
+		/*
+		 * And one genuine edit, so the content census has
+		 * something to find: without it every pool compares
+		 * equal and the tier stack could be broken without
+		 * the numbers moving.
+		 */
+		if (err == 0) {
+			err = rt_dir_lookup(d.rtd_os, d.rtd_root,
+			    "subdir", &subdir);
+		}
+		if (err == 0) {
+			err = rt_dir_lookup(d.rtd_os, subdir, "inner",
+			    &inner);
+		}
+		if (err == 0) {
+			err = rt_edit_file(d.rtd_os, inner,
+			    "edited\n", 7);
 		}
 		rt_close(&d);
 	}
@@ -167,6 +185,19 @@ main(void)
 		check_line("holders differ per tree",
 		    "rebase: name table",
 		    "6 names, held base 4 onto 5 off-of 5");
+		/*
+		 * Content: onto changed nothing that base holds (its
+		 * new file has no base counterpart), so all four are
+		 * unchanged there.  Off-of edited one file, so three.
+		 * The two that must NOT move are the hardlinked file
+		 * -- ZPL_LINKS is bookkeeping, not content -- and the
+		 * root directory, whose entry count changed but whose
+		 * attributes did not, directories being compared on
+		 * attributes alone.
+		 */
+		check_line("a hardlink is not a content change",
+		    "rebase: content",
+		    "base pools 4, unchanged in onto 4 off-of 3");
 	}
 
 	/*
