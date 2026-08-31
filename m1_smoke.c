@@ -258,11 +258,26 @@ main(void)
 		 * ran and found nothing rather than a stale build.
 		 */
 		check_line("the engine under test is the one built",
-		    "rebase: engine rev", "engine rev 1");
+		    "rebase: engine rev", "engine rev 2");
 		check_line("a new link attaches, it does not succeed",
 		    "rebase: succession",
 		    "antecedents 0 0, attachments 0 1, moved-both 0, "
 		    "conflicts 0");
+		/*
+		 * Lineage fates, counted unchanged / changed / dead /
+		 * contested / disturbed.  Onto touched none of base's
+		 * four pools, so all four continue unchanged there.
+		 * Off-of changed two of them, and for different
+		 * reasons that both have to be seen: the hardlinked
+		 * file's NAME SET grew, and the edited file's CONTENT
+		 * differs.  A pass that compared only names, or only
+		 * content, would report one rather than two.  No pool
+		 * is dead or contested, and every pool is unchanged on
+		 * at least one side, so Rule 7.2 conflicts nothing.
+		 */
+		check_line("fates see both a name change and a byte change",
+		    "rebase: lineage",
+		    "onto 4/0/0/0/0, offof 2/2/0/0/0, conflicts 0");
 	}
 
 	/*
