@@ -16,21 +16,24 @@
  *
  * With no arguments it runs everything under trees/.
  *
- * TWO TIERS, and the difference matters when you read the output.
+ * WHAT IT CAN AND CANNOT PROVE TODAY.  The comparison that matters
+ * -- name by name: which survived, which share an output pool, what
+ * bytes it holds, whether the dnode was reused -- is written and
+ * tested, in rt_tree_check.c.  What is missing is anything to feed
+ * it: a decision has no external view until the manifest carries
+ * one.  See the contract in rt_tree_suite.h.
  *
- *   The GOLD tier is the real one: it asserts, name by name, which
- *   names survived, which of them share an output pool, what bytes
- *   that pool holds, and whether the dnode was reused or made fresh.
- *   It needs the decision accessor described in rt_tree_suite.h,
- *   which does not exist yet.
+ * So this runs the CENSUS tier, off the engine's dbgmsg tallies,
+ * which are counts.  A count can say five pools came out; it cannot
+ * say WHICH names are in them.  It catches a fixture that produces
+ * the wrong NUMBER of anything and is blind to one that produces the
+ * right number of the wrong things.  Every line says CENSUS so
+ * nobody mistakes it for the real thing.
  *
- *   The CENSUS tier is what runs in the meantime.  It reads the
- *   engine's dbgmsg tallies, which are counts.  A count can say five
- *   pools came out; it cannot say WHICH names are in them.  So the
- *   census tier can catch a fixture that produces the wrong NUMBER of
- *   anything, and is blind to a fixture that produces the right
- *   number of the wrong things.  Every line it prints says CENSUS so
- *   nobody mistakes it for the real thing.
+ * That is a real gate, not a placeholder, and it is what the first
+ * box run should use: a failure in it is a statement about the
+ * materializer or the fixture, which is exactly what needs proving
+ * before anything is asserted about the engine.
  *
  * Deliberately separate from m1_smoke, which is the engine's own
  * milestone smoke and moves with the passes.  This binary moves with
@@ -317,36 +320,23 @@ run_fixture(const char *path)
 		goto out;
 	}
 
-	if (rt_decision_available()) {
-		rc = rt_decision_check(&spec, &res, err, sizeof (err));
-		if (rc != 0) {
-			(void) printf("FAIL  %-36s %s\n", base, err);
-			if (rc == EINVAL)
-				ts_einval++;
-			ts_failed++;
-			goto out;
-		}
-	} else {
-		/*
-		 * Base is passed rather than discovered: a fixture
-		 * knows its own common ancestor, and whether the
-		 * engine can FIND one is a different question from
-		 * whether it merges correctly once it has.  ENOSYS is
-		 * still accepted because in the current era it means
-		 * every pass ran and the engine stopped where
-		 * reporting will begin.
-		 */
-		rc = rt_engine_run(NULL);
-		if (rc != ENOSYS && rc != 0) {
-			(void) printf("FAIL  %-36s engine refused: %s (%d)\n",
-			    base, strerror(rc), rc);
-			if (rc == EINVAL)
-				ts_einval++;
-			ts_failed++;
-			goto out;
-		}
-		rt_tree_check_census(&spec, &res);
+	/*
+	 * ENOSYS is accepted because in the current era it means every
+	 * pass ran and the engine stopped where reporting will begin.
+	 * When the manifest carries a decision, this is where reading
+	 * it goes -- and rt_tree_check_view() is already written and
+	 * tested for that, waiting only on something to fill a view.
+	 */
+	rc = rt_engine_run(NULL);
+	if (rc != ENOSYS && rc != 0) {
+		(void) printf("FAIL  %-36s engine refused: %s (%d)\n",
+		    base, strerror(rc), rc);
+		if (rc == EINVAL)
+			ts_einval++;
+		ts_failed++;
+		goto out;
 	}
+	rt_tree_check_census(&spec, &res);
 
 	ts_checks += res.rcr_checks;
 	ts_check_failures += res.rcr_failures;
@@ -362,9 +352,8 @@ run_fixture(const char *path)
 		(void) printf("SKIP  %-36s nothing checkable\n", base);
 		ts_skipped++;
 	} else {
-		(void) printf("PASS  %-36s %d check(s)%s\n", base,
-		    res.rcr_checks,
-		    rt_decision_available() ? "" : " CENSUS");
+		(void) printf("PASS  %-36s %d check(s) CENSUS\n", base,
+		    res.rcr_checks);
 	}
 
 out:
@@ -459,12 +448,11 @@ main(int argc, char **argv)
 		}
 	}
 
-	(void) printf("tree suite: %d fixture(s), %s tier\n", npaths,
-	    rt_decision_available() ? "gold" : "CENSUS (counts only)");
-	if (!rt_decision_available()) {
-		(void) printf("      the decision accessor is not built in; "
-		    "see rt_tree_suite.h\n");
-	}
+	(void) printf("tree suite: %d fixture(s), CENSUS tier "
+	    "(counts only)\n", npaths);
+	(void) printf("      A count can say five pools came out; it "
+	    "cannot say WHICH names\n      are in them. Waiting on the "
+	    "manifest -- see rt_tree_suite.h.\n");
 
 	for (i = 0; i < npaths; i++)
 		run_fixture(paths[i]);

@@ -81,22 +81,25 @@ to assert pooling, content or realization about. What a quarantined
 region *can* be asserted about is that it was held back, which is
 what `expect quarantined` is for.
 
-## The two tiers, and which one is running
+## What it can and cannot prove today
 
-The suite prints the tier on its first line and on every passing
-fixture, because the difference is large.
+The comparison that matters is written and tested: name by name,
+which survived, which share an output pool, what bytes it holds,
+whether the dnode was reused. It lives in `rt_tree_check.c` and
+`devcheck/checkcheck.c` proves it complains.
 
-**Gold tier** is the real one. It asserts, name by name, which names
-survived, which share an output pool, what bytes that pool holds, and
-whether the dnode was reused. It needs a way to read the engine's
-decision back, which does not exist yet.
+What is missing is anything to feed it. A decision has no external
+view until the manifest carries one, so the suite runs the **census
+tier**, off the engine's dbgmsg tallies. Those are counts. A count
+can say five pools came out; it cannot say *which* names are in them.
+It catches a fixture producing the wrong **number** of anything and
+is blind to one producing the right number of the wrong things. Every
+line says `CENSUS`.
 
-**Census tier** is what runs today. It reads the engine's dbgmsg
-tallies, which are counts. A count can say five pools came out; it
-cannot say *which* names are in them. So the census tier catches a
-fixture that produces the wrong **number** of anything and is blind
-to one that produces the right number of the wrong things. Its lines
-are labelled `CENSUS` so nobody mistakes them for the real thing.
+That is a real gate rather than a placeholder, and it is what the
+first box run should use. A failure in it is a statement about the
+materializer or the fixture -- which is exactly what needs proving
+before anything is asserted about the engine.
 
 The census tier also only compares counts for fixtures gold says are
 clean. A quarantined component is still decided, so its pools are
@@ -107,69 +110,85 @@ engine.
 
 ## The contract this needs
 
-Everything above is built. One thing is missing, and it is the only
-thing.
+The manifest is the only external view of a decision, which makes
+completeness a **testability property**: any fact the engine computes
+but the manifest drops is a fact no test can ever assert.
 
-**What the suite needs, per run:** for each surviving name, whether
-it survived, which output pool holds it, and whether its component
-was held back. For each output pool, whether it is a file or a
-directory, the bytes it decided on, and whether it reuses an onto
-dnode or was materialized fresh. And the conflict kinds raised.
+This is the consumer's list. It is short, because an expected tree
+only asserts four things.
 
-That list is exactly the four things an expected tree asserts, and
-nothing more.
+**Per surviving name**
 
-There are two honest ways to supply it. The suite does not care
-which; `rt_decision_to_view()` in `rt_decision.c` is the only code
-that would change, and it is deliberately thin for that reason.
+- The full path, as text. Not an index into anything: a name the
+  harness cannot turn back into `/single/journal.txt` cannot be
+  matched against gold.
+- **Which output pool holds it**, as a stable identifier. This is the
+  field carrying the most weight and the easiest to leave out,
+  because per-name it looks redundant. It is not. It is the only way
+  to test that a hard link stayed one file -- two names sharing a
+  pool and two names in separate pools look identical name by name.
 
-**(a) The manifest.** If the `outnvl` that `dsl_rebase()` already
-fills makes those fields readable, nothing new is needed. This is the
-better answer if the manifest is meant to be the reported result
-anyway, because then the suite tests the thing users will actually
-see.
+The set must be **exhaustive**, because a fixture asserts deletion by
+omission. A name gold does not list must not survive, and that is
+uncheckable against a partial list.
 
-**(b) An inspection seam.** `sys/dsl_rebase.h` says of
-`rebase_decision_t`: *"the test interface: the harness asserts
-against this structure, never against scraped debug text."* Every
-field listed above is already in it. What is missing is any way to
-reach one, since the arena is released before the caller resumes.
+**Per output pool**
 
-The answer is not to make the record outlive the run -- it is to
-invert the call so it never has to:
+- File or directory.
+- **Realization**: does it reuse an onto dnode, or was it
+  materialized fresh? This is what proves the substrate is not
+  rewritten where it already agrees.
+- The **source** of its content, as (tree, path) -- *not* the bytes.
+  Naming the source keeps the manifest small and correct for real
+  files, and it lets a fixture-based checker resolve the answer
+  symbolically: "off-of's `/a/b`" is looked up in the already-parsed
+  off-of tree, with no disk read at all.
 
-    typedef int (*rebase_inspect_cb_t)(const rebase_run_t *rr,
-        void *arg);
-    int dsl_rebase_inspect(const char *offof_snap,
-        const char *onto_snap, rebase_inspect_cb_t cb, void *arg);
+**Per run**
 
-`cb` runs after the decide passes and before teardown. The arena is
-alive inside it, so every pointer is valid, nothing is copied or
-serialized, and no new lifetime rule enters the contract. It is also
-the seam the manifest emitter wants anyway, which is what makes it
-worth building as contract rather than as test scaffolding.
+- Each conflict's **kind** (lineage, name, pooling, content,
+  structural). The certificate is welcome; the kind is what a fixture
+  asserts.
+- Which names came out **quarantined**, and ideally what held each
+  one back. This is not a detail: a held-back component keeps onto's
+  arrangement and has no output pool at all, so a checker that does
+  not know which names those are will assert pooling and content
+  about them and produce confident nonsense. This suite got that
+  wrong once, and the corpus caught it.
 
-That lifetime is why `rt_decision_check()` runs the whole comparison
-*inside* the callback rather than handing a view back out: the view
-points into the arena and is worthless one instruction later.
+**Wanted, not required:** the names that did *not* survive. Survival
+is inferable from an exhaustive survivor list, but saying it outright
+turns "gold lists it and the manifest does not" into a definite
+statement rather than a two-possibility one.
 
-Three obligations matter more than the shape:
+Two obligations matter more than any field:
 
-1. **It reports what `dsl_rebase()` actually did** -- the same code
-   path, not a reimplementation. If the two can diverge, the suite is
-   testing the wrong engine.
-2. **It succeeds when the engine decided, conflicts and all.** A
-   conflict is a result, not a failure. *(Settled: disposition is a
-   field in the output, never the return code. Nonzero means the
-   engine could not decide.)*
-3. **Names come back resolvable to paths.** A name id the harness
-   cannot turn back into `/single/journal.txt` cannot be matched
-   against gold.
+1. **It reports what the engine actually did** -- the same code path,
+   not a parallel rendering. If the two can diverge, the suite is
+   testing the wrong thing.
+2. **It is produced when the engine decided, conflicts and all.** A
+   conflict is a result, not a failure. A suite that cannot tell "the
+   engine found a conflict" from "the engine broke" cannot test the
+   conflict half of the theory -- the half the whole corpus is about.
 
-When the seam lands, build with
-`CPPFLAGS+=-DRT_HAVE_DECIDE_ACCESSOR` and the suite switches tiers.
-Nothing else changes -- and that path is already compiled today, so
-it will not have rotted in the meantime.
+### Structured, not rendered
+
+The decided tree should reach this suite as **structured fields, not
+as rendered `.tree` text**.
+
+The checker compares semantically -- does this name survive, do these
+two names share a pool -- against a fixture's `tree expected` block
+that it has already parsed. Diffing rendered text against gold text
+would be a worse comparison in three ways: it fails on ordering and
+formatting differences that mean nothing, it cannot express the
+quarantine exemption (a semantic rule about which assertions to
+*skip*), and it forces the engine to own a renderer whose output is
+load-bearing for tests.
+
+A human-readable `.tree` rendering is worth having. It should be a
+*view over* the structured data, produced by a userspace renderer,
+not a field inside it -- which also settles the escaping problem,
+since nothing then has to embed fixture syntax in a JSON string.
 
 ## How a fixture becomes a pool
 
@@ -280,10 +299,6 @@ checker is the one piece of test machinery nobody tests.
 **real** `sys/dsl_rebase.h`, with only the harness API stubbed. Using
 the real contract header rather than a fake is the point: a fake
 would make the check agree with itself instead of with the engine.
-It compiles them **both ways**, with and without
-`RT_HAVE_DECIDE_ACCESSOR`, because the inspection-seam path is dead
-code until the seam lands and would otherwise rot unwatched -- and it
-is exactly the code that has to be right on the day it switches on.
 
 This gate has already earned its keep: it caught the `dsl_rebase()`
 signature changing under the suite twice while it was being written.
@@ -306,7 +321,7 @@ remain the authority.
     rt_tree_check.c    gold vs decision; no ZFS
     rt_tree_suite.h    the pool-facing API, and the contract above
     rt_tree_build.c    fixture to pool
-    rt_decision.c      the accessor shim and the view adapter
+    rt_engine.c        the one place the engine is called
     tree_suite.c       the driver and the census tier
     trees/             the corpus, plus MANIFEST
     devcheck/          the laptop gates and their fixtures

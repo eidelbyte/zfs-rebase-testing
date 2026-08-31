@@ -76,17 +76,15 @@ M1_SRCS	= m1_smoke.c rt_harness.c rt_scaffold.c rt_zpl.c
 #   make tree_suite && sudo ./tree_suite
 #   sudo ./tree_suite trees/open-problems/5-rename-rename.tree
 #
-# Define RT_HAVE_DECIDE_ACCESSOR once libzpool exports a way to read
-# the decision record back; until then the suite runs its weaker
-# census tier and labels every line CENSUS.  See rt_tree_suite.h.
-#
-#   make tree_suite CPPFLAGS+=-DRT_HAVE_DECIDE_ACCESSOR
+# Runs the census tier until the output manifest carries a decision
+# in a form a fixture can be checked against; every line it prints
+# says CENSUS.  The contract for that is in rt_tree_suite.h.
 TREE_PROG = tree_suite
 TREE_SRCS = tree_suite.c \
 	  rt_tree_parse.c \
 	  rt_tree_build.c \
 	  rt_tree_check.c \
-	  rt_decision.c \
+	  rt_engine.c \
 	  rt_harness.c \
 	  rt_scaffold.c \
 	  rt_zpl.c

@@ -13,11 +13,13 @@
  *                     understand that a fixture's "idx-txg" is a
  *                     statement about dnode SHARING, not about any
  *                     particular object number.
- *   rt_decision.c     the accessor shim: how the harness gets the
- *                     decision record back out of a run.  See the
- *                     contract below -- this is the piece the kernel
- *                     lane still owes, and the only one.
+ *   rt_engine.c       the one place the engine is called.
  *   rt_tree_check.c   compares gold to what came back.
+ *
+ * What is NOT here is anything that reads a decision.  The manifest
+ * is the external view of one, and until it carries the fields the
+ * contract below asks for there is nothing to read -- so the suite
+ * runs its census tier and no speculative adapter exists.
  *
  * Polarity: onto is the substrate the output is built on, off-of is
  * the side whose changes are replayed, and the datasets are named
@@ -101,97 +103,73 @@ int rt_tree_materialize(const rt_spec_t *sp, char *errbuf, size_t errlen);
 
 /*
  * ------------------------------------------------------------------
- * The decision accessor: THE CONTRACT
+ * What the suite must be able to observe: THE CONTRACT
  * ------------------------------------------------------------------
  *
- * WHAT THE SUITE NEEDS.  Per surviving name: did it survive, which
- * output pool holds it, and was that pool's component held back.  Per
- * output pool: file or directory, the bytes it decided on, and
- * whether it reuses an onto dnode or was materialized fresh.  Per
- * run: the conflict kinds raised.  That is the whole list, and it is
- * exactly the four things an expected tree asserts.
+ * The output manifest is the only external view of a decision, which
+ * makes completeness a TESTABILITY property: any fact the engine
+ * computes but the manifest drops is a fact no test can ever assert.
+ * This is the consumer's list, field by field.  It is short because
+ * an expected tree only asserts four things.
  *
- * There are two honest ways to supply it, and the suite does not care
- * which -- rt_decision_to_view() is the only code that would change.
+ * PER SURVIVING NAME
+ *   - the full path, as text.  Not an index into anything: a name
+ *     the harness cannot turn back into "/single/journal.txt" cannot
+ *     be matched against gold.
+ *   - which output pool holds it, as a stable identifier.  This is
+ *     the one that carries the most weight and is easiest to leave
+ *     out, because per-name it looks redundant.  It is not: it is
+ *     the ONLY way to test that a hard link stayed one file.  Two
+ *     names sharing a pool and two names in separate pools look
+ *     identical name by name.
+ *   The set of surviving names must be EXHAUSTIVE, because a fixture
+ *   asserts deletion by omission -- a name gold does not list must
+ *   not survive, and that is uncheckable against a partial list.
  *
- *   (a) THE MANIFEST.  If the outnvl dsl_rebase() already fills makes
- *       those fields readable, nothing new is needed at all.  This is
- *       the better answer if the manifest is meant to be the reported
- *       result anyway, since it tests the thing users will see.
+ * PER OUTPUT POOL
+ *   - file or directory.
+ *   - realization: does it reuse an onto dnode, or was it
+ *     materialized fresh?  This is what proves the substrate is not
+ *     rewritten where it already agrees.
+ *   - the SOURCE of its content, as (tree, path) -- NOT the bytes.
+ *     Naming the source keeps the manifest small and correct for
+ *     real files, and it lets a fixture-based checker resolve the
+ *     answer symbolically: "off-of's /a/b" is looked up in the
+ *     already-parsed off-of tree, with no disk read at all.  Bytes
+ *     in the manifest would be wrong for real data and no better
+ *     here.
  *
- *   (b) AN INSPECTION SEAM.  sys/dsl_rebase.h says of
- *       rebase_decision_t: "the test interface: the harness asserts
- *       against this structure, never against scraped debug text."
- *       Every field above is already in it.  What is missing is any
- *       way to reach one, since the arena is released before the
- *       caller resumes.  The answer is not to extend the record's
- *       lifetime but to invert the call, so it never has to outlive
- *       the run:
+ * PER RUN
+ *   - each conflict's KIND (lineage, name, pooling, content,
+ *     structural).  The certificate is welcome but the kind is what
+ *     a fixture asserts.
+ *   - which names came out QUARANTINED, and ideally what held each
+ *     one back.  Quarantine is not a detail: a held-back component
+ *     keeps onto's arrangement, so it has no output pool at all, and
+ *     a checker that does not know which names those are will assert
+ *     pooling and content about them and produce confident nonsense.
+ *     This suite got that wrong once and the corpus caught it.
  *
- *         typedef int (*rebase_inspect_cb_t)(
- *             const rebase_run_t *rr, void *arg);
- *         int dsl_rebase_inspect(const char *offof_snap,
- *             const char *onto_snap, rebase_inspect_cb_t cb,
- *             void *arg);
+ * WANTED, NOT REQUIRED
+ *   - the names that did NOT survive.  Survival can be inferred from
+ *     an exhaustive survivor list, but a manifest that says so
+ *     outright turns "gold lists it and the manifest does not" into
+ *     a definite statement rather than a two-possibility one.
  *
- *       cb runs after the decide passes and before teardown.  The
- *       arena is alive inside it, so every pointer in the record is
- *       valid, nothing is copied or serialized, and no new lifetime
- *       rule enters the contract.  It is also the seam the manifest
- *       emitter wants anyway, which is what makes it worth building
- *       as contract rather than as test scaffolding.
+ * Two obligations matter more than any field:
  *
- *       This is why rt_decision_check() runs the whole comparison
- *       INSIDE the callback rather than handing a record back: a
- *       view built from the record points into the arena, and is
- *       worthless one instruction after the callback returns.
- *
- * Either way, three obligations matter more than the shape:
- *
- *   1. It reports what dsl_rebase() ACTUALLY DID -- same code path,
- *      not a reimplementation.  If the two can diverge, the suite is
- *      testing the wrong engine.
- *   2. It succeeds when the engine DECIDED, conflicts and all.  A
+ *   1. It reports what the engine ACTUALLY DID -- the same code
+ *      path, not a parallel rendering.  If the two can diverge, the
+ *      suite is testing the wrong thing.
+ *   2. It is produced when the engine DECIDED, conflicts and all.  A
  *      conflict is a result, not a failure; a suite that cannot tell
  *      "the engine found a conflict" from "the engine broke" cannot
- *      test the conflict half of the theory at all, which is the half
- *      the whole corpus is about.
- *   3. Names come back resolvable to paths.  A name id the harness
- *      cannot turn back into "/single/journal.txt" cannot be matched
- *      against gold.
+ *      test the conflict half of the theory, which is the half the
+ *      whole corpus is about.
  *
- * Until one of them exists, rt_decision_available() returns 0 and the
- * suite runs its census tier, which is real but weak and says so on
- * every line it prints.
+ * Until the manifest carries this, the suite runs its census tier,
+ * which is real but weak and says so on every line it prints.
  */
-int rt_decision_available(void);
-
-/*
- * Run the engine and check this fixture's gold against the decision,
- * all within the engine's own inspection callback.  Returns 0 when
- * the run completed and res holds the verdict; an errno with a
- * sentence in errbuf when the engine could not decide at all.
- *
- * A conflicted run is a COMPLETED run and returns 0 -- the conflicts
- * are in res, where the fixture said they should be.
- */
-int rt_decision_check(const rt_spec_t *sp, rt_check_result_t *res,
-    char *errbuf, size_t errlen);
-
-/*
- * ------------------------------------------------------------------
- * Checking
- * ------------------------------------------------------------------
- *
- * The comparison itself lives in rt_tree_check.c and works on the
- * flat rt_dview_t, so it can be tested without a pool.  This is the
- * adapter that fills one in from the real record; it is the only
- * code in the suite that reads rebase_decision_t, and is deliberately
- * thin for that reason.
- */
-int rt_decision_to_view(const rebase_decision_t *rd, rt_dview_t *dv,
-    char *errbuf, size_t errlen);
-void rt_dview_free(rt_dview_t *dv);
 
 /*
  * The weak tier: check gold against the census dbgmsg lines, which is

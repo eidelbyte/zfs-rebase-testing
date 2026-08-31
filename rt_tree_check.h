@@ -65,13 +65,6 @@ typedef struct rt_dview {
 	int		dv_conflict_kinds;	/* RT_CK_* bits */
 	int		dv_nconflicts;
 	int		dv_nquarantined;	/* components held back */
-	/*
-	 * Backing store the view owns, when something built it by
-	 * copying (the adapter has to, since content is read off
-	 * disk).  A view assembled by hand leaves this NULL and owns
-	 * nothing.  The checker never looks at it.
-	 */
-	void		*dv_owned;
 } rt_dview_t;
 
 typedef struct rt_check_result {

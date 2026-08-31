@@ -3,18 +3,19 @@
 #
 # The suite splits deliberately: the parser and the gold checker have
 # no ZFS dependency and are BUILT AND RUN on this machine by
-# devcheck/treecheck.sh and devcheck/checkcheck.sh.  What is left --
-# the materializer, the decision adapter, the driver -- needs a pool
-# and cannot be run here, so it gets a syntax and arity check instead,
-# against the real revision-3 contract header.
+# devcheck/treecheck.sh.  What is left -- the materializer, the engine
+# call site, the driver -- needs a pool and cannot be run here, so it
+# gets a syntax and arity check instead, against the real revision-3
+# contract header.
 #
 #   devcheck/suitecheck.sh
 #   ZFS_SRC=/path/to/openzfs devcheck/suitecheck.sh
 #
-# The point of using the REAL sys/dsl_rebase.h rather than a fake is
-# that rebase_decision_t is exactly what the adapter reads: a fake
-# would make the check agree with itself instead of with the engine.
-# Only the harness rt_* API is stubbed, in devcheck/stub-suite/.
+# Using the REAL sys/dsl_rebase.h rather than a fake is the point: a
+# fake would make the check agree with itself instead of with the
+# engine, and it is how this gate caught dsl_rebase() changing arity
+# twice.  Only the harness rt_* API is stubbed, in
+# devcheck/stub-suite/.
 #
 # This catches misspelled fields, wrong arity, dropped const, and
 # unused variables. It cannot catch a wrong ANSWER; the FreeBSD build
@@ -28,7 +29,7 @@ ROOT=$(pwd)
 ZFS_SRC=${ZFS_SRC:-$ROOT/../zfs}
 HDRSTUB=${HDRSTUB:-$ROOT/../scripts/header-stub}
 
-SRCS="rt_tree_build.c rt_decision.c tree_suite.c"
+SRCS="rt_tree_build.c rt_engine.c tree_suite.c"
 
 if [ ! -f "$ZFS_SRC/include/sys/dsl_rebase.h" ]; then
 	echo "SKIP: no sys/dsl_rebase.h under $ZFS_SRC/include"
@@ -48,27 +49,16 @@ cp rt_tree.h rt_tree_check.h rt_tree_suite.h $SRCS "$TMP/"
 
 fail=0
 
-# Compiled BOTH ways. Without the macro is what ships today; with it
-# is the inspection-seam path, which is dead code until the seam
-# lands and would therefore rot unwatched -- and it is precisely the
-# code that has to be right on the day it switches on.
-for mode in "" "-DRT_HAVE_DECIDE_ACCESSOR"; do
-	if [ -z "$mode" ]; then
-		label="census tier"
+for f in $SRCS; do
+	if cc -fsyntax-only -std=c99 -Wall -Wextra -Wcast-qual -Werror \
+	    -Wno-unused-function \
+	    -I"$TMP" -I"$HDRSTUB" -I"$ZFS_SRC/include" \
+	    "$TMP/$f" 2>&1; then
+		echo "compile OK: $f"
 	else
-		label="inspection seam"
+		echo "compile FAIL: $f"
+		fail=1
 	fi
-	for f in $SRCS; do
-		if cc -fsyntax-only -std=c99 -Wall -Wextra -Wcast-qual \
-		    -Werror -Wno-unused-function $mode \
-		    -I"$TMP" -I"$HDRSTUB" -I"$ZFS_SRC/include" \
-		    "$TMP/$f" 2>&1; then
-			echo "compile OK: $f ($label)"
-		else
-			echo "compile FAIL: $f ($label)"
-			fail=1
-		fi
-	done
 done
 
 echo "--- ASCII"
