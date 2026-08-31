@@ -24,8 +24,10 @@ filesystem.
 | `test_linkpool.c` | linkpool discovery/membership/verify matrix + pool-content conflict cases (10 tests) |
 | `test_emit.c` | content-merge-emit matrix (crossref phases E+F) via the manifest (10 tests) |
 | `test_crossref.c` | samepath conflict types, benign cases, clean merges (11 tests) |
+| `test_seam.c` | cross-domain seam matrix: same-path collisions across the two referees (19 tests) |
+| `test_apply.c` | apply matrices (copy primitives, state, edits, structural) with post-apply readback and injection (57 tests) |
 
-189 tests total. Section names double as command-line arguments (see
+265 tests total. Section names double as command-line arguments (see
 Running below).
 
 Tests are planned by problem-space matrix: see `TEST-MATRIX.md` for
@@ -115,7 +117,7 @@ A full run against a finished engine ends with:
 
 ```
 =====================
-Results: 189/189 passed
+Results: 265/265 passed
 ```
 
 As of content-merge-emit (2026-08-23) the diff pipeline is
