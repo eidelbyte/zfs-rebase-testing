@@ -258,7 +258,61 @@ function compileEdits(spec, res) {
 			edits.push({ verb: "unlink", path: doomed[j] });
 	}
 
-	return ({ edits: edits, warnings: warnings });
+	return ({ edits: applyImplicitRenames(edits), warnings: warnings });
+}
+
+/*
+ * A directory rename carries its whole subtree, so the plan has to
+ * account for what an ancestor rename already did.
+ *
+ * Section 12: "a directory rename implicitly renames every decided
+ * descendant, so descendant edits are expressed against the
+ * post-rename paths."  A per-pool walk cannot see this -- it looks at
+ * one pool at a time by construction, and nothing in 3-100's name
+ * change tells it that 2-100 is its parent.  It is a computation over
+ * the whole plan, so it belongs here.
+ *
+ * Two consequences, and one rewrite covers both.  Every edit beneath
+ * a renamed path is re-expressed against the new path.  A descendant
+ * rename that the ancestor performed in full then becomes a rename
+ * from a path to itself, and drops out.
+ */
+function applyImplicitRenames(edits) {
+	var renames = [];
+	var out = [];
+	var i, j;
+
+	for (i = 0; i < edits.length; i++)
+		if (edits[i].verb === "rename") renames.push(edits[i]);
+
+	/* Outermost first, so nested renames compose. */
+	renames.sort(function (a, b) {
+		return (a.path.split("/").length - b.path.split("/").length);
+	});
+
+	for (i = 0; i < renames.length; i++) {
+		var r = renames[i];
+		var prefix = r.path + "/";
+
+		for (j = 0; j < edits.length; j++) {
+			var ed = edits[j];
+
+			if (ed === r) continue;
+			if (ed.path && ed.path.indexOf(prefix) === 0)
+				ed.path = r.to + ed.path.slice(r.path.length);
+			if (ed.to && ed.to.indexOf(prefix) === 0)
+				ed.to = r.to + ed.to.slice(r.path.length);
+			if (ed.from && ed.from.indexOf(prefix) === 0)
+				ed.from = r.to + ed.from.slice(r.path.length);
+		}
+	}
+
+	for (i = 0; i < edits.length; i++) {
+		if (edits[i].verb === "rename" && edits[i].path === edits[i].to)
+			continue;	/* the ancestor already did it */
+		out.push(edits[i]);
+	}
+	return (out);
 }
 
 /*
@@ -281,6 +335,24 @@ function compileEdits(spec, res) {
  * reported fact rather than a failure: it says this fixture needs the
  * ordering pass, and names which edits are waiting on each other.
  */
+/* Move a name and everything beneath it, as rename(2) does. */
+function renameSubtree(state, from, to) {
+	var prefix = from + "/";
+	var moves = [];
+	var name, i;
+
+	for (name in state) {
+		if (!hasOwn(state, name)) continue;
+		if (name === from)
+			moves.push([name, to, state[name]]);
+		else if (name.indexOf(prefix) === 0)
+			moves.push([name, to + name.slice(from.length),
+			    state[name]]);
+	}
+	for (i = 0; i < moves.length; i++) delete state[moves[i][0]];
+	for (i = 0; i < moves.length; i++) state[moves[i][1]] = moves[i][2];
+}
+
 /* Does any live name sit strictly beneath this path? */
 function hasDescendant(state, path) {
 	var prefix = (path === "/") ? "/" : path + "/";
@@ -350,9 +422,17 @@ function verifyEdits(spec, res, edits) {
 					ok = true;
 				}
 			} else if (e.verb === "rename") {
-				if (hasOwn(state, e.path) && !hasOwn(state, e.to)) {
-					state[e.to] = state[e.path];
-					delete state[e.path];
+				/*
+				 * rename(2) on a directory carries its
+				 * whole subtree.  Modelling it as a move
+				 * of one name is what let a plan that
+				 * renames a child after its parent verify
+				 * clean -- the child had not been moved
+				 * yet, so its source still existed.
+				 */
+				if (hasOwn(state, e.path) &&
+				    !hasOwn(state, e.to)) {
+					renameSubtree(state, e.path, e.to);
 					ok = true;
 				}
 			} else if (e.verb === "link") {
@@ -389,8 +469,17 @@ function verifyEdits(spec, res, edits) {
 			stuck.push(pending[i].verb + " " + pending[i].path +
 			    (pending[i].to ? " -> " + pending[i].to : ""));
 		}
+		/*
+		 * Two different things stall: a rotation, which
+		 * Proposition 12.2 breaks with a scratch name and is
+		 * out of scope here, and an edit whose work some other
+		 * edit already did -- a descendant rename an ancestor
+		 * carried, say.  The message must not name only the
+		 * first, or the second reads as an ordering problem.
+		 */
 		problems.push("no order applies " + pending.length +
-		    " edit(s), a rotation needing a scratch name: " +
+		    " edit(s) -- either a rotation needing a scratch " +
+		    "name, or work another edit already did: " +
 		    stuck.join("; "));
 	}
 
