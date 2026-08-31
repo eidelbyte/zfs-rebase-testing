@@ -250,6 +250,15 @@ main(void)
 		 * any gain as a rename would report an antecedent
 		 * here.
 		 */
+		/*
+		 * The engine stamps its revision at the start of
+		 * every run.  Assert it first: a libzpool built
+		 * before the code under test otherwise shows up as a
+		 * missing census line, which reads like a pass that
+		 * ran and found nothing rather than a stale build.
+		 */
+		check_line("the engine under test is the one built",
+		    "rebase: engine rev", "engine rev 1");
 		check_line("a new link attaches, it does not succeed",
 		    "rebase: succession",
 		    "antecedents 0 0, attachments 0 1, moved-both 0, "
