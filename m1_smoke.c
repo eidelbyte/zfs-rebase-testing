@@ -258,7 +258,7 @@ main(void)
 		 * ran and found nothing rather than a stale build.
 		 */
 		check_line("the engine under test is the one built",
-		    "rebase: engine rev", "engine rev 2");
+		    "rebase: engine rev", "engine rev 3");
 		check_line("a new link attaches, it does not succeed",
 		    "rebase: succession",
 		    "antecedents 0 0, attachments 0 1, moved-both 0, "
@@ -278,6 +278,18 @@ main(void)
 		check_line("fates see both a name change and a byte change",
 		    "rebase: lineage",
 		    "onto 4/0/0/0/0, offof 2/2/0/0/0, conflicts 0");
+		/*
+		 * Pass 1, counted by row.  Four names sit where both
+		 * sides left them (row 1).  /hello2 is home in onto
+		 * only -- onto never had it -- so its cell ADOPTS
+		 * off-of's arrangement (row 2).  /extra is the mirror:
+		 * home in off-of only, so the cell KEEPS onto's (row
+		 * 3).  Nothing needs the cut, and nothing conflicts.
+		 * All six names survive: the fixture only ever added.
+		 */
+		check_line("cells adopt one side's addition and keep "
+		    "the other's", "rebase: pass1",
+		    "rows 4/1/1/0/0, survivors 6, deaths 0, conflicts 0");
 	}
 
 	/*
