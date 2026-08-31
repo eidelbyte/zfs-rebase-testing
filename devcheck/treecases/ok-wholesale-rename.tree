@@ -1,0 +1,55 @@
+title wholesale rename: a pool whose every name changes at once
+
+# Built to test emission pairing; it tests REALIZATION instead, and
+# that is why it is kept.
+#
+# Off-of renames every name of three pools. Onto is identical to
+# base, so nothing conflicts. The decision materializes all three
+# rather than reusing their onto dnodes, and the chain is coherent:
+# a move of two names to two names has no unambiguous successor, so
+# succession records nothing; with no substitution each output name
+# looks itself up and finds nothing in base or onto; with no
+# contributors, Definition 9.7 leaves the pool with no onto
+# contributor, and Section 12 says such a pool is created fresh.
+#
+# The CONSEQUENCE is a question for the theory rather than a bug in
+# either implementation: a hard-linked pair that one side renamed
+# wholesale comes out on a brand-new dnode while its old dnode is
+# deleted. On a real filesystem "mv x aa; mv y bb" preserves the
+# inode. A plan that preserved it exists -- link the new names off
+# an old one, then unlink the old ones, which never drops the link
+# count to zero -- so identity is lost by the definition of
+# contributors rather than by necessity.
+#
+# Pinned here so the behaviour is recorded whichever way the theory
+# settles it.
+
+tree base
+  1-1: /
+    5-100: x = xv0
+    5-100: y
+    6-100: m = mv0
+    6-100: n
+    7-100: p = pv0
+    7-100: q
+    7-100: r
+
+tree onto
+  1-1: /
+    5-100: x = xv0
+    5-100: y
+    6-100: m = mv0
+    6-100: n
+    7-100: p = pv0
+    7-100: q
+    7-100: r
+
+tree offof
+  1-1: /
+    5-100: aa = xv0
+    5-100: bb
+    6-100: cc = mv0
+    6-100: dd
+    6-100: ee
+    7-100: ff = pv0
+    7-100: gg

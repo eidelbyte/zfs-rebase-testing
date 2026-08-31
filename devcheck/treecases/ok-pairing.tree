@@ -1,0 +1,64 @@
+title pairing: pools that lose and gain several names at once
+
+# Built blind for the emission cross-check, and the first fixture
+# where sorted lost-to-gained pairing is OBSERVABLE. Both
+# implementations agreed on sorted order this morning, but every
+# fixture until now pairs at most one lost name with one gained one,
+# where every rule gives the same answer.
+#
+# Each pool KEEPS one name. That is not decoration: it is what gives
+# the pool an onto contributor and so keeps its dnode. A pool whose
+# names all change has no contributor and materializes instead --
+# see ok-wholesale-rename.tree, which is that case.
+#
+#   5-100  keeps /x, loses 2, gains 2   pure pairing, no tail
+#   6-100  keeps /m, loses 2, gains 3   one gained left over -> link
+#   7-100  keeps /p, loses 3, gains 2   one lost left over -> unlink
+#
+# The gained names deliberately sort BEFORE the lost ones, so a rule
+# that walked either list in the other order would produce identical
+# counts and a different plan. Counts cannot see the difference;
+# only the edit list can.
+#
+# Onto is identical to base, so off-of is the only mover and nothing
+# conflicts. Tokens never change, so no writes fire and the fixture
+# is about pairing alone.
+
+tree base
+  1-1: /
+    5-100: x = xv0
+    5-100: y
+    5-100: z
+    6-100: m = mv0
+    6-100: n
+    6-100: o
+    7-100: p = pv0
+    7-100: q
+    7-100: r
+    7-100: s
+
+tree onto
+  1-1: /
+    5-100: x = xv0
+    5-100: y
+    5-100: z
+    6-100: m = mv0
+    6-100: n
+    6-100: o
+    7-100: p = pv0
+    7-100: q
+    7-100: r
+    7-100: s
+
+tree offof
+  1-1: /
+    5-100: x = xv0
+    5-100: aa
+    5-100: bb
+    6-100: m = mv0
+    6-100: cc
+    6-100: dd
+    6-100: ee
+    7-100: p = pv0
+    7-100: ff
+    7-100: gg
