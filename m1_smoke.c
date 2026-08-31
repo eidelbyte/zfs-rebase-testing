@@ -335,7 +335,7 @@ main(void)
 		 * ran and found nothing rather than a stale build.
 		 */
 		check_line("the engine under test is the one built",
-		    "rebase: engine rev", "engine rev 7");
+		    "rebase: engine rev", "engine rev 8");
 		check_line("a new link attaches, it does not succeed",
 		    "rebase: succession",
 		    "antecedents 0 0, attachments 0 1, moved-both 0, "
@@ -410,6 +410,25 @@ main(void)
 		check_line("a clean decision quarantines nothing",
 		    "rebase: quarantine",
 		    "quarantine 0 of 5 components, conflicts 0");
+		/*
+		 * The edit plan for this fixture, which is the first
+		 * thing emission produces.  Two edits and no more:
+		 * off-of's hardlink is a NAME the onto dnode does not
+		 * have, so it links; off-of's edit to subdir/inner is
+		 * content the onto dnode does not hold, so it writes.
+		 *
+		 * Everything else compiling to nothing is the claim
+		 * worth testing.  Four of the six names are untouched
+		 * on both sides, and "keeps of unmoved material emit
+		 * nothing" is what makes a rebase of a real
+		 * filesystem tractable at all -- if this said six, the
+		 * pass would be rebuilding the tree rather than
+		 * differencing it.
+		 */
+		check_line("only the difference compiles to edits",
+		    "rebase: edits",
+		    "edits 2 (unlink 0 link 1 rename 0 write 1 "
+		    "materialize 0), 5 components 0 held");
 	}
 
 	/*
@@ -456,6 +475,20 @@ main(void)
 		check_line("the conflict holds back exactly its component",
 		    "rebase: quarantine",
 		    "quarantine 1 of 5 components, conflicts 1");
+		/*
+		 * A held component compiles to NOTHING.  The write
+		 * that the clean fixture produced is gone, because
+		 * the name it wrote to is inside the quarantined
+		 * component -- that is what held back means: the
+		 * region keeps onto's state, which here means the
+		 * file stays deleted.  The unrelated hardlink still
+		 * links, which is the other half of the claim:
+		 * quarantine holds back a component, not the run.
+		 */
+		check_line("a held component emits no edits",
+		    "rebase: edits",
+		    "edits 1 (unlink 0 link 1 rename 0 write 0 "
+		    "materialize 0), 5 components 1 held");
 	}
 
 	/*
