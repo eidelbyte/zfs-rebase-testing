@@ -2,19 +2,28 @@
  * m1_smoke.c -- sprint-3 smoke: milestones M1 and M2.
  *
  * Exercises the v3 dsl_rebase() substrate and model end to end on
- * a real pool: ancestor discovery, preconditions, fence-post
- * snapshots, long holds, run setup, the three-tree walk, the name
- * table, and the teardown ladder.  At this stage ENOSYS is the
- * SUCCESS signal: it means every stage ran and the engine stopped
- * exactly where the faces will begin.  Covers milestones M1
- * (scaffolding) and M2 (model census).
+ * a real pool: ancestor discovery, preconditions, long holds, run
+ * setup, the three-tree walk, the name table, the decide passes,
+ * and the teardown ladder.  At this stage ENOSYS is the SUCCESS
+ * signal: it means every stage ran and the engine stopped exactly
+ * where emission will begin.  Covers milestones M1 (scaffolding)
+ * and M2 (model census).
+ *
+ * The engine takes TWO SNAPSHOTS and creates nothing, so every
+ * check snapshots its sides first (m1_rebase, or rt_rebase_snaps
+ * when a pair is reused).  That also makes a stale kernel
+ * unmissable: the arity did not change in the read-only rewrite,
+ * so a pre-rewrite build links happily and then fails the very
+ * first check with EINVAL instead of ENOSYS, because heads and
+ * snapshots have swapped roles.
  *
  * Deliberately separate from the 265-test battery, which asserts
  * revision-2 engine behavior and does not link against a v3
  * libzpool.  This binary links only rt_harness.c, rt_scaffold.c,
  * and rt_zpl.c; the two revision-2 injection tunables the harness
  * declares are defined here because the v3 engine does not carry
- * them yet (they return with the apply driver).
+ * them (revision 2 applied the merge in the kernel; revision 3
+ * leaves that to userspace, so there is nothing to inject into).
  *
  * Build and run (FreeBSD, as root):
  *     make m1_smoke && sudo ./m1_smoke
@@ -31,6 +40,28 @@ int rebase_apply_inject_skip_rollback = 0;
 
 static int m1_checks;
 static int m1_failures;
+
+/*
+ * Decide across two datasets.  The engine reads snapshots and
+ * creates nothing, so the harness snapshots both sides first; each
+ * call gets a fresh generation, so a fixture can be mutated and
+ * decided again with no cleanup in between.  A name that already
+ * carries '@' is used as given.
+ */
+static int
+m1_rebase(const char *offof_ds, const char *onto_ds)
+{
+	char offof[ZFS_MAX_DATASET_NAME_LEN];
+	char onto[ZFS_MAX_DATASET_NAME_LEN];
+	int err;
+
+	err = rt_rebase_snaps(offof_ds, onto_ds, offof, onto,
+	    sizeof (offof));
+	if (err != 0)
+		return (err);
+
+	return (dsl_rebase(offof, onto, NULL));
+}
 
 /*
  * Assert that a stable debug line exists and carries the expected
@@ -88,12 +119,13 @@ main(void)
 
 	/*
 	 * 1. The substrate smoke: two clones of one snapshot rebase
-	 * up to the walk boundary.  ENOSYS means every scaffolding
-	 * stage (discovery, preconditions, both fences, long holds,
-	 * run setup) succeeded and the run tore down cleanly.
+	 * up to the emission boundary.  ENOSYS means every stage
+	 * (discovery, preconditions, long holds, run setup, walk,
+	 * and the decide passes) succeeded and the run tore down
+	 * cleanly.
 	 */
-	check("substrate reaches the walk boundary (ENOSYS)",
-	    dsl_rebase(RT_DS_LEFT, RT_DS_RIGHT, NULL), ENOSYS);
+	check("substrate reaches the emit boundary (ENOSYS)",
+	    m1_rebase(RT_DS_LEFT, RT_DS_RIGHT), ENOSYS);
 
 	/*
 	 * M2: the model built from that run.  rt_scaffold_basic()
@@ -110,22 +142,67 @@ main(void)
 	    "4 names, held base 4 onto 4 off-of 4");
 
 	/*
-	 * 2. Fences must not strand.  The pre-apply lifecycle
-	 * destroys both fences on every exit, so the fence is gone
-	 * afterward and an identical second run repeats the result
-	 * instead of failing EEXIST.
+	 * 2. The run is a pure function of its inputs.  Nothing is
+	 * created, so nothing can strand and there is no state for a
+	 * second run to trip over; deciding the SAME two snapshots
+	 * again must give the same answer and the same census.  That
+	 * is the read-only claim stated as a test: if any part of
+	 * the engine wrote, the repeat would diverge.
 	 */
-	check("left fence destroyed on exit",
-	    rt_fence_exists() ? 1 : 0, 0);
-	check("second run repeats (no EEXIST strand)",
-	    dsl_rebase(RT_DS_LEFT, RT_DS_RIGHT, NULL), ENOSYS);
+	{
+		char offof[ZFS_MAX_DATASET_NAME_LEN];
+		char onto[ZFS_MAX_DATASET_NAME_LEN];
+
+		err = rt_rebase_snaps(RT_DS_LEFT, RT_DS_RIGHT, offof,
+		    onto, sizeof (offof));
+		if (err != 0) {
+			(void) printf("FAIL  snapshot the pair: %d\n", err);
+			m1_checks++;
+			m1_failures++;
+		} else {
+			check("re-deciding one pair repeats (run 1)",
+			    dsl_rebase(offof, onto, NULL), ENOSYS);
+			check("re-deciding one pair repeats (run 2)",
+			    dsl_rebase(offof, onto, NULL), ENOSYS);
+			check_line("and repeats the same census",
+			    "rebase: walk pools",
+			    "base 4 onto 4 off-of 4, distinct names 4");
+		}
+	}
 
 	/*
-	 * 3. Linear history: the right snapshot already sits in the
-	 * left clone's chain, so there is nothing to rebase.
+	 * 3. Linear history: the onto snapshot already sits in the
+	 * off-of clone's chain, so there is nothing to rebase.
 	 */
-	check("right already in left's chain (EINVAL)",
-	    dsl_rebase(RT_DS_LEFT, RT_DS_SRC "@base", NULL), EINVAL);
+	check("onto already in off-of's chain (EINVAL)",
+	    m1_rebase(RT_DS_LEFT, RT_DS_SRC "@base"), EINVAL);
+
+	/*
+	 * 3b. A live head is not an input.  The engine reads
+	 * snapshots only, so it can promise the walk sees committed
+	 * state that cannot move underneath it; a head fails up
+	 * front rather than being fenced into one.  Each check
+	 * swaps ONE side of a pair that decides cleanly, so an
+	 * engine that quietly accepted heads would return ENOSYS
+	 * here rather than EINVAL.
+	 */
+	{
+		char offof[ZFS_MAX_DATASET_NAME_LEN];
+		char onto[ZFS_MAX_DATASET_NAME_LEN];
+
+		err = rt_rebase_snaps(RT_DS_LEFT, RT_DS_RIGHT, offof,
+		    onto, sizeof (offof));
+		if (err != 0) {
+			(void) printf("FAIL  snapshot the pair: %d\n", err);
+			m1_checks++;
+			m1_failures++;
+		} else {
+			check("a live head is refused as off-of (EINVAL)",
+			    dsl_rebase(RT_DS_LEFT, onto, NULL), EINVAL);
+			check("a live head is refused as onto (EINVAL)",
+			    dsl_rebase(offof, RT_DS_RIGHT, NULL), EINVAL);
+		}
+	}
 
 	/*
 	 * 4. The cell that actually exercises the pool model, since
@@ -182,7 +259,7 @@ main(void)
 	} else {
 		rt_sync_pool();
 		check("asymmetric trees reach the boundary (ENOSYS)",
-		    dsl_rebase(RT_DS_LEFT, RT_DS_RIGHT, NULL), ENOSYS);
+		    m1_rebase(RT_DS_LEFT, RT_DS_RIGHT), ENOSYS);
 		check_line("a hardlink adds a name, not a pool",
 		    "rebase: walk pools",
 		    "base 4 onto 5 off-of 4, distinct names 6");
@@ -369,7 +446,7 @@ main(void)
 	} else {
 		rt_sync_pool();
 		check("a conflicting merge still decides (ENOSYS)",
-		    dsl_rebase(RT_DS_LEFT, RT_DS_RIGHT, NULL), ENOSYS);
+		    m1_rebase(RT_DS_LEFT, RT_DS_RIGHT), ENOSYS);
 		check_line("pass 0 sees the modify/delete pass 1 cannot",
 		    "rebase: lineage",
 		    "onto 3/0/1/0/0, offof 2/2/0/0/0, conflicts 1");
@@ -394,8 +471,7 @@ main(void)
 	} else {
 		rt_sync_pool();
 		check("unrelated datasets find no ancestor (ENOENT)",
-		    dsl_rebase(RT_DS_LEFT, POOL_NAME "/other", NULL),
-		    ENOENT);
+		    m1_rebase(RT_DS_LEFT, POOL_NAME "/other"), ENOENT);
 	}
 
 	rt_scaffold_teardown();

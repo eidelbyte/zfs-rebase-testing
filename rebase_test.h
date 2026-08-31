@@ -211,6 +211,8 @@ int rt_dbgmsg_last(const char *needle, char *line_out,
     size_t outlen);
 
 int rt_run_rebase(nvlist_t **nvlp);
+int rt_rebase_snaps(const char *offof_ds, const char *onto_ds,
+    char *offof_snap, char *onto_snap, size_t len);
 void rt_rebase_diag(void);
 
 /* apply-era flow helpers (AP matrix) */

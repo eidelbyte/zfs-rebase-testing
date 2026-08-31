@@ -63,18 +63,82 @@ rt_sync_pool(void)
 }
 
 /*
- * Run dsl_rebase left onto right with manifest output. ENOSYS is
- * the success sentinel while the apply phase is unimplemented.
- * Allocates *nvlp on success; caller must fnvlist_free() it.
+ * One side of rt_rebase_snaps(): snapshot `ds` as @tag and write
+ * the full snapshot name, or pass an already-qualified name
+ * through as given.
+ */
+static int
+rt_snap_name(const char *ds, const char *tag, char *out, size_t len)
+{
+	int err;
+
+	if (strchr(ds, '@') != NULL) {
+		(void) snprintf(out, len, "%s", ds);
+		return (0);
+	}
+	err = rt_snapshot(ds, tag);
+	if (err != 0)
+		return (err);
+	(void) snprintf(out, len, "%s@%s", ds, tag);
+	return (0);
+}
+
+/*
+ * Snapshot both sides and hand back the two snapshot names.
+ *
+ * The v3 engine reads three snapshots and creates nothing, so
+ * making them is the caller's job.  Each call uses a fresh
+ * generation tag, which is what lets a test mutate a fixture and
+ * decide it again: snapshot names are unique, so nothing has to be
+ * destroyed between runs, and every run's inputs stay on disk for
+ * a failure to be examined against.  A name that already carries
+ * '@' is passed through unchanged, so a test can pin one side to a
+ * specific existing snapshot.
+ *
+ * Both buffers must be at least ZFS_MAX_DATASET_NAME_LEN.
+ */
+int
+rt_rebase_snaps(const char *offof_ds, const char *onto_ds,
+    char *offof_snap, char *onto_snap, size_t len)
+{
+	static uint32_t gen;
+	char tag[32];
+	int err;
+
+	(void) snprintf(tag, sizeof (tag), "rt-%u", ++gen);
+
+	err = rt_snap_name(offof_ds, tag, offof_snap, len);
+	if (err == 0)
+		err = rt_snap_name(onto_ds, tag, onto_snap, len);
+	return (err);
+}
+
+/*
+ * Run dsl_rebase off-of onto onto, with manifest output.  ENOSYS is
+ * the success sentinel while emission is unimplemented.  Allocates
+ * *nvlp on success; caller must fnvlist_free() it.
+ *
+ * The engine reads snapshots and creates nothing, so this takes a
+ * fresh pair first.  The signature is unchanged from revision 2 --
+ * where it rebased the two live heads -- so the battery's call
+ * sites keep compiling AND keep meaning the same thing: decide the
+ * two sides as they stand right now.
  */
 int
 rt_run_rebase(nvlist_t **nvlp)
 {
+	char offof[ZFS_MAX_DATASET_NAME_LEN];
+	char onto[ZFS_MAX_DATASET_NAME_LEN];
 	nvlist_t *nvl;
 	int err;
 
+	err = rt_rebase_snaps(RT_DS_LEFT, RT_DS_RIGHT, offof, onto,
+	    sizeof (offof));
+	if (err != 0)
+		return (err);
+
 	nvl = fnvlist_alloc();
-	err = dsl_rebase(RT_DS_LEFT, RT_DS_RIGHT, nvl);
+	err = dsl_rebase(offof, onto, nvl);
 	if (err == 0) {
 		*nvlp = nvl;
 		return (0);
@@ -598,12 +662,20 @@ rt_apply_inject(uint64_t stop_after, int skip_rollback)
 	rebase_apply_inject_skip_rollback = skip_rollback;
 }
 
+/*
+ * Revision 2's fence-post snapshot.  The v3 engine is read-only and
+ * makes no snapshots, so the name is no longer part of the kernel
+ * contract; it stays here, spelled out, only so the revision-2
+ * battery below keeps compiling until the v3 test epic replaces it.
+ */
+#define	RT_LEGACY_FENCE_SUFFIX	"%rebase-snap"
+
 boolean_t
 rt_fence_exists(void)
 {
 	objset_t *os;
 
-	if (dmu_objset_hold(RT_DS_LEFT "@" ZFS_REBASE_SNAP_SUFFIX,
+	if (dmu_objset_hold(RT_DS_LEFT "@" RT_LEGACY_FENCE_SUFFIX,
 	    FTAG, &os) != 0)
 		return (B_FALSE);
 	dmu_objset_rele(os, FTAG);
@@ -614,7 +686,7 @@ int
 rt_destroy_fence(void)
 {
 	return (dsl_destroy_snapshot(
-	    RT_DS_LEFT "@" ZFS_REBASE_SNAP_SUFFIX, B_FALSE));
+	    RT_DS_LEFT "@" RT_LEGACY_FENCE_SUFFIX, B_FALSE));
 }
 
 /*
@@ -629,7 +701,7 @@ rt_rollback_to_fence(void)
 	int err;
 
 	err = dsl_dataset_rollback(RT_DS_LEFT,
-	    RT_DS_LEFT "@" ZFS_REBASE_SNAP_SUFFIX, NULL, rnvl);
+	    RT_DS_LEFT "@" RT_LEGACY_FENCE_SUFFIX, NULL, rnvl);
 	nvlist_free(rnvl);
 	return (err);
 }

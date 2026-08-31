@@ -44,6 +44,7 @@ typedef struct dmu_object_info { int doi_type; } dmu_object_info_t;
 typedef struct spa spa_t;
 typedef struct dsl_pool dsl_pool_t;
 
+#define	ZFS_MAX_DATASET_NAME_LEN	256
 #define	POOL_NAME	"rtest"
 #define	VDEV_SIZE	(128ULL << 20)
 #define	VDEV_PATH	"/tmp/rtest_vdev"
@@ -281,6 +282,8 @@ int rt_dbgmsg_last(const char *needle, char *line_out,
     size_t outlen);
 
 int rt_run_rebase(nvlist_t **nvlp);
+int rt_rebase_snaps(const char *offof_ds, const char *onto_ds,
+    char *offof_snap, char *onto_snap, size_t len);
 void rt_rebase_diag(void);
 
 /* apply-era flow helpers + inspection accessors (AP/CP) */
