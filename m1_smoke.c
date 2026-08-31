@@ -71,6 +71,7 @@ check(const char *what, int got, int want)
 int
 main(void)
 {
+	rt_ds_t d;
 	int err;
 
 	kernel_init(SPA_MODE_READ | SPA_MODE_WRITE);
@@ -124,7 +125,52 @@ main(void)
 	    dsl_rebase(RT_DS_LEFT, RT_DS_SRC "@base", NULL), EINVAL);
 
 	/*
-	 * 4. Unrelated datasets share no ancestor: the $ORIGIN
+	 * 4. The cell that actually exercises the pool model, since
+	 * the base fixture is three identical clones with no
+	 * hardlinks.  Off-of gains a hardlink -- a NAME with no new
+	 * dnode -- while onto gains an ordinary file, a name AND a
+	 * dnode.  The census then discriminates: off-of must report
+	 * five held names but only four pools.  A model that counted
+	 * a pool per name, or that missed the second link, cannot
+	 * produce these numbers.
+	 */
+	err = rt_open(RT_DS_LEFT, &d);
+	if (err == 0) {
+		uint64_t hello = 0;
+
+		err = rt_dir_lookup(d.rtd_os, d.rtd_root, "hello",
+		    &hello);
+		if (err == 0) {
+			err = rt_add_hardlink(d.rtd_os, d.rtd_root,
+			    "hello2", hello);
+		}
+		rt_close(&d);
+	}
+	if (err == 0) {
+		err = rt_open(RT_DS_RIGHT, &d);
+		if (err == 0) {
+			err = rt_create_file(d.rtd_os, d.rtd_root,
+			    "extra", "x\n", 2, NULL);
+			rt_close(&d);
+		}
+	}
+	if (err != 0) {
+		(void) printf("FAIL  build asymmetric fixture: %d\n", err);
+		m1_failures++;
+	} else {
+		rt_sync_pool();
+		check("asymmetric trees reach the boundary (ENOSYS)",
+		    dsl_rebase(RT_DS_LEFT, RT_DS_RIGHT, NULL), ENOSYS);
+		check_line("a hardlink adds a name, not a pool",
+		    "rebase: walk pools",
+		    "base 4 onto 5 off-of 4, distinct names 6");
+		check_line("holders differ per tree",
+		    "rebase: name table",
+		    "6 names, held base 4 onto 5 off-of 5");
+	}
+
+	/*
+	 * 5. Unrelated datasets share no ancestor: the $ORIGIN
 	 * guard stops both chain walks, so discovery reports ENOENT
 	 * instead of finding the pool-global false ancestor.
 	 */
