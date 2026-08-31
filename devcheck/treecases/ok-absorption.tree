@@ -1,0 +1,36 @@
+title absorption: one pool takes over another's name
+
+# Off-of renames /a to /a2 and hard-links /b onto the same dnode, so
+# two base pools become one. Onto is quiet, nothing conflicts.
+#
+# Two cases neither emission compiler had crossed:
+#
+#   ABSORPTION. The merged output pool reuses 6-100 -- /b's dnode --
+#   and not 5-100, which is the pool whose CONTENT it takes. So the
+#   surviving dnode and the surviving bytes come from different
+#   places, and 5-100's name is unlinked because no output pool
+#   reuses it.
+#
+#   A WRITE ON A MULTI-NAME POOL. The pool ends up holding both /a2
+#   and /b on one dnode, so a write through either name is the same
+#   write. Which name carries it is unforced, and this pins the
+#   choice: the lowest-sorted decided name.
+#
+# The anchor is also visible here: /a2 links from /b, the KEPT name,
+# which exists on the clone before the plan starts and so depends on
+# nothing.
+
+tree base
+  1-1: /
+    5-100: a = v0
+    6-100: b = w0
+
+tree onto
+  1-1: /
+    5-100: a = v0
+    6-100: b = w0
+
+tree offof
+  1-1: /
+    5-100: a2 = v0
+    5-100: b
