@@ -1,0 +1,33 @@
+title modify/delete: onto deletes what off-of edited
+
+# m1_smoke's conflict fixture, as a tree. Supplied by the kernel
+# lane and validated against the reference before use: base 4 pools
+# / 4 names, onto 4 / 4, off-of 4 / 5, one lineage conflict over 5
+# components -- which matches what the real datasets produce, so the
+# tree is faithful to the fixture rather than merely plausible.
+#
+# Used to cross-check the two independent emission compilers. The
+# COUNT for this one was published before I ran it, so agreement on
+# the count is confirmation rather than evidence; the edit LIST was
+# not, and a difference there -- a different name, a different
+# from=, a write on another pool -- would be a real finding the
+# count could not have shown.
+
+tree base
+  1-1: /
+    5-100: hello = hello-v0
+    3-100: subdir/
+      7-100: inner = inner-v0
+
+tree onto
+  1-1: /
+    5-100: hello = hello-v0
+    3-100: subdir/
+    9-300: extra = extra-v0
+
+tree offof
+  1-1: /
+    5-100: hello = hello-v0
+    5-100: hello2
+    3-100: subdir/
+      7-100: inner = inner-v1

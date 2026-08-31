@@ -1,0 +1,34 @@
+title five verbs: a rename, a death, a fresh hard-linked pair, an edit
+
+# The genuinely blind cross-check between the two emission
+# compilers: the kernel lane wrote its prediction down before this
+# side ran, and neither had seen the other's number.
+#
+# It exists because the first real agreement covered a link and a
+# write, which are the two easiest verbs. Rename, materialize and
+# the death of a whole object were all uncrossed -- and the death
+# path is the one the kernel lane got wrong in its first draft, so
+# it is where a disagreement was most likely.
+#
+# Onto is quiet throughout, so nothing conflicts and nothing is
+# held: the fixture is entirely about what compiles, not about what
+# quarantine suppresses.
+
+tree base
+  1-1: /
+    5-100: a = av0
+    6-100: b = bv0
+    7-100: doomed = dv0
+
+tree onto
+  1-1: /
+    5-100: a = av0
+    6-100: b = bv0
+    7-100: doomed = dv0
+
+tree offof
+  1-1: /
+    5-100: a2 = av0
+    6-100: b = bv1
+    8-300: fresh = fv0
+    8-300: fresh2
