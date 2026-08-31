@@ -19,6 +19,14 @@
 ZFS_SRC ?= ../zfs
 SRCTOP  ?= /usr/src
 
+# On a box with no research checkout beside this repo, fall back to
+# the FreeBSD base tree automatically -- its signatures are the
+# authority for harness builds anyway.  An explicit ZFS_SRC on the
+# command line still wins over both defaults.
+.if !exists($(ZFS_SRC)/include) && exists($(SRCTOP)/sys/contrib/openzfs/include)
+ZFS_SRC = $(SRCTOP)/sys/contrib/openzfs
+.endif
+
 CC	= cc
 
 CFLAGS  = -std=c99 -O0 -g
