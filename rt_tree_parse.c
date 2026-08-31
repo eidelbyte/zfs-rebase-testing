@@ -227,6 +227,110 @@ join_path(const char *parent, const char *leaf)
 
 /*
  * ------------------------------------------------------------------
+ * mtree(5) name escapes
+ * ------------------------------------------------------------------
+ *
+ * A file name may hold any byte but '/' and NUL, which is more than a
+ * line-oriented fixture format can carry literally: a newline ends the
+ * line, an '=' would be read as the content separator, an edge space
+ * is trimmed away, and a byte outside printable ASCII cannot appear at
+ * all under this project's ASCII rule.
+ *
+ * So names use mtree(5)'s encoding -- a backslash and exactly three
+ * octal digits -- rather than inventing one.  It is already specified,
+ * already implemented in base, reversible for arbitrary bytes, and
+ * ASCII by construction.  Using the SAME encoding the output manifest
+ * uses is the real prize: a path decoded from a fixture and a path
+ * decoded from a manifest are comparable with nothing in between.
+ *
+ * This is an extension with one compatibility edge, and it is worth
+ * stating plainly rather than calling the whole change additive: a
+ * lone backslash used to be a literal and is now malformed.  Neither
+ * corpus contains one, which is what makes that safe.
+ */
+
+#define	RT_UNESC_OK		0
+#define	RT_UNESC_BADSLASH	1
+#define	RT_UNESC_NUL		2
+#define	RT_UNESC_RANGE		3
+
+#define	RT_IS_OCTAL(c)	((c) >= '0' && (c) <= '7')
+
+/*
+ * Decode into a fresh string, so a failure leaves the caller's
+ * original intact to quote in the complaint.  Returns one of the
+ * RT_UNESC_ codes; *outp is set only on success.
+ */
+static int
+unescape_leaf(const char *in, char **outp)
+{
+	char *out = rt_xmalloc(strlen(in) + 1);
+	const char *r = in;
+	char *w = out;
+
+	while (*r != '\0') {
+		unsigned int v;
+
+		if (*r != '\\') {
+			*w++ = *r++;
+			continue;
+		}
+		/*
+		 * Short-circuit order matters: a string ending in a
+		 * backslash has '\0' at r[1], which is not octal, so
+		 * this never reads past the end.
+		 */
+		if (!RT_IS_OCTAL(r[1]) || !RT_IS_OCTAL(r[2]) ||
+		    !RT_IS_OCTAL(r[3])) {
+			free(out);
+			return (RT_UNESC_BADSLASH);
+		}
+		v = (unsigned int)(r[1] - '0') * 64 +
+		    (unsigned int)(r[2] - '0') * 8 +
+		    (unsigned int)(r[3] - '0');
+		if (v == 0) {
+			free(out);
+			return (RT_UNESC_NUL);
+		}
+		/*
+		 * Three octal digits reach 511, and a byte does not.
+		 * Rejected rather than truncated: \400 would otherwise
+		 * become NUL here and a 256-code character in the
+		 * reference parser, which is a divergence on a fixture
+		 * nobody would think to write.
+		 */
+		if (v > 255) {
+			free(out);
+			return (RT_UNESC_RANGE);
+		}
+		*w++ = (char)v;
+		r += 4;
+	}
+	*w = '\0';
+	*outp = out;
+	return (RT_UNESC_OK);
+}
+
+/*
+ * Re-encode for the canonical dump, so the dump stays printable ASCII
+ * whatever bytes a name holds -- and so the cross-parser diff covers
+ * the escaping itself rather than stopping at its edge.
+ */
+static void
+fput_escaped(FILE *out, const char *s)
+{
+	const unsigned char *p = (const unsigned char *)s;
+
+	for (; *p != '\0'; p++) {
+		if (*p == '\\' || *p < 0x20 || *p > 0x7e)
+			(void) fprintf(out, "\\%03o", *p);
+		else
+			(void) fputc((int)*p, out);
+	}
+}
+
+/*
+ * ------------------------------------------------------------------
  * Raw node lines, before they become pools
  * ------------------------------------------------------------------
  */
@@ -843,6 +947,52 @@ rt_spec_parse_text(const char *text, const char *origin, rt_spec_t *sp)
 				}
 			}
 
+			/*
+			 * Decode LAST among the transformations and
+			 * FIRST among the checks.
+			 *
+			 * After the '=' split, so \075 is not taken for
+			 * the separator.  After the trim, so \040
+			 * survives at an edge.  After the trailing-'/'
+			 * marker, so \057 is not taken for it.
+			 *
+			 * And before the validity checks, which is the
+			 * part that matters: '/' and NUL are the two
+			 * bytes no file name may hold, so an escaped
+			 * one has to be REJECTED rather than smuggled
+			 * past a check that ran on the spelling.
+			 */
+			{
+				char *dec = NULL;
+
+				switch (unescape_leaf(leaf, &dec)) {
+				case RT_UNESC_OK:
+					free(leaf);
+					leaf = dec;
+					break;
+				case RT_UNESC_BADSLASH:
+					add_error(sp, lineno, "leaf '%s' has "
+					    "a backslash that is not followed "
+					    "by three octal digits", leaf);
+					free(leaf);
+					free(token);
+					goto next;
+				case RT_UNESC_NUL:
+					add_error(sp, lineno, "leaf contains "
+					    "NUL, which no file name may hold");
+					free(leaf);
+					free(token);
+					goto next;
+				default:
+					add_error(sp, lineno, "leaf '%s' has "
+					    "an escape above \\377, which "
+					    "names no byte", leaf);
+					free(leaf);
+					free(token);
+					goto next;
+				}
+			}
+
 			if (leaf[0] == '\0') {
 				add_error(sp, lineno, "empty leaf name");
 				free(leaf);
@@ -1054,12 +1204,14 @@ rt_spec_dump(const rt_spec_t *sp, FILE *out)
 		for (j = 0; j < t->rtt_npools; j++) {
 			const rt_tree_pool_t *pool = &t->rtt_pools[j];
 
-			(void) fprintf(out, "  pool %s %s token=%s\n",
-			    pool->rtp_key, pool->rtp_isdir ? "dir" : "file",
-			    pool->rtp_token);
+			(void) fprintf(out, "  pool %s %s token=",
+			    pool->rtp_key, pool->rtp_isdir ? "dir" : "file");
+			fput_escaped(out, pool->rtp_token);
+			(void) fputc('\n', out);
 			for (k = 0; k < pool->rtp_nnames; k++) {
-				(void) fprintf(out, "    name %s\n",
-				    pool->rtp_names[k]);
+				(void) fprintf(out, "    name ");
+				fput_escaped(out, pool->rtp_names[k]);
+				(void) fputc('\n', out);
 			}
 		}
 	}

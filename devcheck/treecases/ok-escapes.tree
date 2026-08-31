@@ -1,0 +1,21 @@
+title every byte a file name may hold
+
+# One fixture for the whole escaping rule. The names below carry an
+# '=' (which would otherwise read as the content separator), a
+# newline, a backslash, an edge space (which the trim would eat), a
+# tab, and an invalid-UTF-8 byte -- none of which can appear
+# literally in a line-oriented ASCII-only fixture.
+#
+# The encoding is mtree(5)'s: a backslash and exactly three octal
+# digits. It is the same encoding the output manifest uses, which is
+# the point -- a path decoded from a fixture and a path decoded from
+# a manifest compare directly, with nothing in between.
+
+tree base
+  1-1: /
+    2-100: eq\075uals = v1
+    3-100: new\012line
+    4-100: back\134slash
+    5-100: edgespace\040
+    6-100: tab\011sep
+    7-100: bad\377utf8

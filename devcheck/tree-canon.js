@@ -32,6 +32,33 @@ function basename(p) {
 	return (i < 0) ? p : p.slice(i + 1);
 }
 
+/*
+ * Re-encode names for the dump, in mtree(5)'s escaping, matching
+ * fput_escaped() in rt_tree_parse.c byte for byte.  The parser
+ * decodes, so a decoded name may hold any byte; the dump has to stay
+ * printable ASCII, and encoding it here is what keeps the escaping
+ * itself inside the cross-parser diff rather than just outside it.
+ *
+ * A decoded name is a BYTE string: engine.js turns each \ooo into one
+ * character with that code, so "a\303\251b" is five characters and
+ * not four. Nothing here may be UTF-8 aware, or the two dumps part
+ * company on exactly the names this encoding exists for.
+ */
+function escapeName(s) {
+	var out = "";
+	var i, c;
+
+	for (i = 0; i < s.length; i++) {
+		c = s.charCodeAt(i);
+		if (c === 92 || c < 0x20 || c > 0x7e) {
+			out += "\\" + ("00" + c.toString(8)).slice(-3);
+		} else {
+			out += s.charAt(i);
+		}
+	}
+	return (out);
+}
+
 function dumpTree(out, label, tree) {
 	var i, j;
 
@@ -39,9 +66,9 @@ function dumpTree(out, label, tree) {
 	for (i = 0; i < tree.pools.length; i++) {
 		var pool = tree.pools[i];
 		out.push("  pool " + pool.key + " " + pool.type +
-		    " token=" + pool.token);
+		    " token=" + escapeName(pool.token));
 		for (j = 0; j < pool.names.length; j++)
-			out.push("    name " + pool.names[j]);
+			out.push("    name " + escapeName(pool.names[j]));
 	}
 }
 

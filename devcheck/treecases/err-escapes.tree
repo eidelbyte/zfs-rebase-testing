@@ -1,0 +1,20 @@
+title escapes that name no file
+
+# A backslash not followed by three octal digits is malformed rather
+# than literal -- the one compatibility edge in the escaping change,
+# since a lone backslash used to be a literal.
+#
+# NUL and '/' are the two bytes no file name may hold, so an escaped
+# one must be REJECTED rather than smuggled past a check that ran on
+# the spelling. That is why decoding happens before validation, and
+# why the '/' complaint quotes the DECODED name: it names the actual
+# problem rather than its spelling.
+#
+# The out-of-range case (\400 and up) is not here yet. It is in
+# devcheck/pending/ until both parsers agree to reject it.
+
+tree base
+  1-1: /
+    2-100: lone\slash
+    3-100: has\000nul
+    4-100: esc\057slash

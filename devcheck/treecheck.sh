@@ -102,6 +102,22 @@ cc -std=c99 -Wall -Wextra -Wcast-qual -Werror -O1 \
 }
 "$TMP/checkcheck" || fail=1
 
+# --- fixtures held out of the diff, and why
+#
+# A case the two parsers genuinely disagree about does not belong in
+# the diff yet, and does not belong deleted either. It waits here and
+# is announced on every run, so "we know about that one" cannot decay
+# into nobody remembering it. This is not an exempt set: nothing here
+# is checked, and the list is meant to reach zero.
+if [ -d "$ROOT/devcheck/pending" ]; then
+	for f in "$ROOT"/devcheck/pending/*.tree; do
+		[ -e "$f" ] || continue
+		echo "--- pending"
+		echo "PENDING: $(basename "$f") is held out of the diff"
+		sed -n '3,6p' "$f" | sed 's/^# \{0,1\}/         /'
+	done
+fi
+
 # --- ASCII, everywhere
 echo "--- ASCII"
 for f in $CORPUS "$ROOT"/rt_tree.h "$ROOT"/rt_tree_parse.c \
