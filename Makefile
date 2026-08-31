@@ -54,6 +54,11 @@ SRCS	= rebase_test_main.c \
 	  test_linkpool.c \
 	  test_crossref.c
 
+# Sprint-3 M1 smoke: links only the harness runtime, never the
+# 265-test battery (whose assertions target the revision-2 engine).
+M1_PROG	= m1_smoke
+M1_SRCS	= m1_smoke.c rt_harness.c rt_scaffold.c rt_zpl.c
+
 .PHONY: all clean
 
 # --- Mode detection ---
@@ -88,8 +93,13 @@ $(OBJS): rebase_test.h
 $(PROG): $(OBJS)
 	$(LINK) $(CFLAGS) -o $@ $(OBJS) $(LIBS)
 
+M1_OBJS	= $(M1_SRCS:.c=.lo)
+$(M1_OBJS): rebase_test.h
+$(M1_PROG): $(M1_OBJS)
+	$(LINK) $(CFLAGS) -o $@ $(M1_OBJS) $(LIBS)
+
 clean:
-	rm -rf $(PROG) *.o *.lo .libs
+	rm -rf $(PROG) $(M1_PROG) *.o *.lo .libs
 
 .else
 
@@ -109,7 +119,10 @@ all: $(PROG)
 $(PROG): $(SRCS) rebase_test.h
 	$(CC) $(CFLAGS) $(CPPFLAGS) -o $@ $(SRCS) $(LIBS)
 
+$(M1_PROG): $(M1_SRCS) rebase_test.h
+	$(CC) $(CFLAGS) $(CPPFLAGS) -o $@ $(M1_SRCS) $(LIBS)
+
 clean:
-	rm -f $(PROG) *.o
+	rm -f $(PROG) $(M1_PROG) *.o
 
 .endif
