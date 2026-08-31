@@ -1,0 +1,188 @@
+title kitchen sink: every conflict kind once, and four compositions that hold
+
+# One directory per mechanism, so nothing interferes with anything
+# else.  Five folders each stage exactly one designed conflict -- one
+# of each kind the theory defines -- and four folders under clean/
+# stage compositions that are supposed to go through untroubled.
+#
+# The five conflicts:
+#   sink/lineage -- modify/delete (Rule 7.2)
+#   sink/names -- two renames onto one target (Section 9.1, cell row 5)
+#   sink/pooling -- merge versus split (Definition 9.5)
+#   sink/content -- both sides edited it (Section 9.3, pass 3 rule 3)
+#   sink/structural -- the razed building (Definition 9.10)
+#
+# The four clean compositions:
+#   sink/clean/splits -- composing splits (Definition 9.5)
+#   sink/clean/renamesplit -- rename composes with split (Definitions 9.3, 9.5)
+#   sink/clean/doublerename -- double rename via link L1 (Definition 9.3)
+#   sink/clean/swapfile -- dnode churn, K2 pairing survives it (Definition 6.1)
+
+tree base
+  1-1: /
+    2-100: sink/
+      3-100: lineage/
+        10-100: journal.txt = journal-v1
+        11-100: keeper.txt = keeper-v1
+      4-100: names/
+        20-100: alpha.txt = alpha-v1
+        21-100: beta.txt = beta-v1
+      5-100: pooling/
+        30-100: api.md = doc-v1
+        30-100: api-old.md
+        31-100: reference.md = ref-v1
+      6-100: content/
+        40-100: config.ini = config-v1
+      7-100: structural/
+        50-100: build/
+          51-100: main.o = obj-v1
+      8-100: clean/
+        9-100: splits/
+          60-100: a.bin = bin-v1
+          60-100: b.bin
+          60-100: c.bin
+        12-100: renamesplit/
+          70-100: draft.txt = draft-v1
+          70-100: draft.bak
+        13-100: doublerename/
+          80-100: photo.jpg = photo-v1
+          80-100: photo-copy.jpg
+        14-100: swapfile/
+          90-100: notes.txt = notes-v1
+
+tree onto
+  1-1: /
+    2-100: sink/
+      3-100: lineage/
+        # LINEAGE: onto deletes journal.txt outright.  Off-of edits it.
+        # Dead against continued-changed is the modify/delete cell.
+        11-100: keeper.txt = keeper-v1
+      4-100: names/
+        # NAME: onto renames alpha.txt to shared.txt.  Off-of renames a
+        # different file to the same name, so neither side's holder of
+        # shared.txt is home and the two holders are not related.
+        20-100: shared.txt = alpha-v1
+        21-100: beta.txt = beta-v1
+      5-100: pooling/
+        # POOLING: onto hard-links reference.md onto the API dnode,
+        # asserting that all three names are one file.
+        30-100: api.md = doc-v1
+        30-100: api-old.md
+        30-100: reference.md
+      6-100: content/
+        # CONTENT: onto's version of the settings.
+        40-100: config.ini = config-onto
+      7-100: structural/
+        # STRUCTURAL: onto adds an object file to build/, which off-of
+        # is about to raze.
+        50-100: build/
+          51-100: main.o = obj-v1
+          250-200: net.o = obj-net
+      8-100: clean/
+        9-100: splits/
+          # CLEAN, composing splits (Definition 9.5): onto carves a.bin
+          # away from b.bin and c.bin.
+          60-100: a.bin = bin-v1
+          260-200: b.bin = bin-v1
+          260-200: c.bin
+        12-100: renamesplit/
+          # CLEAN, rename composes with split: onto splits the pair.
+          70-100: draft.txt = draft-v1
+          270-200: draft.bak = draft-v1
+        13-100: doublerename/
+          # CLEAN, double rename (link L1): onto renames one name of the
+          # pair.
+          80-100: album.jpg = photo-v1
+          80-100: photo-copy.jpg
+        14-100: swapfile/
+          # CLEAN, swapfile: onto is the quiet side here.
+          90-100: notes.txt = notes-v1
+
+tree offof
+  1-1: /
+    2-100: sink/
+      3-100: lineage/
+        # LINEAGE, the other half: off-of edited the file onto deleted.
+        10-100: journal.txt = journal-v2
+        11-100: keeper.txt = keeper-v1
+      4-100: names/
+        # NAME, the other half: off-of renames beta.txt to shared.txt.
+        20-100: alpha.txt = alpha-v1
+        21-100: shared.txt = beta-v1
+      5-100: pooling/
+        # POOLING, the other half: off-of gives api-old.md a dnode of
+        # its own.  The merger's chain runs through reference.md.
+        30-100: api.md = doc-v1
+        330-300: api-old.md = doc-v1
+        31-100: reference.md = ref-v1
+      6-100: content/
+        # CONTENT, the other half: off-of wrote different bytes.
+        40-100: config.ini = config-offof
+      # STRUCTURAL, the other half: build/ and its contents are gone.
+      # sink/structural itself stays, and stays a directory: the
+      # trailing slash forces the type on a childless line.
+      7-100: structural/
+      8-100: clean/
+        9-100: splits/
+          # CLEAN, composing splits: off-of carves c.bin away from a.bin
+          # and b.bin.  The two cuts compose into the common refinement.
+          60-100: a.bin = bin-v1
+          60-100: b.bin
+          360-300: c.bin = bin-v1
+        12-100: renamesplit/
+          # CLEAN, rename composes with split: off-of renames draft.txt
+          # to report.txt in place, keeping the pair pooled on its side.
+          70-100: report.txt = draft-v1
+          70-100: draft.bak
+        13-100: doublerename/
+          # CLEAN, double rename: off-of renames the other name.
+          80-100: photo.jpg = photo-v1
+          80-100: album-copy.jpg
+        14-100: swapfile/
+          # CLEAN, swapfile: fresh dnode, same name, new bytes.
+          390-300: notes.txt = notes-v2
+
+# --- expected result, generated by gen-expected.js ---
+expect conflict content
+expect conflict lineage
+expect conflict name
+expect conflict pooling
+expect conflict structural
+expect quarantined /sink/content/config.ini
+expect quarantined /sink/names/beta.txt
+expect quarantined /sink/names/shared.txt
+expect quarantined /sink/pooling/api-old.md
+expect quarantined /sink/pooling/api.md
+expect quarantined /sink/pooling/reference.md
+expect quarantined /sink/structural/build
+
+tree expected
+  1-1: /
+    2-100: sink
+      8-100: clean
+        13-100: doublerename
+          80-100: album-copy.jpg = photo-v1
+          80-100: album.jpg
+        12-100: renamesplit
+          270-200: draft.bak = draft-v1
+          70-100: report.txt = draft-v1
+        9-100: splits
+          60-100: a.bin = bin-v1
+          260-200: b.bin = bin-v1
+          9000-9000: c.bin = bin-v1
+        14-100: swapfile
+          90-100: notes.txt = notes-v2
+      6-100: content
+        40-100: config.ini = config-onto
+      3-100: lineage
+        11-100: keeper.txt = keeper-v1
+      4-100: names
+        21-100: beta.txt = beta-v1
+        20-100: shared.txt = alpha-v1
+      5-100: pooling
+        30-100: api-old.md = doc-v1
+        30-100: api.md
+        30-100: reference.md
+      7-100: structural
+        50-100: build
+          250-200: net.o = obj-net

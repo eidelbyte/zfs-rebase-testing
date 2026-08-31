@@ -1,0 +1,15 @@
+# cksum of every .tree fixture, written by devcheck/sync-trees.sh.
+# Verified by devcheck/treecheck.sh. Regenerate with --write after a
+# deliberate corpus change, never to silence a CHANGED line you did
+# not expect.
+3964705675-5559 trees/hardlink-farm.tree
+3418575192-6869 trees/kitchen-sink.tree
+2460463679-6002 trees/shared-project.tree
+1866781069-5193 trees/spring-cleaning.tree
+351850401-2889 trees/open-problems/1-edit-versus-split.tree
+3746975473-2545 trees/open-problems/2-growth-into-divided-material.tree
+3054360586-2984 trees/open-problems/3-name-universe.tree
+3018096216-1966 trees/open-problems/4-conflict-polarity.tree
+715437797-2178 trees/open-problems/5-rename-rename.tree
+2169214050-3594 trees/open-problems/6-ambiguous-succession.tree
+1328876429-2722 trees/open-problems/7-quarantine-minimality.tree

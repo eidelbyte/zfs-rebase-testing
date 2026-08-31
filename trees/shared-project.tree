@@ -1,0 +1,163 @@
+title shared project: three real conflicts in a directory that mostly merges
+
+# Two people worked on the same source tree for a week.  Most of what
+# they did composes without argument -- one edited main.c while the
+# other left it alone, one rewrote the readme while the other left it
+# alone, both added a new file in a folder the other never opened.
+# Three things do not compose, and each fails in a different way:
+#
+#   1. LINEAGE (Rule 7.2).  Onto deleted src/legacy.c; off-of edited
+#      it.  Dead against continued-changed is the modify/delete cell,
+#      and three snapshots cannot say whether the edit was meant to
+#      survive the deletion.
+#
+#   2. POOLING (Definition 9.5).  Onto decided the two API documents
+#      and the reference page were all one file and hard-linked them
+#      together; off-of decided api-old.md deserved a dnode of its
+#      own and split it away from api.md.  The merger's assertion
+#      links api.md to reference.md and reference.md to api-old.md;
+#      the splitter's severance excludes api.md from api-old.md; the
+#      chain joins an excluded pair, so the arrangement is reported
+#      with that chain as its certificate.
+#
+#   3. STRUCTURAL (Definition 9.10).  Off-of razed the whole build
+#      directory; onto meanwhile created build/gen/ and put a
+#      generated source in it.  build/gen survives with no floor to
+#      stand on -- its parent name is not in the surviving set -- so
+#      the deletion and the creation are reported together.  Note what
+#      quarantine then does: build/gen/net.c decided perfectly
+#      cleanly, but its parent's component is in dispute, so it is
+#      dragged in and held back with it (Definition 12.4).
+#
+# Everything else in the tree -- the untouched sources, the tests, the
+# Makefile, the two new files, the two edits -- decides normally.
+
+tree base
+  1-1: /
+    2-100: project/
+      3-100: src/
+        10-100: main.c = main-v1
+        11-100: parser.c = parser-v1
+        12-100: legacy.c = legacy-v1
+        13-100: util.c = util-v1
+        14-100: hash.c = hash-v1
+        15-100: hash.h = hashh-v1
+        16-100: main.h = mainh-v1
+      4-100: docs/
+        # api.md and api-old.md are one file under two names.
+        20-100: api.md = doc-v1
+        20-100: api-old.md
+        21-100: reference.md = ref-v1
+        22-100: readme.md = readme-v1
+        23-100: changelog.md = changelog-v1
+      5-100: build/
+        30-100: main.o = obj-main
+        31-100: parser.o = obj-parser
+      6-100: tests/
+        40-100: test_main.c = tmain-v1
+        41-100: test_parser.c = tparser-v1
+        42-100: test_util.c = tutil-v1
+      7-100: Makefile = make-v1
+      8-100: LICENSE = license-v1
+
+tree onto
+  1-1: /
+    2-100: project/
+      3-100: src/
+        # main.c edited; off-of never touched it, so this edit is kept.
+        10-100: main.c = main-v2
+        11-100: parser.c = parser-v1
+        # legacy.c deleted.  Conflict 1 lives here.
+        13-100: util.c = util-v1
+        14-100: hash.c = hash-v1
+        15-100: hash.h = hashh-v1
+        16-100: main.h = mainh-v1
+      4-100: docs/
+        # the merge: reference.md is now a third name for dnode 20.
+        # Conflict 2 lives here.
+        20-100: api.md = doc-v1
+        20-100: api-old.md
+        20-100: reference.md
+        22-100: readme.md = readme-v1
+        23-100: changelog.md = changelog-v1
+      5-100: build/
+        30-100: main.o = obj-main
+        31-100: parser.o = obj-parser
+        # a brand new generated-source folder.  Conflict 3 lives here.
+        230-200: gen/
+          231-200: net.c = netc-v1
+      6-100: tests/
+        40-100: test_main.c = tmain-v1
+        41-100: test_parser.c = tparser-v1
+        42-100: test_util.c = tutil-v1
+      7-100: Makefile = make-v1
+      8-100: LICENSE = license-v1
+
+tree offof
+  1-1: /
+    2-100: project/
+      3-100: src/
+        10-100: main.c = main-v1
+        11-100: parser.c = parser-v1
+        # legacy.c edited rather than deleted.
+        12-100: legacy.c = legacy-v2
+        13-100: util.c = util-v1
+        14-100: hash.c = hash-v1
+        15-100: hash.h = hashh-v1
+        16-100: main.h = mainh-v1
+        # a new source file, opposed by nobody.
+        310-300: socket.c = socket-v1
+      4-100: docs/
+        # the split: api-old.md gets a dnode of its own.
+        20-100: api.md = doc-v1
+        320-300: api-old.md = doc-v1
+        21-100: reference.md = ref-v1
+        # two plain edits, opposed by nobody.
+        22-100: readme.md = readme-v2
+        23-100: changelog.md = changelog-v2
+      # build/ and everything in it is gone.
+      6-100: tests/
+        40-100: test_main.c = tmain-v1
+        41-100: test_parser.c = tparser-v1
+        42-100: test_util.c = tutil-v1
+        # a new test, opposed by nobody.
+        340-300: test_socket.c = tsocket-v1
+      7-100: Makefile = make-v1
+      8-100: LICENSE = license-v1
+
+# --- expected result, generated by gen-expected.js ---
+expect conflict lineage
+expect conflict pooling
+expect conflict structural
+expect quarantined /project/build
+expect quarantined /project/docs/api-old.md
+expect quarantined /project/docs/api.md
+expect quarantined /project/docs/reference.md
+
+tree expected
+  1-1: /
+    2-100: project
+      8-100: LICENSE = license-v1
+      7-100: Makefile = make-v1
+      5-100: build
+        230-200: gen
+          231-200: net.c = netc-v1
+      4-100: docs
+        20-100: api-old.md = doc-v1
+        20-100: api.md
+        23-100: changelog.md = changelog-v2
+        22-100: readme.md = readme-v2
+        20-100: reference.md
+      3-100: src
+        14-100: hash.c = hash-v1
+        15-100: hash.h = hashh-v1
+        10-100: main.c = main-v2
+        16-100: main.h = mainh-v1
+        11-100: parser.c = parser-v1
+        9000-9000: socket.c = socket-v1
+        13-100: util.c = util-v1
+      6-100: tests
+        40-100: test_main.c = tmain-v1
+        41-100: test_parser.c = tparser-v1
+        9001-9000: test_socket.c = tsocket-v1
+        42-100: test_util.c = tutil-v1
