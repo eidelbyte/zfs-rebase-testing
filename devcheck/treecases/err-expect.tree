@@ -1,0 +1,9 @@
+title unknown expect directives
+
+tree base
+  1-1: /
+
+expect maybe
+expect conflict
+expect clean extra
+expect quarantined /a /b

@@ -1,0 +1,6 @@
+title empty and slash-bearing leaves
+
+tree base
+  1-1: /
+    2-100:
+    3-100: a/b

@@ -1,0 +1,13 @@
+title the aliases this parser refuses
+
+# The reference parser accepts "left" and "right" and binds them the
+# opposite way round from the harness, where onto is RT_DS_RIGHT and
+# off-of is RT_DS_LEFT. Silently mirroring a fixture is the worst
+# thing a loader can do, so this parser refuses them. Kept out of the
+# cross-parser diff because the divergence is the point.
+
+tree left
+  1-1: /
+
+tree right
+  1-1: /

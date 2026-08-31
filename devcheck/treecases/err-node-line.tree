@@ -1,0 +1,6 @@
+title malformed node line
+
+tree base
+  1-1: /
+  this is not a node line
+    2-100: fine

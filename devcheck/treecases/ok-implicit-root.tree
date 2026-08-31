@@ -1,0 +1,5 @@
+title an implicit root is injected
+
+tree base
+  2-100: etc/
+    3-100: passwd = v1

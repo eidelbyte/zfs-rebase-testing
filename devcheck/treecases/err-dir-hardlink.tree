@@ -1,0 +1,6 @@
+title directories cannot be hard-linked
+
+tree base
+  1-1: /
+    2-100: one/
+    2-100: two/
