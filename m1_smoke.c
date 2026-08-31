@@ -258,7 +258,7 @@ main(void)
 		 * ran and found nothing rather than a stale build.
 		 */
 		check_line("the engine under test is the one built",
-		    "rebase: engine rev", "engine rev 4");
+		    "rebase: engine rev", "engine rev 5");
 		check_line("a new link attaches, it does not succeed",
 		    "rebase: succession",
 		    "antecedents 0 0, attachments 0 1, moved-both 0, "
@@ -304,6 +304,20 @@ main(void)
 		check_line("an attachment keeps the hardlink in one pool",
 		    "rebase: pass2",
 		    "pools 5, links 1 (L1 0, L2 0, L3 1), exclusions 0, "
+		    "conflicts 0");
+		/*
+		 * Content.  Three pools short-circuit on agreement:
+		 * the two sides hold identical bytes for the root,
+		 * the hardlinked file and subdir.  Two need the
+		 * three-way -- onto's new file, which only one side
+		 * has, and the file off-of edited, where base still
+		 * matches onto so off-of's edit is the change and
+		 * wins.  Nothing conflicts, and every pool lands on an
+		 * onto dnode, so nothing has to be materialized.
+		 */
+		check_line("agreement short-circuits, the edit wins its "
+		    "three-way", "rebase: pass3",
+		    "rules 3/0/2, onto-dnode 5, materialized 0, "
 		    "conflicts 0");
 	}
 
