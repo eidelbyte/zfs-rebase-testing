@@ -67,6 +67,30 @@ SRCS	= rebase_test_main.c \
 M1_PROG	= m1_smoke
 M1_SRCS	= m1_smoke.c rt_harness.c rt_scaffold.c rt_zpl.c
 
+# The .tree fixture suite: for each file under trees/, build its three
+# trees on a real pool, run the engine, and check the result against
+# the gold the fixture carries.  Shares the harness runtime with the
+# smoke and nothing else -- the smoke tracks the engine's milestones,
+# this tracks the corpus.
+#
+#   make tree_suite && sudo ./tree_suite
+#   sudo ./tree_suite trees/open-problems/5-rename-rename.tree
+#
+# Define RT_HAVE_DECIDE_ACCESSOR once libzpool exports a way to read
+# the decision record back; until then the suite runs its weaker
+# census tier and labels every line CENSUS.  See rt_tree_suite.h.
+#
+#   make tree_suite CPPFLAGS+=-DRT_HAVE_DECIDE_ACCESSOR
+TREE_PROG = tree_suite
+TREE_SRCS = tree_suite.c \
+	  rt_tree_parse.c \
+	  rt_tree_build.c \
+	  rt_tree_check.c \
+	  rt_decision.c \
+	  rt_harness.c \
+	  rt_scaffold.c \
+	  rt_zpl.c
+
 .PHONY: all clean
 
 # --- Mode detection ---
@@ -106,8 +130,13 @@ $(M1_OBJS): rebase_test.h
 $(M1_PROG): $(M1_OBJS)
 	$(LINK) $(CFLAGS) -o $@ $(M1_OBJS) $(LIBS)
 
+TREE_OBJS = $(TREE_SRCS:.c=.lo)
+$(TREE_OBJS): rebase_test.h rt_tree.h rt_tree_check.h rt_tree_suite.h
+$(TREE_PROG): $(TREE_OBJS)
+	$(LINK) $(CFLAGS) -o $@ $(TREE_OBJS) $(LIBS)
+
 clean:
-	rm -rf $(PROG) $(M1_PROG) *.o *.lo .libs
+	rm -rf $(PROG) $(M1_PROG) $(TREE_PROG) *.o *.lo .libs
 
 .else
 
@@ -130,7 +159,11 @@ $(PROG): $(SRCS) rebase_test.h
 $(M1_PROG): $(M1_SRCS) rebase_test.h
 	$(CC) $(CFLAGS) $(CPPFLAGS) -o $@ $(M1_SRCS) $(LIBS)
 
+$(TREE_PROG): $(TREE_SRCS) rebase_test.h rt_tree.h rt_tree_check.h \
+	    rt_tree_suite.h
+	$(CC) $(CFLAGS) $(CPPFLAGS) -o $@ $(TREE_SRCS) $(LIBS)
+
 clean:
-	rm -f $(PROG) $(M1_PROG) *.o
+	rm -f $(PROG) $(M1_PROG) $(TREE_PROG) *.o
 
 .endif
