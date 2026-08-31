@@ -1,0 +1,30 @@
+title the position words both parsers refuse
+
+# Both parsers refuse these names, in the same words, and this file
+# is in the cross-parser diff so that stays true. It used to be a
+# real divergence -- the reference accepted them as aliases -- and
+# then a wording difference; it is neither now.
+#
+# They are refused because they carry NO DIRECTION, not because they
+# carry the wrong one. It is tempting to record that the old aliases
+# were backwards, and that is the version to avoid: two people who
+# had both read this project closely turned out to hold opposite
+# mappings, and each found the same fixture plausible under their own
+# reading. There was never a correct direction to preserve.
+#
+# That is how a mirrored fixture survives review. The reader supplies
+# the mapping, so the document agrees with whoever is reading it --
+# not merely plausible to a wrong reader, but affirmatively
+# confirming. Hence delete the words rather than reverse them; the
+# roles are onto and off-of, and positions cannot name them.
+#
+# The advice to write onto or offof belongs ONLY to these two names.
+# A merely unknown name gets the generic message, or the advice
+# becomes noise attached to every typo -- see err-unknown-tree.tree,
+# which pins that and is diffed alongside this.
+
+tree left
+  1-1: /
+
+tree right
+  1-1: /

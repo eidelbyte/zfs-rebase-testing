@@ -231,14 +231,21 @@ to reverse them -- reversing them would just relocate the ambiguity.
 
 This is exactly how a mirrored fixture survives review: the reader
 supplies the mapping, so the document agrees with whoever is reading
-it. A loader that silently mirrors a fixture is the worst failure a
-loader can have, because every result stays plausible.
+it. That is worse than "it still looks plausible" -- the fixture is
+not merely plausible to a reader holding the wrong mapping, it is
+affirmatively confirming to them. A loader that silently mirrors a
+fixture is the worst failure a loader can have.
 
-Both parsers refuse those names now. The C parser says the name does
-not identify a side; the reference just calls it unknown. That
-wording is the only divergence left between the two, and
-`treecheck.sh` asserts both refusals so it stays a wording difference
-rather than becoming a real one again.
+Both parsers refuse those names now, **in the same words**, and
+`err-alias.tree` is in the cross-parser diff so it stays that way.
+There is no exempt set: that exemption existed for exactly this case,
+and it went away by the two sides agreeing rather than by the check
+being relaxed.
+
+The advice to write `onto` or `offof` belongs only to those two
+names. A merely unknown tree name gets the generic message, or the
+advice becomes noise attached to every typo --
+`err-unknown-tree.tree` pins that, and is diffed alongside.
 
 Worth knowing: the older `zfs-rebase-theory/examples/*.tree` corpus
 that `lpgraph.py` reads **is** written in left/base/right. That tool
@@ -256,11 +263,12 @@ Most of this suite is testable without a box, and is tested there.
 
 `treecheck.sh` does four things. It verifies the corpus has not
 drifted from the demo's copy (`trees/MANIFEST`). It builds the C
-parser and dumps all 23 fixtures -- the 11 real ones plus 12
+parser and dumps all 24 fixtures -- the 11 real ones plus 13
 deliberately broken ones under `devcheck/treecases/` -- into a
 canonical form. It runs the reference parser over the same files and
 **diffs the two**, so "the two implementations agree" is a checked
-claim rather than an intention, error messages included. And it runs
+claim rather than an intention, error messages included. Nothing is
+exempt from that diff. And it runs
 `checkcheck`, which builds decision views by hand and requires the
 gold checker to complain at each of them: wrong content, split
 pooling, merged identities, an unlisted survivor, a lost name, a
