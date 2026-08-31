@@ -672,6 +672,179 @@ out:
 
 /*
  * ------------------------------------------------------------------
+ * Reading it back
+ * ------------------------------------------------------------------
+ *
+ * The engine's walk census can say a tree holds five pools and six
+ * names, and a fixture can predict those numbers -- but a census is a
+ * SUMMARY.  Two materially different trees satisfy "base 4 onto 5
+ * off-of 4, distinct names 6": which name sits on which dnode, which
+ * pool is the hard-linked one, which side holds the extra name.  A
+ * green count means the shape is plausible, not that the fixture is
+ * right.
+ *
+ * So the materializer checks its own work directly instead of
+ * inferring it.  Every name is resolved from the root and compared
+ * against what the fixture said:
+ *
+ *   - the name exists at all;
+ *   - names sharing one fixture key resolve to ONE object, which is
+ *     the hard-link property no count can see;
+ *   - names with different keys resolve to DIFFERENT objects, which
+ *     is the same property from the other side;
+ *   - a pool is a directory or a file as declared;
+ *   - a file holds exactly the token's bytes.
+ *
+ * What it cannot see is an EXTRA entry nobody asked for, because the
+ * harness has no directory enumerator.  The census covers that from
+ * the other direction: a stray name raises the distinct-name and
+ * held counts.  Between the two, a wrong fixture has nowhere quiet
+ * to sit.
+ */
+
+static int
+resolve_path(objset_t *os, uint64_t root, const char *path, uint64_t *objp)
+{
+	char buf[1024];
+	uint64_t cur = root;
+	char *p;
+	int err;
+
+	if (strcmp(path, "/") == 0) {
+		*objp = root;
+		return (0);
+	}
+	if (strlen(path) + 1 > sizeof (buf))
+		return (ENAMETOOLONG);
+	(void) snprintf(buf, sizeof (buf), "%s", path + 1);
+
+	for (p = buf; p != NULL && *p != '\0'; ) {
+		char *slash = strchr(p, '/');
+
+		if (slash != NULL)
+			*slash = '\0';
+		err = rt_dir_lookup(os, cur, p, &cur);
+		if (err != 0)
+			return (err);
+		p = slash != NULL ? slash + 1 : NULL;
+	}
+	*objp = cur;
+	return (0);
+}
+
+typedef struct seenobj {
+	char		so_key[RT_KEYLEN];
+	uint64_t	so_obj;
+} seenobj_t;
+
+static int
+verify_side(const char *dsname, const rt_tree_t *tree, char *errbuf,
+    size_t errlen)
+{
+	rt_ds_t d;
+	pathref_t *refs = NULL;
+	seenobj_t *seen = NULL;
+	int nrefs = 0, nseen = 0;
+	int i, j;
+	int err;
+
+	err = rt_open(dsname, &d);
+	if (err != 0) {
+		(void) snprintf(errbuf, errlen, "cannot reopen %s", dsname);
+		return (err);
+	}
+	refs = tree_paths(tree, &nrefs);
+
+	for (i = 0; i < nrefs; i++) {
+		const rt_tree_pool_t *pool = refs[i].pr_pool;
+		const char *path = refs[i].pr_path;
+		uint64_t obj, mode;
+		int isdir;
+
+		err = resolve_path(d.rtd_os, d.rtd_root, path, &obj);
+		if (err != 0)
+			BUILD_ERR(EIO, "%s: %s was not built", dsname, path);
+
+		/* One key, one dnode -- and one dnode, one key. */
+		for (j = 0; j < nseen; j++) {
+			if (strcmp(seen[j].so_key, pool->rtp_key) == 0) {
+				if (seen[j].so_obj != obj) {
+					BUILD_ERR(EIO, "%s: %s should share "
+					    "a dnode with the rest of %s and "
+					    "does not", dsname, path,
+					    pool->rtp_key);
+				}
+				break;
+			}
+			if (seen[j].so_obj == obj) {
+				BUILD_ERR(EIO, "%s: %s (%s) landed on the "
+				    "same dnode as %s, which is a different "
+				    "pool", dsname, path, pool->rtp_key,
+				    seen[j].so_key);
+			}
+		}
+		if (j == nseen) {
+			seenobj_t *slot;
+
+			seen = rt_xrealloc(seen,
+			    (size_t)(nseen + 1) * sizeof (seenobj_t));
+			slot = &seen[nseen++];
+			(void) snprintf(slot->so_key, sizeof (slot->so_key),
+			    "%s", pool->rtp_key);
+			slot->so_obj = obj;
+		}
+
+		err = rt_get_sa_u64(d.rtd_os, obj, ZPL_MODE, &mode);
+		if (err != 0)
+			BUILD_ERR(EIO, "%s: %s has no mode", dsname, path);
+		isdir = S_ISDIR((mode_t)mode) ? 1 : 0;
+		if (isdir != pool->rtp_isdir) {
+			BUILD_ERR(EIO, "%s: %s was built as a %s, the "
+			    "fixture says %s", dsname, path,
+			    isdir ? "directory" : "file",
+			    pool->rtp_isdir ? "directory" : "file");
+		}
+
+		if (!isdir) {
+			uint64_t size;
+			size_t want = strlen(pool->rtp_token);
+			char got[512];
+
+			err = rt_get_sa_u64(d.rtd_os, obj, ZPL_SIZE, &size);
+			if (err != 0)
+				BUILD_ERR(EIO, "%s: %s has no size", dsname,
+				    path);
+			if (size != (uint64_t)want) {
+				BUILD_ERR(EIO, "%s: %s holds %llu byte(s), "
+				    "the fixture says %llu", dsname, path,
+				    (unsigned long long)size,
+				    (unsigned long long)want);
+			}
+			if (want > 0 && want < sizeof (got)) {
+				err = rt_read_data(d.rtd_os, obj, 0,
+				    (uint64_t)want, got);
+				if (err != 0)
+					BUILD_ERR(EIO, "%s: %s cannot be "
+					    "read", dsname, path);
+				if (memcmp(got, pool->rtp_token, want) != 0) {
+					BUILD_ERR(EIO, "%s: %s does not hold "
+					    "'%s'", dsname, path,
+					    pool->rtp_token);
+				}
+			}
+		}
+	}
+
+	err = 0;
+out:
+	rt_close(&d);
+	free(refs);
+	free(seen);
+	return (err);
+}
+
+/*
+ * ------------------------------------------------------------------
  * Entry point
  * ------------------------------------------------------------------
  */
@@ -756,6 +929,26 @@ rt_tree_materialize(const rt_spec_t *sp, char *errbuf, size_t errlen)
 	}
 
 	rt_sync_pool();
+
+	/*
+	 * Check the work before handing it to the engine.  A fixture
+	 * built wrong makes every later complaint downstream noise,
+	 * and this is the only check that reads what was actually
+	 * written rather than inferring it from a summary.
+	 */
+	err = verify_side(RT_DS_SRC, &sp->rts_trees[RT_TREE_BASE], errbuf,
+	    errlen);
+	if (err == 0) {
+		err = verify_side(RT_DS_ONTO, &sp->rts_trees[RT_TREE_ONTO],
+		    errbuf, errlen);
+	}
+	if (err == 0) {
+		err = verify_side(RT_DS_OFFOF, &sp->rts_trees[RT_TREE_OFFOF],
+		    errbuf, errlen);
+	}
+	if (err != 0)
+		goto out;
+
 	err = 0;
 out:
 	live_free(&base_lv);

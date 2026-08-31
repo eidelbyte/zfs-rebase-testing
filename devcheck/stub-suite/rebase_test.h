@@ -25,6 +25,7 @@
 #include <string.h>
 #include <errno.h>
 #include <stdint.h>
+#include <sys/stat.h>
 
 /* The real contract, through the fake sys/ tree. */
 #include <sys/dsl_rebase.h>
@@ -73,5 +74,8 @@ int rt_rename_file(objset_t *os, uint64_t src_dir, const char *old_name,
 int rt_set_sa_u64(objset_t *os, uint64_t obj, int zpl_attr, uint64_t value);
 int rt_read_data(objset_t *os, uint64_t obj, uint64_t off, uint64_t len,
     void *buf);
+int rt_dir_lookup(objset_t *os, uint64_t dir_obj, const char *name,
+    uint64_t *objp);
+int rt_get_sa_u64(objset_t *os, uint64_t obj, int zpl_attr, uint64_t *valp);
 
 #endif	/* _REBASE_TEST_H */

@@ -108,6 +108,37 @@ arrangement for that region instead. Comparing those two numbers
 would be comparing different things, and would fail on a correct
 engine.
 
+### The input tier, and what it cannot see
+
+Two of the checks that run today do not involve gold at all. The
+engine's walk census reports each tree's pool count, the distinct-name
+count and each tree's held-name count, and a fixture predicts every
+one of those about itself. That tier runs on **every** fixture,
+conflicted ones included, and it tests the **materializer** rather
+than the engine. It runs first, because a fixture built wrong makes
+every later complaint downstream noise.
+
+It is necessary and not sufficient, and that distinction is worth
+holding. A census is a summary: "base 4 onto 5 off-of 4, distinct
+names 6" is satisfied by trees that differ in which name sits on
+which dnode, which pool is the hard-linked one, and which side holds
+the extra name. Green counts mean the shape is plausible, not that
+the fixture is right.
+
+So the materializer also **reads its own work back** rather than
+inferring it. Every name is resolved from the root and compared:
+that it exists, that names sharing a fixture key resolve to one
+object and names with different keys do not, that a pool is the
+declared type, and that a file holds exactly the token's bytes. That
+is the arrangement the counts cannot see -- the hard-link property
+above all.
+
+The one thing neither check sees is an *extra* entry nobody asked
+for, because the harness has no directory enumerator. The census
+covers it from the other side: a stray name raises the distinct-name
+and held counts. Between the two, a wrong fixture has nowhere quiet
+to sit.
+
 ## The contract this needs
 
 The manifest is the only external view of a decision, which makes
