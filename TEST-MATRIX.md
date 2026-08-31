@@ -883,3 +883,235 @@ the AP6/AE17 rewrites; AE22's revisit.
 | AS23 | pool member inside a directory right deleted | pass two runs children before parents ACROSS emission loops: the member's unlink precedes the directory's | deferred to a follow-up fixture: the ordered pass covers it by construction, but no test yet builds a pool inside a deleted dir; unblocking work: a small fixture in the next apply pass |
 | AS24 | rename chain (mv B to C, then A to B) | -- | deferred: pass-one LINKs collide with names pass two has not vacated; loud EEXIST plus rollback, never corruption; unblocking work: dependency-ordered structural application with temp-name cycle breaking |
 | AS25 | name swap (A and B exchange names) | -- | deferred: same class as AS24 (a two-cycle) |
+
+---
+
+# V: the revision-3 decide engine
+
+Plotted 2026-08-31, before its tests, per the rule above. This
+matrix covers the v3 engine (branch zfs-rebase), which replaces the
+two-axis model entirely: every earlier family in this document
+describes revision 2 and none of its cells transfer.
+
+## Observation mechanism
+
+Two, in sequence. TODAY the engine emits one byte-stable debug line
+per pass -- walk, name table, content, faces, pairing, components,
+succession, lineage, pass1, pass2, pass3 -- carrying that pass's
+census, and m1_smoke asserts them through rt_dbgmsg_last(). Counts
+are all a census can prove, so a cell whose claim is about WHICH
+names, WHICH certificate, or WHICH chain cannot be honestly closed
+by one; those rows say so and name the accessor as their unblocking
+work.
+
+LATER the decision-record accessor (issue decision-accessor) hands
+the harness the walkable rebase_decision_t, and the rows marked
+"needs accessor" flip from census counts to structural assertions.
+
+The engine also stamps "rebase: engine rev N" first. Every row here
+assumes that line matched: a stale build is not a test result.
+
+## Fixtures
+
+Cells are reached by .tree documents (issue
+tree-parser-materializer), the same syntax the reference
+implementation's 40 vectors and 11 example documents use, so a cell
+and its reference vector are the same scenario. The fixture files
+stay byte-identical; the materializer maps their idx-txg keys onto
+whatever object numbers dmu_object_alloc hands out, because a key
+shared between base and a side means "the same dnode", which
+cloning already provides, and a key on one side alone means a fresh
+one.
+
+Until that lands, the only fixture is m1_smoke's hand-built pair
+(base, plus a hardlink and an edit on off-of and a new file on
+onto), which reaches no conflict of any kind. That is why so many
+rows below are planned rather than covered: the engine has been
+exercised only on agreement.
+
+## VM -- model: walk, name table, content classes
+
+| cell | scenario | disposition |
+|------|----------|-------------|
+| VM1 | single-name file | covered (m1_smoke census) |
+| VM2 | multi-name pool (hardlink): names > pools | covered (m1_smoke, off-of 5 names / 4 pools) |
+| VM3 | directory pool, always descended | covered (m1_smoke) |
+| VM4 | nested directories | covered (m1_smoke, subdir/inner) |
+| VM5 | empty directory | planned |
+| VM6 | symlink and device nodes as file-type pools | planned |
+| VM7 | name held in 1 / 2 / 3 trees (holder asymmetry) | covered (m1_smoke, held 4/5/5) |
+| VM8 | ZPL_LINKS disagrees with names found -> EIO | planned (rt_set_nlink) |
+| VM9 | path exceeding MAXPATHLEN -> ENAMETOOLONG | planned |
+| VM10 | directory loop in corrupt state terminates | deferred: needs a crafted dirent cycle; rt_add_dangling_entry is the nearest helper and does not close a loop |
+| VM11 | content class inherited via fork txg (no reads) | covered indirectly (census "unchanged in onto 4") |
+| VM12 | content resolved pairwise: edited file differs | covered (m1_smoke, off-of 3) |
+| VM13 | ZPL_LINKS change is NOT a content change | covered (m1_smoke: hardlinked file stays unchanged) |
+| VM14 | directory entry-count change is NOT a content change | covered (m1_smoke: root stays unchanged) |
+| VM15 | spilled SA differs, block pointers otherwise equal | planned: needs an SA large enough to spill (rt_set_sa_blob) |
+| VM16 | xattr differs, SA identity equal | planned (rt_set_dxattr, rt_add_xattr_dir_entry) |
+| VM17 | same logical xattrs in different physical forms | planned (SA-resident vs directory) |
+| VM18 | recycled object number: same idx, different GEN | planned |
+
+## VF -- faces: green, red, derived red
+
+| cell | scenario | disposition |
+|------|----------|-------------|
+| VF1 | no shared names: no edge | covered (m1_smoke: onto's new file has none) |
+| VF2 | all names shared, full at both ends | covered (full 4 on base-onto) |
+| VF3 | partial share: full at one end only | covered (full 3 on base-offof and the cut) |
+| VF4 | partial at both ends (a split against a split) | planned |
+| VF5 | one pool green to two pools (a split) | planned |
+| VF6 | cross-type green edge exists | planned |
+| VF7 | red on same idx with same GEN | covered (red 4 4) |
+| VF8 | red refused for differing GEN | planned (VM18's fixture) |
+| VF9 | derived red where both base faces matched | covered (derived 4) |
+| VF10 | derived red absent where only one base face matched | planned |
+| VF11 | raw cross-side identity is NEVER consulted | planned: clone-lockstep fixture where onto and off-of allocate the same fresh idx; must NOT pair |
+
+## VP -- pairing
+
+| cell | scenario | disposition |
+|------|----------|-------------|
+| VP1 | red and K2 nominate the same pool | covered (paired 4 4 4) |
+| VP2 | red only (no green at all) | planned |
+| VP3 | K2 only (no red: a fresh dnode holding a base name) | planned |
+| VP4 | red and K2 disagree -> two candidates -> unpaired | planned |
+| VP5 | K2 destroyed by a cross-type rival raising the degree | planned (VF6's fixture) |
+| VP6 | red nominee refused by the type filter | planned |
+| VP7 | green degree > 1 at the far end kills K2 | planned (VF5's fixture) |
+| VP8 | nomination symmetry holds (debug ASSERT) | covered (assert did not fire on any run) |
+
+## VC -- components
+
+| cell | scenario | disposition |
+|------|----------|-------------|
+| VC1 | isolated pool, no edges | covered (m1_smoke: onto's new file alone) |
+| VC2 | joined by green | covered |
+| VC3 | joined by base-face red | planned: needs a pool with red but no shared name (a rename) |
+| VC4 | joined transitively through a third pool | planned |
+| VC5 | derived red does NOT join on its own | planned: the cut-only pair of VF10 |
+| VC6 | component ids follow first-name order | needs accessor |
+
+## VS -- succession, substitution, the one-move rule
+
+| cell | scenario | disposition |
+|------|----------|-------------|
+| VS1 | 0 lost, 1 gained -> attachment | covered (m1_smoke, attachments 0 1) |
+| VS2 | 1 lost 1 gained, lost name gone from the tree -> antecedent | planned |
+| VS3 | 1 lost 1 gained, but the lost name lives elsewhere -> attachment (the absence condition) | planned |
+| VS4 | 2 lost 2 gained -> ambiguous, both attachments (open problem 6) | planned |
+| VS5 | name moved on one face only -> no conflict | planned |
+| VS6 | moved on both faces, side pools carry identical name sets -> reconciles | planned |
+| VS7 | moved on both faces, different sets -> NAME CONFLICT | planned: the settled rename/rename rule; reference vector V9 |
+| VS8 | both sides rename to the same new name -> clean | planned: reference vector V9b |
+| VS9 | double rename of DIFFERENT links -> clean, one pool | planned: reference vector V8 |
+| VS10 | one name moved twice, asymmetric gain sets | planned: reference vector V9c; certificate must carry the whole gained set |
+| VS11 | identical ambiguous double rename -> clean | planned: reference vector V9d |
+| VS12 | certificate never resolves an ambiguous gain set | needs accessor |
+
+## VL -- pass 0, lineage fates and Rule 7.2
+
+| cell | scenario | disposition |
+|------|----------|-------------|
+| VL1 | continued-unchanged | covered (onto 4/0/0/0/0) |
+| VL2 | continued-changed by name set | covered (off-of: hardlinked pool) |
+| VL3 | continued-changed by content | covered (off-of: edited pool) |
+| VL4 | dead: no name held, no candidate | planned |
+| VL5 | contested: unpaired but a nominee exists | planned |
+| VL6 | disturbed: unpaired, no nominee, some name held | planned |
+| VL7 | deadness read THROUGH substitution (delete-then-recycle) | planned: reference vector V19 |
+| VL8 | Rule 7.2 proceeds: unchanged against anything | covered (conflicts 0) |
+| VL9 | Rule 7.2 proceeds: both dead | planned: reference vector V18 |
+| VL10 | Rule 7.2 conflicts: dead against changed (modify/delete) | planned |
+| VL11 | Rule 7.2 conflicts: contested against changed | planned: reference vector V7 |
+
+## VN -- pass 1, the name cells
+
+| cell | scenario | disposition |
+|------|----------|-------------|
+| VN1 | row 1: home in both -> keep | covered (rows 4/1/1/0/0) |
+| VN2 | row 2: home in onto only -> adopt | covered (off-of's new link) |
+| VN3 | row 3: home in off-of only -> keep | covered (onto's new file) |
+| VN4 | row 4: home in neither, holders related on the cut -> keep | planned |
+| VN5 | row 5: home in neither, unrelated -> name conflict, death | planned |
+| VN6 | home via pairing | covered |
+| VN7 | home via clean fragment (a split, nothing moved) | planned: reference vector V1 |
+| VN8 | two-absences: absent from both is home | covered (onto's file is absent from base and off-of) |
+| VN9 | one-absence is not home | covered |
+| VN10 | a name deleted by one side dies | planned |
+
+## VO -- pass 2, pooling
+
+| cell | scenario | disposition |
+|------|----------|-------------|
+| VO1 | L1: base co-pooling survives unsevered | planned |
+| VO2 | L2: a side merges two base pools | planned |
+| VO3 | L3: an attachment joins its pool | covered (links 1, L3 1) |
+| VO4 | exclusion: a side severs a base co-pooling | planned: reference vector V1 |
+| VO5 | exclusion NOT rejoined -> the split stands | planned |
+| VO6 | exclusion rejoined by the closure -> pooling conflict | planned: merge versus split |
+| VO7 | ordering: a pair excluded early, rejoined by a LATER link | planned; this is the cell the assert-then-check order exists for |
+| VO8 | the chain certificate's contents | needs accessor |
+| VO9 | both sides sever the same pair | planned |
+
+## VT -- pass 3, content
+
+| cell | scenario | disposition |
+|------|----------|-------------|
+| VT1 | rule 1: agreement short-circuit | covered (rules 3/0/2) |
+| VT2 | rule 3: only onto holds it | covered (onto's new file) |
+| VT3 | rule 3: only off-of changed -> off-of wins | covered (the edited file) |
+| VT4 | rule 3: only onto changed -> onto wins | planned |
+| VT5 | rule 3: both changed differently -> content conflict | planned |
+| VT6 | rule 3: parallel creation, no base, different content | planned |
+| VT7 | rule 2: multi-parent | DEFERRED: the rule is stubbed to conflict conservatively. Unblocking work is this cell's fixture; the rule lands with it |
+| VT8 | duplication guard: an edited pool taken into two output pools | planned: reference vector V11 |
+| VT9 | guard stands down when the take was by agreement | planned |
+| VT10 | realization: one onto dnode per output pool | covered (onto-dnode 5, materialized 0) |
+| VT11 | realization: a second pool must materialize | planned: a split, where two output pools want one onto dnode |
+| VT12 | type taken wholesale with the content | planned (a type flip) |
+
+## VA -- pass 4, ancestry
+
+| cell | scenario | disposition |
+|------|----------|-------------|
+| VA1 | survivor whose parent did not survive (the razed building) | planned: reference vector V13 |
+| VA2 | survivor whose parent is decided to be a file | planned |
+| VA3 | a directory pool decided to hold two names | planned: reference vector's directory-at-two-paths story |
+| VA4 | no structural conflict where the tree stays valid | planned (the current fixture, once the pass exists) |
+
+## VQ -- quarantine
+
+| cell | scenario | disposition |
+|------|----------|-------------|
+| VQ1 | a component with its own conflict | planned |
+| VQ2 | dragged in by a quarantined parent | planned |
+| VQ3 | dragged in as the child of a dying directory name | planned |
+| VQ4 | transitive drag (depth > 1) | planned |
+| VQ5 | children enumerated over the UNION of the three trees | planned; side-neutrality depends on it |
+| VQ6 | nothing quarantined when nothing conflicts | planned (the current fixture) |
+
+## VI -- invariants
+
+| cell | scenario | disposition |
+|------|----------|-------------|
+| VI1 | polarity: the same document decided with the sides exchanged | planned: needs two decision records live at once, which is why nothing lives in globals |
+| VI2 | no report or certificate says left or right | planned: a build-time lint over the message tables |
+| VI3 | the decision does not depend on which fragment holds the dnode | planned: reference vectors V2a-V2d, V11a-V11b, V14a-V14b, V15a-V15b |
+
+## Positive-proof cells
+
+One per family, the cell that proves the mechanism ran at all
+rather than that it was silent -- the vacuous-fixture lesson:
+
+  VM2   names outnumber pools, so pools are per dnode
+  VF3   fullness differs per end, so shares are counted per edge
+  VP1   a pairing exists at all
+  VC1   an isolated pool is its own component, so joining is selective
+  VS1   an attachment is recorded, so gains are classified
+  VL2   a fate changes, so fates are computed
+  VN2   an adopt happens, so the rows are not all keeps
+  VO3   a link is asserted, so clauses fire
+  VT1   rules split 3/0/2, so the short-circuit is detected
+  VA4   pass 4 runs and finds nothing (once it exists)
+  VQ6   quarantine runs and holds nothing back (once it exists)
