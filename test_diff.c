@@ -132,7 +132,7 @@ test_diff_edit(void)
 	TEST_START("D2: in-place edit, one record");
 	RT_CHECK(rt_scaffold_basic(), "scaffold failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_dir_lookup(d.rtd_os, d.rtd_root, "hello", &obj);
 	if (err == 0)
 		err = rt_edit_file(d.rtd_os, obj, "WORLD\n", 6);
@@ -157,7 +157,7 @@ test_diff_hysterical_zero(void)
 	TEST_START("D3: hysterical edit, zero records");
 	RT_CHECK(rt_scaffold_basic(), "scaffold failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_hysterical_edit(d.rtd_os, d.rtd_root, "hello",
 	    "world\n", 6, NULL);
 	rt_close(&d);
@@ -180,7 +180,7 @@ test_diff_add(void)
 	TEST_START("D4: standalone add, one record");
 	RT_CHECK(rt_scaffold_basic(), "scaffold failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_create_file(d.rtd_os, d.rtd_root, "newfile",
 	    "n\n", 2, NULL);
 	rt_close(&d);
@@ -203,7 +203,7 @@ test_diff_delete(void)
 	TEST_START("D5: standalone delete, one record");
 	RT_CHECK(rt_scaffold_basic(), "scaffold failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_remove_entry(d.rtd_os, d.rtd_root, "hello");
 	rt_close(&d);
 	RT_CHECK(err, "remove");
@@ -230,7 +230,7 @@ test_diff_rename_collapses(void)
 	TEST_START("D6: rename collapses to one MOVE");
 	RT_CHECK(rt_scaffold_basic(), "scaffold failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_rename_file(d.rtd_os, d.rtd_root, "hello",
 	    d.rtd_root, "hello2");
 	rt_close(&d);
@@ -254,7 +254,7 @@ test_diff_recreate_one_record(void)
 	TEST_START("D7: recreate with new content = one EDIT");
 	RT_CHECK(rt_scaffold_basic(), "scaffold failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_hysterical_edit(d.rtd_os, d.rtd_root, "hello",
 	    "different!\n", 11, NULL);
 	rt_close(&d);
@@ -287,7 +287,7 @@ test_diff_dir_chmod(void)
 	RT_CHECK(err, "populate src");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_dir_lookup(d.rtd_os, d.rtd_root, "d", &dobj);
 	if (err == 0)
 		err = rt_set_sa_u64(d.rtd_os, dobj, ZPL_MODE,
@@ -324,7 +324,7 @@ test_diff_dir_entries(void)
 	RT_CHECK(err, "populate src");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_dir_lookup(d.rtd_os, d.rtd_root, "d", &dobj);
 	if (err == 0)
 		err = rt_create_file(d.rtd_os, dobj, "f2", "y", 1,
@@ -367,7 +367,7 @@ test_diff_sever_identical(void)
 	RT_CHECK(err, "populate src");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_remove_entry(d.rtd_os, d.rtd_root, "B");
 	if (err == 0)
 		err = rt_create_file(d.rtd_os, d.rtd_root, "B",
@@ -402,7 +402,7 @@ test_diff_join(void)
 	RT_CHECK(err, "populate src");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_dir_lookup(d.rtd_os, d.rtd_root, "F", &obj);
 	if (err == 0)
 		err = rt_add_hardlink(d.rtd_os, d.rtd_root, "F2",
@@ -442,7 +442,7 @@ test_diff_unlink_survivors(void)
 	RT_CHECK(err, "populate src");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_remove_entry(d.rtd_os, d.rtd_root, "C");
 	rt_close(&d);
 	RT_CHECK(err, "unlink C");
@@ -475,7 +475,7 @@ test_diff_dissolve(void)
 	RT_CHECK(err, "populate src");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_remove_entry(d.rtd_os, d.rtd_root, "A");
 	if (err == 0)
 		err = rt_remove_entry(d.rtd_os, d.rtd_root, "B");
@@ -526,7 +526,7 @@ diff_relink_fixture(const char *p1_data, const char *p2_data,
 	if (err != 0)
 		return (err);
 
-	err = rt_open(RT_DS_LEFT, &d);
+	err = rt_open(RT_DS_OFFOF, &d);
 	if (err != 0)
 		return (err);
 	err = rt_dir_lookup(d.rtd_os, d.rtd_root, "C", &o2);
@@ -578,7 +578,7 @@ test_diff_recycled_pool(void)
 	RT_CHECK(err, "populate src");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_dir_lookup(d.rtd_os, d.rtd_root, "A", &obj);
 	if (err == 0)
 		err = rt_set_sa_u64(d.rtd_os, obj, ZPL_GEN, 777777);
@@ -620,7 +620,7 @@ test_diff_right_side(void)
 	TEST_START("D17: right-side edit, right record only");
 	RT_CHECK(rt_scaffold_basic(), "scaffold failed");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_dir_lookup(d.rtd_os, d.rtd_root, "hello", &obj);
 	if (err == 0)
 		err = rt_edit_file(d.rtd_os, obj, "WORLD\n", 6);
@@ -646,14 +646,14 @@ test_diff_both_sides(void)
 	TEST_START("D18: both sides act, one record each");
 	RT_CHECK(rt_scaffold_basic(), "scaffold failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_dir_lookup(d.rtd_os, d.rtd_root, "hello", &obj);
 	if (err == 0)
 		err = rt_edit_file(d.rtd_os, obj, "WORLD\n", 6);
 	rt_close(&d);
 	RT_CHECK(err, "edit left");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_create_file(d.rtd_os, d.rtd_root, "rfile", "r\n", 2,
 	    NULL);
 	rt_close(&d);
@@ -679,7 +679,7 @@ test_diff_added_subtree(void)
 	TEST_START("D19: added subtree with hardlink pair");
 	RT_CHECK(rt_scaffold_basic(), "scaffold failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_create_dir(d.rtd_os, d.rtd_root, "ldir", &dir);
 	if (err == 0)
 		err = rt_create_file(d.rtd_os, dir, "h1", "h\n", 2,

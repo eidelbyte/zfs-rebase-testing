@@ -23,13 +23,13 @@ test_conflict_both_modified(void)
 	TEST_START("conflict: BOTH_MODIFIED");
 	RT_CHECK(rt_scaffold_basic(), "scaffold failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	VERIFY0(rt_dir_lookup(d.rtd_os, d.rtd_root, "hello", &obj));
 	err = rt_edit_file(d.rtd_os, obj, "left-version\n", 13);
 	rt_close(&d);
 	RT_CHECK(err, "edit left");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	VERIFY0(rt_dir_lookup(d.rtd_os, d.rtd_root, "hello", &obj));
 	err = rt_edit_file(d.rtd_os, obj, "right-version\n", 14);
 	rt_close(&d);
@@ -62,13 +62,13 @@ test_conflict_create_create(void)
 	TEST_START("conflict: CREATE_CREATE");
 	RT_CHECK(rt_scaffold_basic(), "scaffold failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_create_file(d.rtd_os, d.rtd_root, "newfile",
 	    "left-content\n", 13, NULL);
 	rt_close(&d);
 	RT_CHECK(err, "create left");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_create_file(d.rtd_os, d.rtd_root, "newfile",
 	    "right-content\n", 14, NULL);
 	rt_close(&d);
@@ -101,13 +101,13 @@ test_conflict_modify_delete(void)
 	TEST_START("conflict: MODIFY_DELETE");
 	RT_CHECK(rt_scaffold_basic(), "scaffold failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	VERIFY0(rt_dir_lookup(d.rtd_os, d.rtd_root, "hello", &obj));
 	err = rt_edit_file(d.rtd_os, obj, "edited-by-left\n", 15);
 	rt_close(&d);
 	RT_CHECK(err, "edit left");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_remove_entry(d.rtd_os, d.rtd_root, "hello");
 	rt_close(&d);
 	RT_CHECK(err, "delete right");
@@ -139,12 +139,12 @@ test_conflict_delete_modify(void)
 	TEST_START("conflict: DELETE_MODIFY");
 	RT_CHECK(rt_scaffold_basic(), "scaffold failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_remove_entry(d.rtd_os, d.rtd_root, "hello");
 	rt_close(&d);
 	RT_CHECK(err, "delete left");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	VERIFY0(rt_dir_lookup(d.rtd_os, d.rtd_root, "hello", &obj));
 	err = rt_edit_file(d.rtd_os, obj, "edited-by-right\n", 16);
 	rt_close(&d);
@@ -179,14 +179,14 @@ test_conflict_dir_delete_vs_edit(void)
 	RT_CHECK(rt_scaffold_basic(), "scaffold failed");
 
 	/* Left deletes subdir/inner and subdir. */
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	VERIFY0(rt_dir_lookup(d.rtd_os, d.rtd_root, "subdir", &subdir));
 	VERIFY0(rt_remove_entry(d.rtd_os, subdir, "inner"));
 	VERIFY0(rt_remove_entry(d.rtd_os, d.rtd_root, "subdir"));
 	rt_close(&d);
 
 	/* Right adds a new file inside subdir. */
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	VERIFY0(rt_dir_lookup(d.rtd_os, d.rtd_root, "subdir", &subdir));
 	err = rt_create_file(d.rtd_os, subdir, "newfile",
 	    "new in subdir\n", 14, NULL);
@@ -221,7 +221,7 @@ test_edge_dir_delete_reverse(void)
 	RT_CHECK(rt_scaffold_basic(), "scaffold failed");
 
 	/* Left adds a new file inside subdir. */
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	VERIFY0(rt_dir_lookup(d.rtd_os, d.rtd_root, "subdir", &subdir));
 	err = rt_create_file(d.rtd_os, subdir, "leftfile",
 	    "from-left\n", 10, NULL);
@@ -229,7 +229,7 @@ test_edge_dir_delete_reverse(void)
 	RT_CHECK(err, "create left");
 
 	/* Right deletes subdir (remove inner first, then subdir). */
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	VERIFY0(rt_dir_lookup(d.rtd_os, d.rtd_root, "subdir", &subdir));
 	VERIFY0(rt_remove_entry(d.rtd_os, subdir, "inner"));
 	VERIFY0(rt_remove_entry(d.rtd_os, d.rtd_root, "subdir"));
@@ -262,13 +262,13 @@ test_edge_file_vs_dir_same_path(void)
 	TEST_START("edge: file vs dir at same path");
 	RT_CHECK(rt_scaffold_basic(), "scaffold failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_create_file(d.rtd_os, d.rtd_root, "foo",
 	    "file content\n", 13, NULL);
 	rt_close(&d);
 	RT_CHECK(err, "create file left");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_create_dir(d.rtd_os, d.rtd_root, "foo", NULL);
 	rt_close(&d);
 	RT_CHECK(err, "create dir right");
@@ -304,7 +304,7 @@ test_edge_multiple_conflicts(void)
 	RT_CHECK(rt_scaffold_basic(), "scaffold failed");
 
 	/* Left: edit hello, add newfile, edit subdir/inner. */
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	VERIFY0(rt_dir_lookup(d.rtd_os, d.rtd_root, "hello", &obj));
 	VERIFY0(rt_edit_file(d.rtd_os, obj, "left\n", 5));
 	VERIFY0(rt_create_file(d.rtd_os, d.rtd_root, "newfile",
@@ -315,7 +315,7 @@ test_edge_multiple_conflicts(void)
 	rt_close(&d);
 
 	/* Right: edit hello, add newfile (diff), delete subdir/inner. */
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	VERIFY0(rt_dir_lookup(d.rtd_os, d.rtd_root, "hello", &obj));
 	VERIFY0(rt_edit_file(d.rtd_os, obj, "right\n", 6));
 	VERIFY0(rt_create_file(d.rtd_os, d.rtd_root, "newfile",
@@ -356,12 +356,12 @@ test_benign_both_delete(void)
 	TEST_START("benign: both DELETE same file");
 	RT_CHECK(rt_scaffold_basic(), "scaffold failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_remove_entry(d.rtd_os, d.rtd_root, "hello");
 	rt_close(&d);
 	RT_CHECK(err, "delete left");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_remove_entry(d.rtd_os, d.rtd_root, "hello");
 	rt_close(&d);
 	RT_CHECK(err, "delete right");
@@ -390,14 +390,14 @@ test_clean_nonoverlapping_adds(void)
 	TEST_START("clean: non-overlapping adds in same dir");
 	RT_CHECK(rt_scaffold_basic(), "scaffold failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	VERIFY0(rt_dir_lookup(d.rtd_os, d.rtd_root, "subdir", &subdir));
 	err = rt_create_file(d.rtd_os, subdir, "left_new",
 	    "from left\n", 10, NULL);
 	rt_close(&d);
 	RT_CHECK(err, "create left");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	VERIFY0(rt_dir_lookup(d.rtd_os, d.rtd_root, "subdir", &subdir));
 	err = rt_create_file(d.rtd_os, subdir, "right_new",
 	    "from right\n", 11, NULL);
@@ -428,7 +428,7 @@ test_clean_left_adds_subtree(void)
 	TEST_START("clean: left adds subtree, right unchanged");
 	RT_CHECK(rt_scaffold_basic(), "scaffold failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	VERIFY0(rt_create_dir(d.rtd_os, d.rtd_root, "newdir", &newdir));
 	err = rt_create_file(d.rtd_os, newdir, "a.txt",
 	    "file a\n", 7, NULL);

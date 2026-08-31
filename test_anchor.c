@@ -235,7 +235,7 @@ test_anchor_edited_pool(void)
 	TEST_START("A2: edited pool anchors via gen");
 	RT_CHECK(ab_scaffold_pool(&obj), "scaffold failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_edit_file(d.rtd_os, obj, "edited!", 7);
 	rt_close(&d);
 	RT_CHECK(err, "edit pool dnode");
@@ -267,7 +267,7 @@ test_anchor_novel_pool(void)
 	RT_CHECK(rt_scaffold_empty_base(), "scaffold failed");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_create_file(d.rtd_os, d.rtd_root, "x", "n", 1,
 	    &obj);
 	if (err == 0)
@@ -306,7 +306,7 @@ test_anchor_recycled_pool(void)
 	TEST_START("A4: recycled index is RECYCLED, not ANCHORED");
 	RT_CHECK(ab_scaffold_pool(&obj), "scaffold failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_set_sa_u64(d.rtd_os, obj, ZPL_GEN, 424242);
 	rt_close(&d);
 	RT_CHECK(err, "flip gen");
@@ -345,7 +345,7 @@ test_anchor_degenerate_standalone(void)
 	RT_CHECK(err, "populate src");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	VERIFY0(rt_dir_lookup(d.rtd_os, d.rtd_root, "f", &obj));
 	err = rt_add_hardlink(d.rtd_os, d.rtd_root, "g", obj);
 	rt_close(&d);
@@ -391,7 +391,7 @@ ab_fragment_fixture(uint64_t *zp)
 	if (err != 0)
 		return (err);
 
-	err = rt_open(RT_DS_LEFT, &d);
+	err = rt_open(RT_DS_OFFOF, &d);
 	if (err != 0)
 		return (err);
 	err = rt_remove_entry(d.rtd_os, d.rtd_root, "b");
@@ -457,7 +457,7 @@ test_anchor_fragment_added_member(void)
 	TEST_START("A7: ADDED member keeps the fragment rescue");
 	RT_CHECK(ab_fragment_fixture(&z), "fixture failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_add_hardlink(d.rtd_os, d.rtd_root, "w", z);
 	rt_close(&d);
 	RT_CHECK(err, "link post-split member");
@@ -507,7 +507,7 @@ test_anchor_two_parents(void)
 	RT_CHECK(err, "populate src");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	VERIFY0(rt_remove_entry(d.rtd_os, d.rtd_root, "b"));
 	VERIFY0(rt_remove_entry(d.rtd_os, d.rtd_root, "c"));
 	VERIFY0(rt_create_file(d.rtd_os, d.rtd_root, "b",
@@ -546,7 +546,7 @@ test_anchor_gen_missing(void)
 	RT_CHECK(err, "populate src");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	VERIFY0(rt_add_hardlink(d.rtd_os, d.rtd_root, "x", obj));
 	VERIFY0(rt_add_hardlink(d.rtd_os, d.rtd_root, "y", obj));
 	VERIFY0(rt_remove_entry(d.rtd_os, d.rtd_root, "f"));
@@ -557,7 +557,7 @@ test_anchor_gen_missing(void)
 	RT_CHECK(err, "remove gen");
 
 	rt_sync_pool();
-	err = dsl_rebase(RT_DS_LEFT, RT_DS_RIGHT, NULL);
+	err = dsl_rebase(RT_DS_OFFOF, RT_DS_ONTO, NULL);
 	rt_scaffold_teardown();
 
 	TEST_EXPECT(err == EIO, "expected EIO");
@@ -596,7 +596,7 @@ test_anchor_link_churn(void)
 	RT_CHECK(err, "populate src");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	VERIFY0(rt_add_hardlink(d.rtd_os, d.rtd_root, "x", obj));
 	VERIFY0(rt_add_hardlink(d.rtd_os, d.rtd_root, "y", obj));
 	err = rt_remove_entry(d.rtd_os, d.rtd_root, "f");
@@ -631,7 +631,7 @@ test_anchor_multi_pool(void)
 	TEST_START("A11: anchored and novel pools tally per side");
 	RT_CHECK(ab_scaffold_pool(&obj), "scaffold failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	VERIFY0(rt_create_file(d.rtd_os, d.rtd_root, "x", "n", 1,
 	    &obj));
 	err = rt_add_hardlink(d.rtd_os, d.rtd_root, "y", obj);
@@ -666,7 +666,7 @@ test_anchor_right_novel(void)
 	RT_CHECK(rt_scaffold_empty_base(), "scaffold failed");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_create_file(d.rtd_os, d.rtd_root, "x", "n", 1,
 	    &obj);
 	if (err == 0)
@@ -716,7 +716,7 @@ test_target_gone_delete(void)
 	RT_CHECK(err, "populate src");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_remove_entry(d.rtd_os, d.rtd_root, "C");
 	rt_close(&d);
 	RT_CHECK(err, "unlink C");
@@ -751,7 +751,7 @@ test_target_gone_move_source(void)
 	TEST_START("T2: member-move old path synthesized GONE");
 	RT_CHECK(ab_scaffold_pool(&obj), "scaffold failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_rename_file(d.rtd_os, d.rtd_root, "f",
 	    d.rtd_root, "f2");
 	rt_close(&d);
@@ -783,7 +783,7 @@ test_target_severed_standalone(void)
 	TEST_START("T3: sever targets STANDALONE for both paths");
 	RT_CHECK(ab_scaffold_pool(NULL), "scaffold failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_hysterical_edit(d.rtd_os, d.rtd_root, "f", "x", 1,
 	    NULL);
 	rt_close(&d);
@@ -835,7 +835,7 @@ test_target_relink_anchor(void)
 	RT_CHECK(err, "populate src");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	VERIFY0(rt_remove_entry(d.rtd_os, d.rtd_root, "b"));
 	err = rt_add_hardlink(d.rtd_os, d.rtd_root, "b", d2);
 	rt_close(&d);
@@ -868,12 +868,12 @@ test_target_both_sides(void)
 	TEST_START("T9: dual-sided row, GONE vs STANDALONE");
 	RT_CHECK(ab_scaffold_pool(NULL), "scaffold failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_remove_entry(d.rtd_os, d.rtd_root, "f");
 	rt_close(&d);
 	RT_CHECK(err, "delete f left");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_hysterical_edit(d.rtd_os, d.rtd_root, "f", "x", 1,
 	    NULL);
 	rt_close(&d);

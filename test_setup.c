@@ -24,10 +24,10 @@ test_setup_right_as_snapshot(void)
 	TEST_START("setup: right given as a snapshot");
 	RT_CHECK(rt_scaffold_basic(), "scaffold failed");
 
-	RT_CHECK(rt_snapshot(RT_DS_RIGHT, "rsnap"), "snapshot right");
+	RT_CHECK(rt_snapshot(RT_DS_ONTO, "rsnap"), "snapshot right");
 
 	rt_sync_pool();
-	err = dsl_rebase(RT_DS_LEFT, RT_DS_RIGHT "@rsnap", NULL);
+	err = dsl_rebase(RT_DS_OFFOF, RT_DS_ONTO "@rsnap", NULL);
 	rt_scaffold_teardown();
 
 	TEST_EXPECT(err == 0, "expected success");
@@ -47,7 +47,7 @@ test_setup_linear_history(void)
 	TEST_START("setup: right snapshot in left chain");
 	RT_CHECK(rt_scaffold_basic(), "scaffold failed");
 
-	err = dsl_rebase(RT_DS_LEFT, RT_DS_SRC "@base", NULL);
+	err = dsl_rebase(RT_DS_OFFOF, RT_DS_SRC "@base", NULL);
 	rt_scaffold_teardown();
 
 	TEST_EXPECT(err == EINVAL, "expected EINVAL (linear history)");
@@ -70,7 +70,7 @@ test_setup_unrelated_datasets(void)
 	    "create stranger");
 
 	rt_sync_pool();
-	err = dsl_rebase(RT_DS_LEFT, POOL_NAME "/stranger", NULL);
+	err = dsl_rebase(RT_DS_OFFOF, POOL_NAME "/stranger", NULL);
 	rt_scaffold_teardown();
 
 	TEST_EXPECT(err == ENOENT, "expected ENOENT (no ancestor)");
@@ -90,11 +90,11 @@ test_setup_leftover_fence_snap(void)
 	TEST_START("setup: leftover %rebase-snap -> EEXIST");
 	RT_CHECK(rt_scaffold_basic(), "scaffold failed");
 
-	RT_CHECK(rt_snapshot(RT_DS_LEFT, "%rebase-snap"),
+	RT_CHECK(rt_snapshot(RT_DS_OFFOF, "%rebase-snap"),
 	    "pre-create fence snap");
 
 	rt_sync_pool();
-	err = dsl_rebase(RT_DS_LEFT, RT_DS_RIGHT, NULL);
+	err = dsl_rebase(RT_DS_OFFOF, RT_DS_ONTO, NULL);
 	rt_scaffold_teardown();
 
 	TEST_EXPECT(err == EEXIST, "expected EEXIST");
@@ -116,14 +116,14 @@ test_setup_props_mismatch(void)
 	TEST_START("setup: casesensitivity mismatch");
 	RT_CHECK(rt_scaffold_basic(), "scaffold failed");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_set_zplprop(d.rtd_os, "casesensitivity",
 	    ZFS_CASE_INSENSITIVE);
 	rt_close(&d);
 	RT_CHECK(err, "set casesensitivity");
 
 	rt_sync_pool();
-	err = dsl_rebase(RT_DS_LEFT, RT_DS_RIGHT, NULL);
+	err = dsl_rebase(RT_DS_OFFOF, RT_DS_ONTO, NULL);
 	rt_scaffold_teardown();
 
 	TEST_EXPECT(err == ENOTSUP, "expected ENOTSUP");
@@ -155,7 +155,7 @@ test_setup_case_insensitive_rejected(void)
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap/clone failed");
 
 	rt_sync_pool();
-	err = dsl_rebase(RT_DS_LEFT, RT_DS_RIGHT, NULL);
+	err = dsl_rebase(RT_DS_OFFOF, RT_DS_ONTO, NULL);
 	rt_scaffold_teardown();
 
 	TEST_EXPECT(err == ENOTSUP, "expected ENOTSUP");
@@ -184,7 +184,7 @@ test_setup_normalization_rejected(void)
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap/clone failed");
 
 	rt_sync_pool();
-	err = dsl_rebase(RT_DS_LEFT, RT_DS_RIGHT, NULL);
+	err = dsl_rebase(RT_DS_OFFOF, RT_DS_ONTO, NULL);
 	rt_scaffold_teardown();
 
 	TEST_EXPECT(err == ENOTSUP, "expected ENOTSUP");
@@ -202,7 +202,7 @@ test_setup_missing_left(void)
 	TEST_START("setup: nonexistent left dataset");
 	RT_CHECK(rt_scaffold_basic(), "scaffold failed");
 
-	err = dsl_rebase(POOL_NAME "/nosuch", RT_DS_RIGHT, NULL);
+	err = dsl_rebase(POOL_NAME "/nosuch", RT_DS_ONTO, NULL);
 	rt_scaffold_teardown();
 
 	TEST_EXPECT(err == ENOENT, "expected ENOENT");
@@ -238,7 +238,7 @@ test_setup_scrub_busy(void)
 	spa_close(spa, FTAG);
 	RT_CHECK(perr, "could not hold a scrub open");
 
-	err = dsl_rebase(RT_DS_LEFT, RT_DS_RIGHT, NULL);
+	err = dsl_rebase(RT_DS_OFFOF, RT_DS_ONTO, NULL);
 	rt_scaffold_teardown();
 
 	TEST_EXPECT(err == EBUSY, "expected EBUSY");
@@ -291,14 +291,14 @@ test_setup_zpl_version_low(void)
 	TEST_START("setup: ZPL version < SA rejected");
 	RT_CHECK(rt_scaffold_basic(), "scaffold failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_set_zplprop(d.rtd_os, ZPL_VERSION_STR,
 	    ZPL_VERSION_SA - 1);
 	rt_close(&d);
 	RT_CHECK(err, "downgrade version");
 
 	rt_sync_pool();
-	err = dsl_rebase(RT_DS_LEFT, RT_DS_RIGHT, NULL);
+	err = dsl_rebase(RT_DS_OFFOF, RT_DS_ONTO, NULL);
 	rt_scaffold_teardown();
 
 	TEST_EXPECT(err == ENOTSUP, "expected ENOTSUP");
@@ -319,13 +319,13 @@ test_setup_fuid_mismatch(void)
 	TEST_START("setup: FUID table mismatch");
 	RT_CHECK(rt_scaffold_basic(), "scaffold failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_set_zplprop(d.rtd_os, ZFS_FUID_TABLES, 12345);
 	rt_close(&d);
 	RT_CHECK(err, "inject FUID key");
 
 	rt_sync_pool();
-	err = dsl_rebase(RT_DS_LEFT, RT_DS_RIGHT, NULL);
+	err = dsl_rebase(RT_DS_OFFOF, RT_DS_ONTO, NULL);
 	rt_scaffold_teardown();
 
 	TEST_EXPECT(err == ENOTSUP, "expected ENOTSUP");

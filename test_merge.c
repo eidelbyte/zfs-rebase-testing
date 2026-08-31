@@ -235,9 +235,9 @@ test_merge_fragment_overlap(void)
 	RT_CHECK(rt_scaffold_empty_base(), "scaffold failed");
 	RT_CHECK(mm_base_pool(names, 4, "x", 1, NULL), "base pool");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
-	RT_CHECK(mm_sever_set(RT_DS_LEFT, lsev, 2, "x", 1, NULL),
+	RT_CHECK(mm_sever_set(RT_DS_OFFOF, lsev, 2, "x", 1, NULL),
 	    "left sever");
-	RT_CHECK(mm_sever_set(RT_DS_RIGHT, rsev, 2, "x", 1, NULL),
+	RT_CHECK(mm_sever_set(RT_DS_ONTO, rsev, 2, "x", 1, NULL),
 	    "right sever");
 
 	if (mm_finish(&e))
@@ -266,9 +266,9 @@ test_merge_fragment_disjoint(void)
 	RT_CHECK(rt_scaffold_empty_base(), "scaffold failed");
 	RT_CHECK(mm_base_pool(names, 5, "x", 1, NULL), "base pool");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
-	RT_CHECK(mm_sever_set(RT_DS_LEFT, lsev, 2, "x", 1, NULL),
+	RT_CHECK(mm_sever_set(RT_DS_OFFOF, lsev, 2, "x", 1, NULL),
 	    "left sever");
-	RT_CHECK(mm_sever_set(RT_DS_RIGHT, rsev, 2, "x", 1, NULL),
+	RT_CHECK(mm_sever_set(RT_DS_ONTO, rsev, 2, "x", 1, NULL),
 	    "right sever");
 
 	if (mm_finish(&e))
@@ -304,10 +304,10 @@ test_merge_fragment_vs_novel(void)
 	RT_CHECK(mm_base_pool(p1, 4, "x", 1, NULL), "base P1");
 	RT_CHECK(mm_base_pool(p2, 2, "w", 1, NULL), "base P2");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
-	RT_CHECK(mm_sever_set(RT_DS_LEFT, lsev, 2, "x", 1, NULL),
+	RT_CHECK(mm_sever_set(RT_DS_OFFOF, lsev, 2, "x", 1, NULL),
 	    "left sever");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	VERIFY0(rt_remove_entry(d.rtd_os, d.rtd_root, "y"));
 	VERIFY0(rt_remove_entry(d.rtd_os, d.rtd_root, "c"));
 	VERIFY0(rt_create_file(d.rtd_os, d.rtd_root, "y", "w", 1,
@@ -335,9 +335,9 @@ test_merge_novel_unified(void)
 	TEST_START("U4: overlapping novels, same data, unify");
 	RT_CHECK(rt_scaffold_empty_base(), "scaffold failed");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
-	RT_CHECK(mm_novel_pair(RT_DS_LEFT, "x", "y", "n", 1, NULL),
+	RT_CHECK(mm_novel_pair(RT_DS_OFFOF, "x", "y", "n", 1, NULL),
 	    "left pool");
-	RT_CHECK(mm_novel_pair(RT_DS_RIGHT, "y", "w", "n", 1, NULL),
+	RT_CHECK(mm_novel_pair(RT_DS_ONTO, "y", "w", "n", 1, NULL),
 	    "right pool");
 
 	if (mm_finish(&e))
@@ -362,9 +362,9 @@ test_merge_novel_overlap_conflict(void)
 	TEST_START("U5: overlapping novels, diff data, conflict");
 	RT_CHECK(rt_scaffold_empty_base(), "scaffold failed");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
-	RT_CHECK(mm_novel_pair(RT_DS_LEFT, "x", "y", "AAA", 3,
+	RT_CHECK(mm_novel_pair(RT_DS_OFFOF, "x", "y", "AAA", 3,
 	    NULL), "left pool");
-	RT_CHECK(mm_novel_pair(RT_DS_RIGHT, "y", "w", "BBB", 3,
+	RT_CHECK(mm_novel_pair(RT_DS_ONTO, "y", "w", "BBB", 3,
 	    NULL), "right pool");
 
 	if (mm_finish(&e))
@@ -386,9 +386,9 @@ test_merge_novel_disjoint(void)
 	TEST_START("U6: disjoint novels stay separate");
 	RT_CHECK(rt_scaffold_empty_base(), "scaffold failed");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
-	RT_CHECK(mm_novel_pair(RT_DS_LEFT, "x", "y", "n", 1, NULL),
+	RT_CHECK(mm_novel_pair(RT_DS_OFFOF, "x", "y", "n", 1, NULL),
 	    "left pool");
-	RT_CHECK(mm_novel_pair(RT_DS_RIGHT, "w", "v", "n", 1, NULL),
+	RT_CHECK(mm_novel_pair(RT_DS_ONTO, "w", "v", "n", 1, NULL),
 	    "right pool");
 
 	if (mm_finish(&e))
@@ -411,11 +411,11 @@ test_merge_novel_chain(void)
 	TEST_START("U7: chained novels form one group");
 	RT_CHECK(rt_scaffold_empty_base(), "scaffold failed");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
-	RT_CHECK(mm_novel_pair(RT_DS_LEFT, "a", "b", "n", 1, NULL),
+	RT_CHECK(mm_novel_pair(RT_DS_OFFOF, "a", "b", "n", 1, NULL),
 	    "left pool one");
-	RT_CHECK(mm_novel_pair(RT_DS_LEFT, "c", "d", "n", 1, NULL),
+	RT_CHECK(mm_novel_pair(RT_DS_OFFOF, "c", "d", "n", 1, NULL),
 	    "left pool two");
-	RT_CHECK(mm_novel_pair(RT_DS_RIGHT, "b", "c", "n", 1, NULL),
+	RT_CHECK(mm_novel_pair(RT_DS_ONTO, "b", "c", "n", 1, NULL),
 	    "right bridge");
 
 	if (mm_finish(&e))
@@ -444,11 +444,11 @@ test_merge_recycled_unified(void)
 	RT_CHECK(mm_base_pool(names, 2, "x", 1, &obj), "base pool");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_set_sa_u64(d.rtd_os, obj, ZPL_GEN, 111111);
 	rt_close(&d);
 	RT_CHECK(err, "flip left gen");
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_set_sa_u64(d.rtd_os, obj, ZPL_GEN, 222222);
 	rt_close(&d);
 	RT_CHECK(err, "flip right gen");
@@ -478,19 +478,19 @@ test_merge_data_fault(void)
 	TEST_START("U9: data-compare fault = EIO");
 	RT_CHECK(rt_scaffold_empty_base(), "scaffold failed");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
-	RT_CHECK(mm_novel_pair(RT_DS_LEFT, "x", "y", "q", 1, NULL),
+	RT_CHECK(mm_novel_pair(RT_DS_OFFOF, "x", "y", "q", 1, NULL),
 	    "left pool");
-	RT_CHECK(mm_novel_pair(RT_DS_RIGHT, "y", "w", "q", 1,
+	RT_CHECK(mm_novel_pair(RT_DS_ONTO, "y", "w", "q", 1,
 	    &robj), "right pool");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_set_sa_blob(d.rtd_os, robj, ZPL_DXATTR, garbage,
 	    sizeof (garbage));
 	rt_close(&d);
 	RT_CHECK(err, "write garbage blob");
 
 	rt_sync_pool();
-	err = dsl_rebase(RT_DS_LEFT, RT_DS_RIGHT, NULL);
+	err = dsl_rebase(RT_DS_OFFOF, RT_DS_ONTO, NULL);
 	rt_scaffold_teardown();
 
 	TEST_EXPECT(err == EIO, "expected EIO");
@@ -517,7 +517,7 @@ test_merge_sever_acceptance(void)
 	RT_CHECK(mm_base_pool(names, 3, "x", 1, NULL), "base pool");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_hysterical_edit(d.rtd_os, d.rtd_root, "A", "x", 1,
 	    NULL);
 	rt_close(&d);
@@ -547,12 +547,12 @@ test_merge_sever_agreement(void)
 	RT_CHECK(mm_base_pool(names, 3, "x", 1, NULL), "base pool");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_hysterical_edit(d.rtd_os, d.rtd_root, "A", "x", 1,
 	    NULL);
 	rt_close(&d);
 	RT_CHECK(err, "sever A left");
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_hysterical_edit(d.rtd_os, d.rtd_root, "A", "x", 1,
 	    NULL);
 	rt_close(&d);
@@ -582,7 +582,7 @@ test_merge_lone_gone(void)
 	RT_CHECK(mm_base_pool(names, 3, "x", 1, NULL), "base pool");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_remove_entry(d.rtd_os, d.rtd_root, "C");
 	rt_close(&d);
 	RT_CHECK(err, "unlink C");
@@ -615,11 +615,11 @@ test_merge_gone_vs_standalone(void)
 	RT_CHECK(mm_base_pool(names, 2, "x", 1, NULL), "base pool");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_remove_entry(d.rtd_os, d.rtd_root, "f");
 	rt_close(&d);
 	RT_CHECK(err, "delete f left");
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_hysterical_edit(d.rtd_os, d.rtd_root, "f", "x", 1,
 	    NULL);
 	rt_close(&d);
@@ -657,12 +657,12 @@ test_merge_gone_vs_anchor(void)
 	RT_CHECK(err, "populate src");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_remove_entry(d.rtd_os, d.rtd_root, "f");
 	rt_close(&d);
 	RT_CHECK(err, "delete f left");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	VERIFY0(rt_dir_lookup(d.rtd_os, d.rtd_root, "f", &obj));
 	err = rt_add_hardlink(d.rtd_os, d.rtd_root, "g", obj);
 	rt_close(&d);
@@ -703,13 +703,13 @@ test_merge_divergent_joins(void)
 	RT_CHECK(err, "populate f");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	VERIFY0(rt_remove_entry(d.rtd_os, d.rtd_root, "f"));
 	err = rt_add_hardlink(d.rtd_os, d.rtd_root, "f", d1);
 	rt_close(&d);
 	RT_CHECK(err, "left join P1");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	VERIFY0(rt_remove_entry(d.rtd_os, d.rtd_root, "f"));
 	err = rt_add_hardlink(d.rtd_os, d.rtd_root, "f", d2);
 	rt_close(&d);
@@ -745,10 +745,10 @@ test_merge_fragment_vs_anchor(void)
 	RT_CHECK(mm_base_pool(p, 4, "x", 1, NULL), "base P");
 	RT_CHECK(mm_base_pool(q, 2, "q", 1, &qobj), "base Q");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
-	RT_CHECK(mm_sever_set(RT_DS_LEFT, lsev, 2, "x", 1, NULL),
+	RT_CHECK(mm_sever_set(RT_DS_OFFOF, lsev, 2, "x", 1, NULL),
 	    "left sever");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	VERIFY0(rt_remove_entry(d.rtd_os, d.rtd_root, "c"));
 	err = rt_add_hardlink(d.rtd_os, d.rtd_root, "c", qobj);
 	rt_close(&d);
@@ -783,14 +783,14 @@ test_merge_dead_pool_edited(void)
 	RT_CHECK(mm_base_pool(names, 3, "x", 1, &obj), "base pool");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	VERIFY0(rt_remove_entry(d.rtd_os, d.rtd_root, "A"));
 	VERIFY0(rt_remove_entry(d.rtd_os, d.rtd_root, "B"));
 	err = rt_remove_entry(d.rtd_os, d.rtd_root, "C");
 	rt_close(&d);
 	RT_CHECK(err, "unlink all left");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_edit_file(d.rtd_os, obj, "edited!", 7);
 	rt_close(&d);
 	RT_CHECK(err, "edit right");
@@ -819,7 +819,7 @@ test_merge_dead_pool_silent(void)
 	RT_CHECK(mm_base_pool(names, 3, "x", 1, NULL), "base pool");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	VERIFY0(rt_remove_entry(d.rtd_os, d.rtd_root, "A"));
 	VERIFY0(rt_remove_entry(d.rtd_os, d.rtd_root, "B"));
 	err = rt_remove_entry(d.rtd_os, d.rtd_root, "C");
@@ -855,14 +855,14 @@ test_merge_conflicted_keeps_alive(void)
 	RT_CHECK(mm_base_pool(names, 3, "x", 1, &obj), "base pool");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	VERIFY0(rt_remove_entry(d.rtd_os, d.rtd_root, "A"));
 	VERIFY0(rt_remove_entry(d.rtd_os, d.rtd_root, "B"));
 	err = rt_remove_entry(d.rtd_os, d.rtd_root, "C");
 	rt_close(&d);
 	RT_CHECK(err, "unlink all left");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	VERIFY0(rt_hysterical_edit(d.rtd_os, d.rtd_root, "A", "x",
 	    1, NULL));
 	err = rt_edit_file(d.rtd_os, obj, "edited!", 7);
@@ -897,7 +897,7 @@ test_merge_churn_alive(void)
 	RT_CHECK(mm_base_pool(names, 2, "x", 1, &obj), "base pool");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	VERIFY0(rt_add_hardlink(d.rtd_os, d.rtd_root, "x", obj));
 	VERIFY0(rt_add_hardlink(d.rtd_os, d.rtd_root, "y", obj));
 	VERIFY0(rt_remove_entry(d.rtd_os, d.rtd_root, "f"));
@@ -905,7 +905,7 @@ test_merge_churn_alive(void)
 	rt_close(&d);
 	RT_CHECK(err, "churn left");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_edit_file(d.rtd_os, obj, "edited!", 7);
 	rt_close(&d);
 	RT_CHECK(err, "edit right");
@@ -937,13 +937,13 @@ test_merge_sever_vs_edit(void)
 	RT_CHECK(mm_base_pool(names, 3, "x", 1, &obj), "base pool");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_hysterical_edit(d.rtd_os, d.rtd_root, "A", "x", 1,
 	    NULL);
 	rt_close(&d);
 	RT_CHECK(err, "sever A left");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_edit_file(d.rtd_os, obj, "edited!", 7);
 	rt_close(&d);
 	RT_CHECK(err, "edit right");
@@ -975,10 +975,10 @@ test_merge_gone_vs_fragment(void)
 	RT_CHECK(rt_scaffold_empty_base(), "scaffold failed");
 	RT_CHECK(mm_base_pool(p, 4, "x", 1, NULL), "base pool");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
-	RT_CHECK(mm_sever_set(RT_DS_LEFT, lsev, 2, "x", 1, NULL),
+	RT_CHECK(mm_sever_set(RT_DS_OFFOF, lsev, 2, "x", 1, NULL),
 	    "left sever");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_remove_entry(d.rtd_os, d.rtd_root, "c");
 	rt_close(&d);
 	RT_CHECK(err, "delete c right");
@@ -1006,7 +1006,7 @@ test_merge_standalone_trivial(void)
 	TEST_START("R15: standalone rows resolve trivially");
 	RT_CHECK(rt_scaffold_basic(), "scaffold failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	VERIFY0(rt_dir_lookup(d.rtd_os, d.rtd_root, "hello", &obj));
 	VERIFY0(rt_edit_file(d.rtd_os, obj, "edited!", 7));
 	VERIFY0(rt_dir_lookup(d.rtd_os, d.rtd_root, "subdir",
@@ -1046,13 +1046,13 @@ test_merge_dedup_alt_paths(void)
 	RT_CHECK(mm_base_pool(q, 2, "q", 1, &qobj), "base Q");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	VERIFY0(rt_remove_entry(d.rtd_os, d.rtd_root, "b"));
 	err = rt_remove_entry(d.rtd_os, d.rtd_root, "c");
 	rt_close(&d);
 	RT_CHECK(err, "delete b,c left");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	VERIFY0(rt_remove_entry(d.rtd_os, d.rtd_root, "b"));
 	VERIFY0(rt_add_hardlink(d.rtd_os, d.rtd_root, "b", qobj));
 	VERIFY0(rt_remove_entry(d.rtd_os, d.rtd_root, "c"));

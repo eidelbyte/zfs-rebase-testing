@@ -39,7 +39,7 @@ test_moves_pure_rename(void)
 	TEST_START("M1: pure rename = one MOVE");
 	RT_CHECK(rt_scaffold_basic(), "scaffold failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_rename_file(d.rtd_os, d.rtd_root, "hello",
 	    d.rtd_root, "hello2");
 	rt_close(&d);
@@ -63,7 +63,7 @@ test_moves_move_edit(void)
 	TEST_START("M2: rename + edit = one MOVE_EDIT");
 	RT_CHECK(rt_scaffold_basic(), "scaffold failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	VERIFY0(rt_dir_lookup(d.rtd_os, d.rtd_root, "hello", &obj));
 	VERIFY0(rt_rename_file(d.rtd_os, d.rtd_root, "hello",
 	    d.rtd_root, "hello_moved"));
@@ -92,7 +92,7 @@ test_moves_rename_touched(void)
 	TEST_START("M3: rename + touch = MOVE (full tiers)");
 	RT_CHECK(rt_scaffold_basic(), "scaffold failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	VERIFY0(rt_dir_lookup(d.rtd_os, d.rtd_root, "hello", &obj));
 	VERIFY0(rt_rename_file(d.rtd_os, d.rtd_root, "hello",
 	    d.rtd_root, "hello2"));
@@ -119,7 +119,7 @@ test_moves_cross_dir(void)
 	TEST_START("M4: cross-directory move = one MOVE");
 	RT_CHECK(rt_scaffold_basic(), "scaffold failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	VERIFY0(rt_dir_lookup(d.rtd_os, d.rtd_root, "subdir",
 	    &subdir));
 	err = rt_rename_file(d.rtd_os, d.rtd_root, "hello",
@@ -147,7 +147,7 @@ test_moves_dir_rename(void)
 	TEST_START("M5: dir rename = MOVEs for dir and child");
 	RT_CHECK(rt_scaffold_basic(), "scaffold failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_rename_file(d.rtd_os, d.rtd_root, "subdir",
 	    d.rtd_root, "subdir2");
 	rt_close(&d);
@@ -182,7 +182,7 @@ test_moves_member_rename(void)
 	RT_CHECK(err, "populate src");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_rename_file(d.rtd_os, d.rtd_root, "f",
 	    d.rtd_root, "f2");
 	rt_close(&d);
@@ -217,7 +217,7 @@ test_moves_guard_added(void)
 	RT_CHECK(err, "populate src");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	VERIFY0(rt_dir_lookup(d.rtd_os, d.rtd_root, "f", &obj));
 	VERIFY0(rt_rename_file(d.rtd_os, d.rtd_root, "f",
 	    d.rtd_root, "g"));
@@ -255,7 +255,7 @@ test_moves_guard_dissolved(void)
 	RT_CHECK(err, "populate src");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	VERIFY0(rt_rename_file(d.rtd_os, d.rtd_root, "f",
 	    d.rtd_root, "g"));
 	err = rt_remove_entry(d.rtd_os, d.rtd_root, "h");
@@ -283,7 +283,7 @@ test_moves_gen_mismatch(void)
 	TEST_START("M9: gen mismatch never collapses");
 	RT_CHECK(rt_scaffold_basic(), "scaffold failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	VERIFY0(rt_dir_lookup(d.rtd_os, d.rtd_root, "hello", &obj));
 	VERIFY0(rt_rename_file(d.rtd_os, d.rtd_root, "hello",
 	    d.rtd_root, "hello2"));
@@ -313,7 +313,7 @@ test_moves_gen_missing(void)
 	TEST_START("M10: missing gen at collapse = EIO");
 	RT_CHECK(rt_scaffold_basic(), "scaffold failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	VERIFY0(rt_dir_lookup(d.rtd_os, d.rtd_root, "hello", &obj));
 	VERIFY0(rt_rename_file(d.rtd_os, d.rtd_root, "hello",
 	    d.rtd_root, "hello2"));
@@ -322,7 +322,7 @@ test_moves_gen_missing(void)
 	RT_CHECK(err, "remove gen");
 
 	rt_sync_pool();
-	err = dsl_rebase(RT_DS_LEFT, RT_DS_RIGHT, NULL);
+	err = dsl_rebase(RT_DS_OFFOF, RT_DS_ONTO, NULL);
 	rt_scaffold_teardown();
 
 	TEST_EXPECT(err == EIO, "expected EIO");
@@ -360,7 +360,7 @@ test_moves_two_delete_candidates(void)
 	RT_CHECK(err, "populate src");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	VERIFY0(rt_rename_file(d.rtd_os, d.rtd_root, "f",
 	    d.rtd_root, "f2"));
 	err = rt_remove_entry(d.rtd_os, d.rtd_root, "k");
@@ -395,7 +395,7 @@ test_moves_both_members_renamed(void)
 	RT_CHECK(err, "populate src");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	VERIFY0(rt_rename_file(d.rtd_os, d.rtd_root, "p",
 	    d.rtd_root, "p2"));
 	err = rt_rename_file(d.rtd_os, d.rtd_root, "q",
@@ -422,13 +422,13 @@ test_moves_both_sides(void)
 	TEST_START("M13: both sides collapse independently");
 	RT_CHECK(rt_scaffold_basic(), "scaffold failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_rename_file(d.rtd_os, d.rtd_root, "hello",
 	    d.rtd_root, "h_left");
 	rt_close(&d);
 	RT_CHECK(err, "rename left");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_rename_file(d.rtd_os, d.rtd_root, "hello",
 	    d.rtd_root, "h_right");
 	rt_close(&d);
@@ -457,7 +457,7 @@ test_moves_swap(void)
 	TEST_START("M14: swap = two EDITs, zero moves");
 	RT_CHECK(rt_scaffold_basic(), "scaffold failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	VERIFY0(rt_dir_lookup(d.rtd_os, d.rtd_root, "subdir",
 	    &subdir));
 	VERIFY0(rt_rename_file(d.rtd_os, d.rtd_root, "hello",
@@ -489,7 +489,7 @@ test_moves_replaced_source(void)
 	TEST_START("M15: replaced source = EDIT + ADD, no MOVE");
 	RT_CHECK(rt_scaffold_basic(), "scaffold failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	VERIFY0(rt_rename_file(d.rtd_os, d.rtd_root, "hello",
 	    d.rtd_root, "hello2"));
 	err = rt_create_file(d.rtd_os, d.rtd_root, "hello",
@@ -525,7 +525,7 @@ test_moves_symlink_rename(void)
 	RT_CHECK(err, "populate src");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	VERIFY0(rt_dir_lookup(d.rtd_os, d.rtd_root, "ln", &obj));
 	VERIFY0(rt_rename_file(d.rtd_os, d.rtd_root, "ln",
 	    d.rtd_root, "ln2"));
@@ -559,13 +559,13 @@ test_conflict_move_diverge_diff_dest(void)
 	TEST_START("conflict: MOVE_DIVERGE (diff dest)");
 	RT_CHECK(rt_scaffold_basic(), "scaffold failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_rename_file(d.rtd_os, d.rtd_root, "hello",
 	    d.rtd_root, "hello_left");
 	rt_close(&d);
 	RT_CHECK(err, "rename left");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_rename_file(d.rtd_os, d.rtd_root, "hello",
 	    d.rtd_root, "hello_right");
 	rt_close(&d);
@@ -601,14 +601,14 @@ test_conflict_move_diverge_same_dest(void)
 	RT_CHECK(rt_scaffold_basic(), "scaffold failed");
 
 	/* Left renames "hello" to "target". */
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_rename_file(d.rtd_os, d.rtd_root, "hello",
 	    d.rtd_root, "target");
 	rt_close(&d);
 	RT_CHECK(err, "rename left");
 
 	/* Right moves "subdir/inner" to "target" in root. */
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	VERIFY0(rt_dir_lookup(d.rtd_os, d.rtd_root, "subdir", &subdir));
 	err = rt_rename_file(d.rtd_os, subdir, "inner",
 	    d.rtd_root, "target");
@@ -641,13 +641,13 @@ test_conflict_move_vs_edit_dest(void)
 	TEST_START("conflict: MOVE_VS_EDIT (dest collision)");
 	RT_CHECK(rt_scaffold_basic(), "scaffold failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_rename_file(d.rtd_os, d.rtd_root, "hello",
 	    d.rtd_root, "target");
 	rt_close(&d);
 	RT_CHECK(err, "rename left");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_create_file(d.rtd_os, d.rtd_root, "target",
 	    "blocking\n", 9, NULL);
 	rt_close(&d);
@@ -680,13 +680,13 @@ test_conflict_move_vs_edit_obj(void)
 	TEST_START("conflict: MOVE_VS_EDIT (obj-based)");
 	RT_CHECK(rt_scaffold_basic(), "scaffold failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_rename_file(d.rtd_os, d.rtd_root, "hello",
 	    d.rtd_root, "hello_moved");
 	rt_close(&d);
 	RT_CHECK(err, "rename left");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	VERIFY0(rt_dir_lookup(d.rtd_os, d.rtd_root, "hello", &obj));
 	err = rt_edit_file(d.rtd_os, obj, "right-edit\n", 11);
 	rt_close(&d);
@@ -718,13 +718,13 @@ test_benign_both_move_same_dest(void)
 	TEST_START("benign: both MOVE same dest");
 	RT_CHECK(rt_scaffold_basic(), "scaffold failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_rename_file(d.rtd_os, d.rtd_root, "hello",
 	    d.rtd_root, "renamed");
 	rt_close(&d);
 	RT_CHECK(err, "rename left");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_rename_file(d.rtd_os, d.rtd_root, "hello",
 	    d.rtd_root, "renamed");
 	rt_close(&d);
@@ -757,14 +757,14 @@ test_benign_move_plus_move_edit(void)
 	RT_CHECK(rt_scaffold_basic(), "scaffold failed");
 
 	/* Left: pure rename. */
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_rename_file(d.rtd_os, d.rtd_root, "hello",
 	    d.rtd_root, "renamed");
 	rt_close(&d);
 	RT_CHECK(err, "rename left");
 
 	/* Right: rename + edit. */
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	VERIFY0(rt_dir_lookup(d.rtd_os, d.rtd_root, "hello", &obj));
 	VERIFY0(rt_rename_file(d.rtd_os, d.rtd_root, "hello",
 	    d.rtd_root, "renamed"));
@@ -798,13 +798,13 @@ test_edge_move_and_create_at_dest(void)
 	TEST_START("edge: left MOVE, right ADD at same dest");
 	RT_CHECK(rt_scaffold_basic(), "scaffold failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_rename_file(d.rtd_os, d.rtd_root, "hello",
 	    d.rtd_root, "target");
 	rt_close(&d);
 	RT_CHECK(err, "rename left");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_create_file(d.rtd_os, d.rtd_root, "target",
 	    "right-new\n", 10, NULL);
 	rt_close(&d);
@@ -836,13 +836,13 @@ test_edge_move_vs_delete(void)
 	TEST_START("edge: left MOVE, right DELETE same dnode");
 	RT_CHECK(rt_scaffold_basic(), "scaffold failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_rename_file(d.rtd_os, d.rtd_root, "hello",
 	    d.rtd_root, "moved");
 	rt_close(&d);
 	RT_CHECK(err, "rename left");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_remove_entry(d.rtd_os, d.rtd_root, "hello");
 	rt_close(&d);
 	RT_CHECK(err, "delete right");
@@ -875,7 +875,7 @@ test_edge_both_move_edit_different(void)
 	TEST_START("edge: both MOVE_EDIT same dest, diff edits");
 	RT_CHECK(rt_scaffold_basic(), "scaffold failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	VERIFY0(rt_dir_lookup(d.rtd_os, d.rtd_root, "hello", &obj));
 	VERIFY0(rt_rename_file(d.rtd_os, d.rtd_root, "hello",
 	    d.rtd_root, "hello2"));
@@ -883,7 +883,7 @@ test_edge_both_move_edit_different(void)
 	rt_close(&d);
 	RT_CHECK(err, "move+edit left");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	VERIFY0(rt_dir_lookup(d.rtd_os, d.rtd_root, "hello", &obj));
 	VERIFY0(rt_rename_file(d.rtd_os, d.rtd_root, "hello",
 	    d.rtd_root, "hello2"));
@@ -918,12 +918,12 @@ test_edge_right_move_left_delete(void)
 	TEST_START("edge: right MOVE, left DELETE same dnode");
 	RT_CHECK(rt_scaffold_basic(), "scaffold failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_remove_entry(d.rtd_os, d.rtd_root, "hello");
 	rt_close(&d);
 	RT_CHECK(err, "delete left");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_rename_file(d.rtd_os, d.rtd_root, "hello",
 	    d.rtd_root, "moved");
 	rt_close(&d);

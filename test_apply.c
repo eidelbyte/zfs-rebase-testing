@@ -36,7 +36,7 @@ test_apply_copy_file(void)
 	RT_CHECK(rt_scaffold_empty_base(), "scaffold failed");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_create_file(d.rtd_os, d.rtd_root, "cf", pattern,
 	    sizeof (pattern), &robj);
 	if (err == 0)
@@ -50,7 +50,7 @@ test_apply_copy_file(void)
 		fnvlist_free(nvl);
 	RT_CHECK(err, "rebase failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_dir_lookup(d.rtd_os, d.rtd_root, "cf", &obj);
 	if (err == 0)
 		err = rt_read_data(d.rtd_os, obj, 0,
@@ -89,7 +89,7 @@ test_apply_copy_empty(void)
 	TEST_START("AP: empty file copies empty");
 	RT_CHECK(rt_scaffold_empty_base(), "scaffold failed");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_create_file(d.rtd_os, d.rtd_root, "ef", NULL, 0,
 	    NULL);
 	rt_close(&d);
@@ -101,7 +101,7 @@ test_apply_copy_empty(void)
 		fnvlist_free(nvl);
 	RT_CHECK(err, "rebase failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_dir_lookup(d.rtd_os, d.rtd_root, "ef", &obj);
 	if (err == 0)
 		err = rt_get_sa_u64(d.rtd_os, obj, ZPL_SIZE, &size);
@@ -128,7 +128,7 @@ test_apply_copy_dir(void)
 	TEST_START("AP: directory tree copies whole");
 	RT_CHECK(rt_scaffold_empty_base(), "scaffold failed");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_create_dir(d.rtd_os, d.rtd_root, "nd", &dobj);
 	if (err == 0)
 		err = rt_create_file(d.rtd_os, dobj, "inner",
@@ -142,7 +142,7 @@ test_apply_copy_dir(void)
 		fnvlist_free(nvl);
 	RT_CHECK(err, "rebase failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_dir_lookup(d.rtd_os, d.rtd_root, "nd", &dobj);
 	if (err == 0)
 		err = rt_get_sa_u64(d.rtd_os, dobj, ZPL_MODE, &dmode);
@@ -174,7 +174,7 @@ test_apply_copy_symlink_sa(void)
 	TEST_START("AP: symlink target survives the copy");
 	RT_CHECK(rt_scaffold_empty_base(), "scaffold failed");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_create_symlink(d.rtd_os, d.rtd_root, "ln",
 	    "some/where", NULL);
 	rt_close(&d);
@@ -186,7 +186,7 @@ test_apply_copy_symlink_sa(void)
 		fnvlist_free(nvl);
 	RT_CHECK(err, "rebase failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_dir_lookup(d.rtd_os, d.rtd_root, "ln", &obj);
 	if (err == 0)
 		err = rt_read_symlink(d.rtd_os, obj, target,
@@ -212,7 +212,7 @@ test_apply_copy_device(void)
 	TEST_START("AP: device node rdev crosses");
 	RT_CHECK(rt_scaffold_empty_base(), "scaffold failed");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_create_device(d.rtd_os, d.rtd_root, "dev", 0x1234,
 	    NULL);
 	rt_close(&d);
@@ -224,7 +224,7 @@ test_apply_copy_device(void)
 		fnvlist_free(nvl);
 	RT_CHECK(err, "rebase failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_dir_lookup(d.rtd_os, d.rtd_root, "dev", &obj);
 	if (err == 0)
 		err = rt_get_sa_u64(d.rtd_os, obj, ZPL_RDEV, &rdev);
@@ -252,7 +252,7 @@ test_apply_no_invented_attrs(void)
 	TEST_START("AP: no invented attributes on the copy");
 	RT_CHECK(rt_scaffold_empty_base(), "scaffold failed");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_create_file(d.rtd_os, d.rtd_root, "plain", "x", 1,
 	    NULL);
 	rt_close(&d);
@@ -264,7 +264,7 @@ test_apply_no_invented_attrs(void)
 		fnvlist_free(nvl);
 	RT_CHECK(err, "rebase failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_dir_lookup(d.rtd_os, d.rtd_root, "plain", &obj);
 	if (err == 0) {
 		projid_absent = rt_sa_absent(d.rtd_os, obj,
@@ -297,7 +297,7 @@ test_apply_xattr_none(void)
 	TEST_START("AP: xattr-free source stays xattr-free");
 	RT_CHECK(rt_scaffold_empty_base(), "scaffold failed");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_create_file(d.rtd_os, d.rtd_root, "nf", "x", 1,
 	    NULL);
 	rt_close(&d);
@@ -309,7 +309,7 @@ test_apply_xattr_none(void)
 		fnvlist_free(nvl);
 	RT_CHECK(err, "rebase failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_dir_lookup(d.rtd_os, d.rtd_root, "nf", &obj);
 	if (err == 0)
 		err = rt_xattr_forms(d.rtd_os, obj, &sa_form,
@@ -342,9 +342,9 @@ test_apply_xattr_dir_form(void)
 	TEST_START("AP: dir-form xattrs land dir-form");
 	RT_CHECK(rt_scaffold_empty_base(), "scaffold failed");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
-	RT_CHECK(rt_set_dsl_prop_u64(RT_DS_LEFT, "xattr", 1),
+	RT_CHECK(rt_set_dsl_prop_u64(RT_DS_OFFOF, "xattr", 1),
 	    "set xattr=dir");
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_create_file(d.rtd_os, d.rtd_root, "xf", "x", 1,
 	    &robj);
 	if (err == 0)
@@ -362,7 +362,7 @@ test_apply_xattr_dir_form(void)
 		fnvlist_free(nvl);
 	RT_CHECK(err, "rebase failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_dir_lookup(d.rtd_os, d.rtd_root, "xf", &obj);
 	if (err == 0)
 		err = rt_xattr_forms(d.rtd_os, obj, &sa_form,
@@ -401,10 +401,10 @@ test_apply_xattr_dir_to_sa(void)
 	TEST_START("AP: dir-form source converts to sa-form");
 	RT_CHECK(rt_scaffold_empty_base(), "scaffold failed");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
-	RT_CHECK(rt_set_dsl_prop_u64(RT_DS_LEFT, "xattr", 2),
+	RT_CHECK(rt_set_dsl_prop_u64(RT_DS_OFFOF, "xattr", 2),
 	    "set xattr=sa");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_create_file(d.rtd_os, d.rtd_root, "xf", "x", 1,
 	    &robj);
 	if (err == 0)
@@ -419,7 +419,7 @@ test_apply_xattr_dir_to_sa(void)
 		fnvlist_free(nvl);
 	RT_CHECK(err, "rebase failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_dir_lookup(d.rtd_os, d.rtd_root, "xf", &obj);
 	if (err == 0)
 		err = rt_xattr_forms(d.rtd_os, obj, &sa_form,
@@ -460,10 +460,10 @@ test_apply_xattr_entry_overflow(void)
 
 	RT_CHECK(rt_scaffold_empty_base(), "scaffold failed");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
-	RT_CHECK(rt_set_dsl_prop_u64(RT_DS_LEFT, "xattr", 2),
+	RT_CHECK(rt_set_dsl_prop_u64(RT_DS_OFFOF, "xattr", 2),
 	    "set xattr=sa");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_create_file(d.rtd_os, d.rtd_root, "xf", "x", 1,
 	    &robj);
 	if (err == 0)
@@ -481,7 +481,7 @@ test_apply_xattr_entry_overflow(void)
 		fnvlist_free(nvl);
 	RT_CHECK(err, "rebase failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_dir_lookup(d.rtd_os, d.rtd_root, "xf", &obj);
 	if (err == 0)
 		err = rt_xattr_forms(d.rtd_os, obj, &sa_form,
@@ -528,10 +528,10 @@ test_apply_xattr_off(void)
 	TEST_START("AP: xattr=off refuses and rolls back");
 	RT_CHECK(rt_scaffold_empty_base(), "scaffold failed");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
-	RT_CHECK(rt_set_dsl_prop_u64(RT_DS_LEFT, "xattr", 0),
+	RT_CHECK(rt_set_dsl_prop_u64(RT_DS_OFFOF, "xattr", 0),
 	    "set xattr=off");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_create_file(d.rtd_os, d.rtd_root, "plain", "p", 1,
 	    NULL);
 	if (err == 0)
@@ -544,12 +544,12 @@ test_apply_xattr_off(void)
 	RT_CHECK(err, "right files");
 
 	rt_sync_pool();
-	err = dsl_rebase(RT_DS_LEFT, RT_DS_RIGHT, NULL);
+	err = dsl_rebase(RT_DS_OFFOF, RT_DS_ONTO, NULL);
 	TEST_EXPECT(err == EOPNOTSUPP,
 	    "expected EOPNOTSUPP from xattr=off");
 
 	fence = rt_fence_exists();
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	plain_gone = (rt_dir_lookup(d.rtd_os, d.rtd_root, "plain",
 	    &obj) == ENOENT);
 	xf_gone = (rt_dir_lookup(d.rtd_os, d.rtd_root, "xf",
@@ -582,7 +582,7 @@ test_apply_unlink_file(void)
 	RT_CHECK(err, "base file");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_remove_entry(d.rtd_os, d.rtd_root, "gone");
 	rt_close(&d);
 	RT_CHECK(err, "right delete");
@@ -593,7 +593,7 @@ test_apply_unlink_file(void)
 		fnvlist_free(nvl);
 	RT_CHECK(err, "rebase failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	dirent_gone = (rt_dir_lookup(d.rtd_os, d.rtd_root, "gone",
 	    &obj) == ENOENT);
 	obj_gone = !rt_object_exists(d.rtd_os, bobj);
@@ -628,7 +628,7 @@ test_apply_unlink_tree(void)
 	RT_CHECK(err, "base tree");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_remove_entry(d.rtd_os, dobj, "inner");
 	if (err == 0)
 		err = rt_remove_entry(d.rtd_os, d.rtd_root, "dd");
@@ -641,7 +641,7 @@ test_apply_unlink_tree(void)
 		fnvlist_free(nvl);
 	RT_CHECK(err, "rebase failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	dir_gone = (rt_dir_lookup(d.rtd_os, d.rtd_root, "dd",
 	    &obj) == ENOENT);
 	dobj_gone = !rt_object_exists(d.rtd_os, dobj);
@@ -679,7 +679,7 @@ test_apply_unlink_pool_member(void)
 	RT_CHECK(err, "base pool");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_remove_entry(d.rtd_os, d.rtd_root, "A");
 	rt_close(&d);
 	RT_CHECK(err, "right unlink");
@@ -690,7 +690,7 @@ test_apply_unlink_pool_member(void)
 		fnvlist_free(nvl);
 	RT_CHECK(err, "rebase failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	a_gone = (rt_dir_lookup(d.rtd_os, d.rtd_root, "A",
 	    &obj) == ENOENT);
 	alive = rt_object_exists(d.rtd_os, pobj);
@@ -732,7 +732,7 @@ test_apply_unlink_dead_pool(void)
 	RT_CHECK(err, "base pool");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_remove_entry(d.rtd_os, d.rtd_root, "A");
 	if (err == 0)
 		err = rt_remove_entry(d.rtd_os, d.rtd_root, "B");
@@ -745,7 +745,7 @@ test_apply_unlink_dead_pool(void)
 		fnvlist_free(nvl);
 	RT_CHECK(err, "rebase failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	a_gone = (rt_dir_lookup(d.rtd_os, d.rtd_root, "A",
 	    &obj) == ENOENT);
 	b_gone = (rt_dir_lookup(d.rtd_os, d.rtd_root, "B",
@@ -783,14 +783,14 @@ test_apply_unlink_xattr_file(void)
 	RT_CHECK(err, "base xattr file");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_get_sa_u64(d.rtd_os, bobj, ZPL_XATTR, &xd);
 	if (err == 0 && xd != 0)
 		err = rt_dir_lookup(d.rtd_os, xd, "user.a", &child);
 	rt_close(&d);
 	RT_CHECK(err, "map satellite");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_remove_entry(d.rtd_os, d.rtd_root, "xf");
 	rt_close(&d);
 	RT_CHECK(err, "right delete");
@@ -801,7 +801,7 @@ test_apply_unlink_xattr_file(void)
 		fnvlist_free(nvl);
 	RT_CHECK(err, "rebase failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	f_gone = (rt_dir_lookup(d.rtd_os, d.rtd_root, "xf",
 	    &obj) == ENOENT);
 	xd_gone = !rt_object_exists(d.rtd_os, xd);
@@ -838,7 +838,7 @@ test_apply_move_handoff(void)
 	RT_CHECK(err, "base file");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_rename_file(d.rtd_os, d.rtd_root, "m", d.rtd_root,
 	    "m2");
 	rt_close(&d);
@@ -850,7 +850,7 @@ test_apply_move_handoff(void)
 		fnvlist_free(nvl);
 	RT_CHECK(err, "rebase failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	old_gone = (rt_dir_lookup(d.rtd_os, d.rtd_root, "m",
 	    &obj) == ENOENT);
 	obj = 0;
@@ -885,7 +885,7 @@ test_apply_cancel_rollback(void)
 	TEST_START("AP: cancel rolls all of it back");
 	RT_CHECK(rt_scaffold_empty_base(), "scaffold failed");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_create_file(d.rtd_os, d.rtd_root, "f1", "1", 1,
 	    NULL);
 	if (err == 0)
@@ -899,12 +899,12 @@ test_apply_cancel_rollback(void)
 
 	rt_sync_pool();
 	rt_apply_inject(1, 0);
-	err = dsl_rebase(RT_DS_LEFT, RT_DS_RIGHT, NULL);
+	err = dsl_rebase(RT_DS_OFFOF, RT_DS_ONTO, NULL);
 	rt_apply_inject(0, 0);
 	TEST_EXPECT(err == EINTR, "expected EINTR from injection");
 
 	fence = rt_fence_exists();
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	f1_gone = (rt_dir_lookup(d.rtd_os, d.rtd_root, "f1",
 	    &obj) == ENOENT);
 	f2_gone = (rt_dir_lookup(d.rtd_os, d.rtd_root, "f2",
@@ -937,7 +937,7 @@ test_apply_crash_partial(void)
 	TEST_START("AP: crash leaves partial; fence recovers");
 	RT_CHECK(rt_scaffold_empty_base(), "scaffold failed");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_create_file(d.rtd_os, d.rtd_root, "f1", "1", 1,
 	    NULL);
 	if (err == 0)
@@ -948,12 +948,12 @@ test_apply_crash_partial(void)
 
 	rt_sync_pool();
 	rt_apply_inject(1, 1);
-	err = dsl_rebase(RT_DS_LEFT, RT_DS_RIGHT, NULL);
+	err = dsl_rebase(RT_DS_OFFOF, RT_DS_ONTO, NULL);
 	rt_apply_inject(0, 0);
 	TEST_EXPECT(err == EINTR, "expected EINTR from injection");
 
 	fence = rt_fence_exists();
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	f1_there = (rt_dir_lookup(d.rtd_os, d.rtd_root, "f1",
 	    &obj) == 0);
 	f2_gone = (rt_dir_lookup(d.rtd_os, d.rtd_root, "f2",
@@ -965,7 +965,7 @@ test_apply_crash_partial(void)
 
 	rt_sync_pool();
 	RT_CHECK(rt_rollback_to_fence(), "manual rollback failed");
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	f1_gone_after = (rt_dir_lookup(d.rtd_os, d.rtd_root, "f1",
 	    &obj) == ENOENT);
 	rt_close(&d);
@@ -996,7 +996,7 @@ test_apply_cancel_unlinks(void)
 	RT_CHECK(err, "base file");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_create_file(d.rtd_os, d.rtd_root, "nf", "n", 1,
 	    NULL);
 	if (err == 0)
@@ -1006,11 +1006,11 @@ test_apply_cancel_unlinks(void)
 
 	rt_sync_pool();
 	rt_apply_inject(1, 0);
-	err = dsl_rebase(RT_DS_LEFT, RT_DS_RIGHT, NULL);
+	err = dsl_rebase(RT_DS_OFFOF, RT_DS_ONTO, NULL);
 	rt_apply_inject(0, 0);
 	TEST_EXPECT(err == EINTR, "expected EINTR from injection");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	nf_gone = (rt_dir_lookup(d.rtd_os, d.rtd_root, "nf",
 	    &obj) == ENOENT);
 	gone_back = (rt_dir_lookup(d.rtd_os, d.rtd_root, "gone",
@@ -1045,7 +1045,7 @@ test_apply_fence_content(void)
 	RT_CHECK(err, "base file");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_create_file(d.rtd_os, d.rtd_root, "nf", "n", 1,
 	    NULL);
 	if (err == 0)
@@ -1059,7 +1059,7 @@ test_apply_fence_content(void)
 		fnvlist_free(nvl);
 	RT_CHECK(err, "rebase failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	gone_in_head = (rt_dir_lookup(d.rtd_os, d.rtd_root, "gone",
 	    &obj) == ENOENT);
 	added_in_head = (rt_dir_lookup(d.rtd_os, d.rtd_root, "nf",
@@ -1068,7 +1068,7 @@ test_apply_fence_content(void)
 	TEST_EXPECT(gone_in_head && added_in_head,
 	    "apply did not land");
 
-	RT_CHECK(rt_open_snap(RT_DS_LEFT "@" ZFS_REBASE_SNAP_SUFFIX,
+	RT_CHECK(rt_open_snap(RT_DS_OFFOF "@" ZFS_REBASE_SNAP_SUFFIX,
 	    &d), "hold fence");
 	err = rt_dir_lookup(d.rtd_os, d.rtd_root, "gone", &obj);
 	gone_in_fence = (err == 0);
@@ -1101,7 +1101,7 @@ test_apply_corrupt_xattr_source(void)
 	TEST_START("AP: corrupt source xattr fails and rolls back");
 	RT_CHECK(rt_scaffold_empty_base(), "scaffold failed");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_create_file(d.rtd_os, d.rtd_root, "nf", "n", 1,
 	    &robj);
 	if (err == 0)
@@ -1111,11 +1111,11 @@ test_apply_corrupt_xattr_source(void)
 	RT_CHECK(err, "right corrupt file");
 
 	rt_sync_pool();
-	err = dsl_rebase(RT_DS_LEFT, RT_DS_RIGHT, NULL);
+	err = dsl_rebase(RT_DS_OFFOF, RT_DS_ONTO, NULL);
 	TEST_EXPECT(err == EIO, "expected EIO from corrupt DXATTR");
 
 	fence = rt_fence_exists();
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	nf_gone = (rt_dir_lookup(d.rtd_os, d.rtd_root, "nf",
 	    &obj) == ENOENT);
 	rt_close(&d);
@@ -1152,7 +1152,7 @@ test_apply_stats_line(void)
 	RT_CHECK(err, "base files");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_create_file(d.rtd_os, d.rtd_root, "n1", "1", 1,
 	    NULL);
 	if (err == 0)
@@ -1211,7 +1211,7 @@ test_apply_roundtrip_acceptance(void)
 	RT_CHECK(err, "base file");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_create_file(d.rtd_os, d.rtd_root, "nf", "fresh",
 	    5, NULL);
 	if (err == 0)
@@ -1282,7 +1282,7 @@ test_apply_edit_grow_shrink(void)
 	RT_CHECK(err, "base files");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_edit_file(d.rtd_os, gobj, big, sizeof (big));
 	if (err == 0)
 		err = rt_edit_file(d.rtd_os, sobj, "SS", 2);
@@ -1295,7 +1295,7 @@ test_apply_edit_grow_shrink(void)
 		fnvlist_free(nvl);
 	RT_CHECK(err, "rebase failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_read_data(d.rtd_os, gobj, 0, sizeof (big), back);
 	if (err == 0) {
 		gcmp = memcmp(big, back, sizeof (big));
@@ -1344,7 +1344,7 @@ test_apply_edit_empty_forms(void)
 	RT_CHECK(err, "base files");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_remove_entry(d.rtd_os, d.rtd_root, "te");
 	if (err == 0)
 		err = rt_create_file(d.rtd_os, d.rtd_root, "te",
@@ -1360,7 +1360,7 @@ test_apply_edit_empty_forms(void)
 		fnvlist_free(nvl);
 	RT_CHECK(err, "rebase failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_get_sa_u64(d.rtd_os, tobj, ZPL_SIZE, &tsize);
 	if (err == 0)
 		err = rt_read_data(d.rtd_os, fobj, 0, 4, back);
@@ -1405,7 +1405,7 @@ test_apply_edit_multiblock(void)
 	RT_CHECK(err, "base file");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_remove_entry(d.rtd_os, d.rtd_root, "mb");
 	if (err == 0)
 		err = rt_create_file(d.rtd_os, d.rtd_root, "mb",
@@ -1419,7 +1419,7 @@ test_apply_edit_multiblock(void)
 		fnvlist_free(nvl);
 	RT_CHECK(err, "rebase failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_read_data(d.rtd_os, bobj, 0, sizeof (back), back);
 	if (err == 0) {
 		cmp = memcmp(pat, back, sizeof (pat));
@@ -1454,7 +1454,7 @@ test_apply_edit_identity_lands(void)
 	RT_CHECK(err, "base file");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_edit_file(d.rtd_os, bobj, "b", 1);
 	if (err == 0)
 		err = rt_set_sa_u64(d.rtd_os, bobj, ZPL_UID, 4321);
@@ -1470,7 +1470,7 @@ test_apply_edit_identity_lands(void)
 		fnvlist_free(nvl);
 	RT_CHECK(err, "rebase failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_get_sa_u64(d.rtd_os, bobj, ZPL_MODE, &mode);
 	if (err == 0)
 		err = rt_get_sa_u64(d.rtd_os, bobj, ZPL_UID, &uid);
@@ -1505,12 +1505,12 @@ test_apply_edit_inplace_promise(void)
 	RT_CHECK(err, "base file");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_get_sa_u64(d.rtd_os, bobj, ZPL_GEN, &gen_before);
 	rt_close(&d);
 	RT_CHECK(err, "record gen");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_edit_file(d.rtd_os, bobj, "new", 3);
 	rt_close(&d);
 	RT_CHECK(err, "right edit");
@@ -1521,7 +1521,7 @@ test_apply_edit_inplace_promise(void)
 		fnvlist_free(nvl);
 	RT_CHECK(err, "rebase failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	root = d.rtd_root;
 	err = rt_dir_lookup(d.rtd_os, d.rtd_root, "ip", &obj);
 	if (err == 0)
@@ -1566,7 +1566,7 @@ test_apply_edit_flip_to_symlink(void)
 	RT_CHECK(err, "base file");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_remove_entry(d.rtd_os, d.rtd_root, "fl");
 	if (err == 0)
 		err = rt_create_symlink(d.rtd_os, d.rtd_root, "fl",
@@ -1580,7 +1580,7 @@ test_apply_edit_flip_to_symlink(void)
 		fnvlist_free(nvl);
 	RT_CHECK(err, "rebase failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_dir_lookup(d.rtd_os, d.rtd_root, "fl", &obj);
 	if (err == 0)
 		err = rt_get_sa_u64(d.rtd_os, bobj, ZPL_MODE,
@@ -1618,7 +1618,7 @@ test_apply_edit_flip_from_symlink(void)
 	RT_CHECK(err, "base symlink");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_remove_entry(d.rtd_os, d.rtd_root, "fs");
 	if (err == 0)
 		err = rt_create_file(d.rtd_os, d.rtd_root, "fs",
@@ -1632,7 +1632,7 @@ test_apply_edit_flip_from_symlink(void)
 		fnvlist_free(nvl);
 	RT_CHECK(err, "rebase failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_dir_lookup(d.rtd_os, d.rtd_root, "fs", &obj);
 	if (err == 0)
 		err = rt_get_sa_u64(d.rtd_os, bobj, ZPL_MODE,
@@ -1671,7 +1671,7 @@ test_apply_edit_dir_flip_refused(void)
 	RT_CHECK(err, "base dir");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_remove_entry(d.rtd_os, d.rtd_root, "d");
 	if (err == 0)
 		err = rt_create_file(d.rtd_os, d.rtd_root, "d",
@@ -1680,11 +1680,11 @@ test_apply_edit_dir_flip_refused(void)
 	RT_CHECK(err, "right recreate");
 
 	rt_sync_pool();
-	err = dsl_rebase(RT_DS_LEFT, RT_DS_RIGHT, NULL);
+	err = dsl_rebase(RT_DS_OFFOF, RT_DS_ONTO, NULL);
 	TEST_EXPECT(err == EOPNOTSUPP, "expected refusal");
 
 	fence = rt_fence_exists();
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_dir_lookup(d.rtd_os, d.rtd_root, "d", &obj);
 	if (err == 0)
 		err = rt_get_sa_u64(d.rtd_os, bobj, ZPL_MODE,
@@ -1725,13 +1725,13 @@ test_apply_edit_dir_attrs(void)
 	RT_CHECK(err, "base dir");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_get_sa_u64(d.rtd_os, dobj, ZPL_SIZE,
 	    &dsize_before);
 	rt_close(&d);
 	RT_CHECK(err, "record dir size");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_set_sa_u64(d.rtd_os, dobj, ZPL_UID, 777);
 	if (err == 0) {
 		xn = ae_xattrs("user.dx", "dv");
@@ -1747,7 +1747,7 @@ test_apply_edit_dir_attrs(void)
 		fnvlist_free(nvl);
 	RT_CHECK(err, "rebase failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_dir_lookup(d.rtd_os, d.rtd_root, "dd", &obj);
 	if (err == 0)
 		err = rt_get_sa_u64(d.rtd_os, dobj, ZPL_UID, &uid);
@@ -1801,7 +1801,7 @@ test_apply_edit_xattr_replace(void)
 	RT_CHECK(err, "base file");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_edit_file(d.rtd_os, bobj, "2", 1);
 	if (err == 0) {
 		xn = ae_xattrs("user.b", "vb");
@@ -1817,7 +1817,7 @@ test_apply_edit_xattr_replace(void)
 		fnvlist_free(nvl);
 	RT_CHECK(err, "rebase failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	berr = rt_xattr_read(d.rtd_os, bobj, "user.b", xv,
 	    sizeof (xv), &xlen);
 	aerr = rt_xattr_read(d.rtd_os, bobj, "user.a", xv,
@@ -1861,7 +1861,7 @@ test_apply_edit_xattr_dirform_cleared(void)
 	RT_CHECK(err, "base file");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_get_sa_u64(d.rtd_os, bobj, ZPL_XATTR, &xdir);
 	if (err == 0)
 		err = rt_dir_lookup(d.rtd_os, xdir, "user.big",
@@ -1869,7 +1869,7 @@ test_apply_edit_xattr_dirform_cleared(void)
 	rt_close(&d);
 	RT_CHECK(err, "record satellites");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_remove_entry(d.rtd_os, d.rtd_root, "xd");
 	if (err == 0) {
 		uint64_t robj;
@@ -1891,7 +1891,7 @@ test_apply_edit_xattr_dirform_cleared(void)
 		fnvlist_free(nvl);
 	RT_CHECK(err, "rebase failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	dir_gone = !rt_object_exists(d.rtd_os, xdir);
 	val_gone = !rt_object_exists(d.rtd_os, xval);
 	err = rt_dir_lookup(d.rtd_os, d.rtd_root, "xd", &bobj);
@@ -1939,7 +1939,7 @@ test_apply_edit_xattr_to_bare(void)
 	RT_CHECK(err, "base file");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_remove_entry(d.rtd_os, d.rtd_root, "xb");
 	if (err == 0)
 		err = rt_create_file(d.rtd_os, d.rtd_root, "xb",
@@ -1953,7 +1953,7 @@ test_apply_edit_xattr_to_bare(void)
 		fnvlist_free(nvl);
 	RT_CHECK(err, "rebase failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	aerr = rt_xattr_read(d.rtd_os, bobj, "user.a", xv,
 	    sizeof (xv), &xlen);
 	err = rt_xattr_forms(d.rtd_os, bobj, &sa_form, &dir_form);
@@ -1992,7 +1992,7 @@ test_apply_edit_pool_group_write(void)
 	RT_CHECK(err, "base pool");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_edit_file(d.rtd_os, bobj, "new!", 4);
 	rt_close(&d);
 	RT_CHECK(err, "right edit");
@@ -2007,7 +2007,7 @@ test_apply_edit_pool_group_write(void)
 	RT_CHECK(err, "rebase failed");
 	RT_CHECK(serr, "no tally line");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_dir_lookup(d.rtd_os, d.rtd_root, "pa", &pobj);
 	if (err == 0)
 		err = rt_dir_lookup(d.rtd_os, d.rtd_root, "pb",
@@ -2056,7 +2056,7 @@ test_apply_move_edit_whole(void)
 	RT_CHECK(err, "base file");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_rename_file(d.rtd_os, d.rtd_root, "m",
 	    d.rtd_root, "m2");
 	if (err == 0)
@@ -2074,7 +2074,7 @@ test_apply_move_edit_whole(void)
 	RT_CHECK(err, "rebase failed");
 	RT_CHECK(serr, "no tally line");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	old_gone = (rt_dir_lookup(d.rtd_os, d.rtd_root, "m",
 	    &obj) == ENOENT);
 	obj = 0;
@@ -2126,7 +2126,7 @@ test_apply_sever_basic(void)
 	RT_CHECK(err, "base pool");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_remove_entry(d.rtd_os, d.rtd_root, "pa");
 	if (err == 0)
 		err = rt_create_file(d.rtd_os, d.rtd_root, "pa",
@@ -2144,7 +2144,7 @@ test_apply_sever_basic(void)
 	RT_CHECK(err, "rebase failed");
 	RT_CHECK(serr, "no tally line");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_dir_lookup(d.rtd_os, d.rtd_root, "pa", &zobj);
 	if (err == 0)
 		err = rt_dir_lookup(d.rtd_os, d.rtd_root, "pb",
@@ -2203,7 +2203,7 @@ test_apply_sever_xattrs(void)
 	RT_CHECK(err, "base pool");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_remove_entry(d.rtd_os, d.rtd_root, "pa");
 	if (err == 0) {
 		uint64_t robj;
@@ -2225,7 +2225,7 @@ test_apply_sever_xattrs(void)
 		fnvlist_free(nvl);
 	RT_CHECK(err, "rebase failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_dir_lookup(d.rtd_os, d.rtd_root, "pa", &zobj);
 	if (err == 0) {
 		xerr = rt_xattr_read(d.rtd_os, zobj, "user.s", xv,
@@ -2271,7 +2271,7 @@ test_apply_sever_all_members(void)
 	RT_CHECK(err, "base pool");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_remove_entry(d.rtd_os, d.rtd_root, "pa");
 	if (err == 0)
 		err = rt_create_file(d.rtd_os, d.rtd_root, "pa",
@@ -2294,7 +2294,7 @@ test_apply_sever_all_members(void)
 	RT_CHECK(err, "rebase failed");
 	RT_CHECK(serr, "no tally line");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	pool_gone = !rt_object_exists(d.rtd_os, bobj);
 	err = rt_dir_lookup(d.rtd_os, d.rtd_root, "pa", &aobj);
 	if (err == 0)
@@ -2344,7 +2344,7 @@ test_apply_sever_to_symlink(void)
 	RT_CHECK(err, "base pool");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_remove_entry(d.rtd_os, d.rtd_root, "pa");
 	if (err == 0)
 		err = rt_create_symlink(d.rtd_os, d.rtd_root, "pa",
@@ -2358,7 +2358,7 @@ test_apply_sever_to_symlink(void)
 		fnvlist_free(nvl);
 	RT_CHECK(err, "rebase failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_dir_lookup(d.rtd_os, d.rtd_root, "pa", &zobj);
 	if (err == 0)
 		err = rt_dir_lookup(d.rtd_os, d.rtd_root, "pb",
@@ -2406,7 +2406,7 @@ test_apply_edit_cancel(void)
 	RT_CHECK(err, "base files");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_edit_file(d.rtd_os, e1, "ONE", 3);
 	if (err == 0)
 		err = rt_edit_file(d.rtd_os, e2, "TWO", 3);
@@ -2415,12 +2415,12 @@ test_apply_edit_cancel(void)
 
 	rt_sync_pool();
 	rt_apply_inject(1, 0);
-	err = dsl_rebase(RT_DS_LEFT, RT_DS_RIGHT, NULL);
+	err = dsl_rebase(RT_DS_OFFOF, RT_DS_ONTO, NULL);
 	rt_apply_inject(0, 0);
 	TEST_EXPECT(err == EINTR, "expected EINTR from injection");
 
 	fence = rt_fence_exists();
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_read_data(d.rtd_os, e1, 0, 3, back);
 	if (err == 0) {
 		cmp1 = memcmp("one", back, 3);
@@ -2463,7 +2463,7 @@ test_apply_edit_crash_partial(void)
 	RT_CHECK(err, "base files");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_edit_file(d.rtd_os, e1, "ONE", 3);
 	if (err == 0)
 		err = rt_edit_file(d.rtd_os, e2, "TWO", 3);
@@ -2472,12 +2472,12 @@ test_apply_edit_crash_partial(void)
 
 	rt_sync_pool();
 	rt_apply_inject(1, 1);
-	err = dsl_rebase(RT_DS_LEFT, RT_DS_RIGHT, NULL);
+	err = dsl_rebase(RT_DS_OFFOF, RT_DS_ONTO, NULL);
 	rt_apply_inject(0, 0);
 	TEST_EXPECT(err == EINTR, "expected EINTR from injection");
 
 	fence = rt_fence_exists();
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_read_data(d.rtd_os, e1, 0, 3, back);
 	if (err == 0) {
 		cmp1 = memcmp("ONE", back, 3);
@@ -2493,7 +2493,7 @@ test_apply_edit_crash_partial(void)
 
 	rt_sync_pool();
 	RT_CHECK(rt_rollback_to_fence(), "manual rollback failed");
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_read_data(d.rtd_os, e1, 0, 3, back);
 	if (err == 0) {
 		r1 = memcmp("one", back, 3);
@@ -2531,7 +2531,7 @@ test_apply_edit_roundtrip(void)
 	RT_CHECK(err, "base file");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_edit_file(d.rtd_os, bobj, "SEED", 4);
 	if (err == 0)
 		err = rt_set_sa_u64(d.rtd_os, bobj, ZPL_UID, 55);
@@ -2599,7 +2599,7 @@ test_apply_edit_pool_shrink_survivor(void)
 	RT_CHECK(err, "base pool");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_remove_entry(d.rtd_os, d.rtd_root, "A");
 	if (err == 0)
 		err = rt_edit_file(d.rtd_os, bobj, "EDT!", 4);
@@ -2616,7 +2616,7 @@ test_apply_edit_pool_shrink_survivor(void)
 	RT_CHECK(err, "rebase failed");
 	RT_CHECK(serr, "no tally line");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	a_gone = (rt_dir_lookup(d.rtd_os, d.rtd_root, "A",
 	    &obj) == ENOENT);
 	err = rt_dir_lookup(d.rtd_os, d.rtd_root, "B", &obj);
@@ -2665,7 +2665,7 @@ test_apply_link_move_across_dirs(void)
 	RT_CHECK(err, "base tree");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_rename_file(d.rtd_os, d1obj, "f", d2obj, "f");
 	rt_close(&d);
 	RT_CHECK(err, "right move");
@@ -2676,7 +2676,7 @@ test_apply_link_move_across_dirs(void)
 		fnvlist_free(nvl);
 	RT_CHECK(err, "rebase failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	old_gone = (rt_dir_lookup(d.rtd_os, d1obj, "f",
 	    &obj) == ENOENT);
 	obj = 0;
@@ -2734,7 +2734,7 @@ test_apply_link_dir_move(void)
 	RT_CHECK(err, "base tree");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_get_sa_u64(d.rtd_os, p1obj, ZPL_LINKS, &p1_before);
 	if (err == 0)
 		err = rt_get_sa_u64(d.rtd_os, p2obj, ZPL_LINKS,
@@ -2742,7 +2742,7 @@ test_apply_link_dir_move(void)
 	rt_close(&d);
 	RT_CHECK(err, "record parent links");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_rename_file(d.rtd_os, p1obj, "dd", p2obj, "dd");
 	rt_close(&d);
 	RT_CHECK(err, "right dir move");
@@ -2754,7 +2754,7 @@ test_apply_link_dir_move(void)
 	    "expected UNLINK + LINK only (children suppressed)");
 	fnvlist_free(nvl);
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	old_gone = (rt_dir_lookup(d.rtd_os, p1obj, "dd",
 	    &obj) == ENOENT);
 	obj = 0;
@@ -2809,7 +2809,7 @@ test_apply_link_rename_in_moved_dir(void)
 	RT_CHECK(err, "base tree");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_rename_file(d.rtd_os, d.rtd_root, "dd",
 	    d.rtd_root, "ee");
 	if (err == 0)
@@ -2824,7 +2824,7 @@ test_apply_link_rename_in_moved_dir(void)
 		fnvlist_free(nvl);
 	RT_CHECK(err, "rebase failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	dd_gone = (rt_dir_lookup(d.rtd_os, d.rtd_root, "dd",
 	    &obj) == ENOENT);
 	c1_gone = (rt_dir_lookup(d.rtd_os, ddobj, "c1",
@@ -2872,7 +2872,7 @@ test_apply_link_pool_join(void)
 	RT_CHECK(err, "base pool");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_add_hardlink(d.rtd_os, d.rtd_root, "pc", bobj);
 	rt_close(&d);
 	RT_CHECK(err, "right join");
@@ -2887,7 +2887,7 @@ test_apply_link_pool_join(void)
 	RT_CHECK(err, "rebase failed");
 	RT_CHECK(serr, "no tally line");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_dir_lookup(d.rtd_os, d.rtd_root, "pc", &obj);
 	if (err == 0)
 		err = rt_get_sa_u64(d.rtd_os, bobj, ZPL_LINKS,
@@ -2922,7 +2922,7 @@ test_apply_link_novel_pool(void)
 	RT_CHECK(rt_scaffold_empty_base(), "scaffold failed");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_create_file(d.rtd_os, d.rtd_root, "na", "nn", 2,
 	    &robj);
 	if (err == 0)
@@ -2948,7 +2948,7 @@ test_apply_link_novel_pool(void)
 	    "expected two LINKs, no WRITE");
 	fnvlist_free(nvl);
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_dir_lookup(d.rtd_os, d.rtd_root, "na", &aobj);
 	if (err == 0)
 		err = rt_dir_lookup(d.rtd_os, d.rtd_root, "nb",
@@ -2994,13 +2994,13 @@ test_apply_link_matched_novel(void)
 	RT_CHECK(rt_scaffold_empty_base(), "scaffold failed");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_create_file(d.rtd_os, d.rtd_root, "P", "mine", 4,
 	    &lobj);
 	rt_close(&d);
 	RT_CHECK(err, "left create");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_create_file(d.rtd_os, d.rtd_root, "Q", "theirs",
 	    6, &qobj);
 	if (err == 0)
@@ -3016,7 +3016,7 @@ test_apply_link_matched_novel(void)
 	    "expected the CREATE_CREATE to persist");
 	fnvlist_free(nvl);
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_dir_lookup(d.rtd_os, d.rtd_root, "P", &pobj);
 	if (err == 0)
 		err = rt_dir_lookup(d.rtd_os, d.rtd_root, "Q",
@@ -3062,7 +3062,7 @@ test_apply_link_pool_member_move(void)
 	RT_CHECK(err, "base pool");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_rename_file(d.rtd_os, d.rtd_root, "pa",
 	    d.rtd_root, "pc");
 	rt_close(&d);
@@ -3074,7 +3074,7 @@ test_apply_link_pool_member_move(void)
 		fnvlist_free(nvl);
 	RT_CHECK(err, "rebase failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	old_gone = (rt_dir_lookup(d.rtd_os, d.rtd_root, "pa",
 	    &obj) == ENOENT);
 	obj = 0;
@@ -3119,7 +3119,7 @@ test_apply_link_cancel(void)
 	RT_CHECK(err, "base files");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_rename_file(d.rtd_os, d.rtd_root, "m1",
 	    d.rtd_root, "n1");
 	if (err == 0)
@@ -3130,12 +3130,12 @@ test_apply_link_cancel(void)
 
 	rt_sync_pool();
 	rt_apply_inject(1, 0);
-	err = dsl_rebase(RT_DS_LEFT, RT_DS_RIGHT, NULL);
+	err = dsl_rebase(RT_DS_OFFOF, RT_DS_ONTO, NULL);
 	rt_apply_inject(0, 0);
 	TEST_EXPECT(err == EINTR, "expected EINTR from injection");
 
 	fence = rt_fence_exists();
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	m1_there = (rt_dir_lookup(d.rtd_os, d.rtd_root, "m1",
 	    &obj) == 0);
 	m2_there = (rt_dir_lookup(d.rtd_os, d.rtd_root, "m2",
@@ -3173,7 +3173,7 @@ test_apply_link_crash_double_name(void)
 	RT_CHECK(err, "base file");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_rename_file(d.rtd_os, d.rtd_root, "m",
 	    d.rtd_root, "n");
 	rt_close(&d);
@@ -3181,12 +3181,12 @@ test_apply_link_crash_double_name(void)
 
 	rt_sync_pool();
 	rt_apply_inject(1, 1);
-	err = dsl_rebase(RT_DS_LEFT, RT_DS_RIGHT, NULL);
+	err = dsl_rebase(RT_DS_OFFOF, RT_DS_ONTO, NULL);
 	rt_apply_inject(0, 0);
 	TEST_EXPECT(err == EINTR, "expected EINTR from injection");
 
 	fence = rt_fence_exists();
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_dir_lookup(d.rtd_os, d.rtd_root, "m", &mobj);
 	if (err == 0)
 		err = rt_dir_lookup(d.rtd_os, d.rtd_root, "n",
@@ -3203,7 +3203,7 @@ test_apply_link_crash_double_name(void)
 
 	rt_sync_pool();
 	RT_CHECK(rt_rollback_to_fence(), "manual rollback failed");
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	n_gone = (rt_dir_lookup(d.rtd_os, d.rtd_root, "n",
 	    &nobj) == ENOENT);
 	err = rt_get_sa_u64(d.rtd_os, bobj, ZPL_LINKS, &links);
@@ -3245,7 +3245,7 @@ test_apply_link_roundtrip(void)
 	RT_CHECK(err, "base files");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_rename_file(d.rtd_os, d.rtd_root, "f1",
 	    d.rtd_root, "g1");
 	if (err == 0)
@@ -3304,7 +3304,7 @@ test_apply_sever_to_dir(void)
 	RT_CHECK(err, "base pool");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_remove_entry(d.rtd_os, d.rtd_root, "pa");
 	if (err == 0) {
 		uint64_t rdir;
@@ -3324,7 +3324,7 @@ test_apply_sever_to_dir(void)
 		fnvlist_free(nvl);
 	RT_CHECK(err, "rebase failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_dir_lookup(d.rtd_os, d.rtd_root, "pa", &zobj);
 	if (err == 0)
 		err = rt_dir_lookup(d.rtd_os, zobj, "cf", &cobj);

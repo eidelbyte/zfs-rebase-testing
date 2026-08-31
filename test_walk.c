@@ -53,7 +53,7 @@ test_walk_presence_matrix(void)
 
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap/clone failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	VERIFY0(rt_remove_entry(d.rtd_os, d.rtd_root, "p_br"));
 	VERIFY0(rt_remove_entry(d.rtd_os, d.rtd_root, "p_b"));
 	VERIFY0(rt_create_file(d.rtd_os, d.rtd_root, "p_lr",
@@ -62,7 +62,7 @@ test_walk_presence_matrix(void)
 	    "left-only\n", 10, NULL));
 	rt_close(&d);
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	VERIFY0(rt_remove_entry(d.rtd_os, d.rtd_root, "p_lb"));
 	VERIFY0(rt_remove_entry(d.rtd_os, d.rtd_root, "p_b"));
 	VERIFY0(rt_create_file(d.rtd_os, d.rtd_root, "p_lr",
@@ -72,7 +72,7 @@ test_walk_presence_matrix(void)
 	rt_close(&d);
 
 	rt_sync_pool();
-	err = dsl_rebase(RT_DS_LEFT, RT_DS_RIGHT, NULL);
+	err = dsl_rebase(RT_DS_OFFOF, RT_DS_ONTO, NULL);
 	rt_scaffold_teardown();
 
 	TEST_EXPECT(err == 0, "expected success");
@@ -142,7 +142,7 @@ test_walk_kind_matrix(void)
 
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap/clone failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	VERIFY0(replace_kind(d.rtd_os, d.rtd_root, "k_dff", B_TRUE));
 	VERIFY0(replace_kind(d.rtd_os, d.rtd_root, "k_dfd", B_TRUE));
 	VERIFY0(replace_kind(d.rtd_os, d.rtd_root, "k_fdf", B_FALSE));
@@ -154,7 +154,7 @@ test_walk_kind_matrix(void)
 	    "l\n", 2, NULL));
 	rt_close(&d);
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	VERIFY0(replace_kind(d.rtd_os, d.rtd_root, "k_ffd", B_TRUE));
 	VERIFY0(replace_kind(d.rtd_os, d.rtd_root, "k_dfd", B_TRUE));
 	VERIFY0(replace_kind(d.rtd_os, d.rtd_root, "k_ddf", B_FALSE));
@@ -167,7 +167,7 @@ test_walk_kind_matrix(void)
 	rt_close(&d);
 
 	rt_sync_pool();
-	err = dsl_rebase(RT_DS_LEFT, RT_DS_RIGHT, NULL);
+	err = dsl_rebase(RT_DS_OFFOF, RT_DS_ONTO, NULL);
 	rt_scaffold_teardown();
 
 	/*
@@ -199,7 +199,7 @@ test_walk_side_subtrees(void)
 	TEST_START("walk: side-only subtrees");
 	RT_CHECK(rt_scaffold_basic(), "scaffold failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	VERIFY0(rt_create_dir(d.rtd_os, d.rtd_root, "ldir", &dir));
 	VERIFY0(rt_create_file(d.rtd_os, dir, "a", "a\n", 2, NULL));
 	VERIFY0(rt_create_dir(d.rtd_os, dir, "ldir2", &sub));
@@ -210,7 +210,7 @@ test_walk_side_subtrees(void)
 	VERIFY0(rt_create_file(d.rtd_os, dir, "lf", "l\n", 2, NULL));
 	rt_close(&d);
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	VERIFY0(rt_create_dir(d.rtd_os, d.rtd_root, "rdir", &dir));
 	VERIFY0(rt_create_dir(d.rtd_os, dir, "rsub", &sub));
 	VERIFY0(rt_create_file(d.rtd_os, sub, "y", "y\n", 2, NULL));
@@ -219,7 +219,7 @@ test_walk_side_subtrees(void)
 	rt_close(&d);
 
 	rt_sync_pool();
-	err = dsl_rebase(RT_DS_LEFT, RT_DS_RIGHT, NULL);
+	err = dsl_rebase(RT_DS_OFFOF, RT_DS_ONTO, NULL);
 	rt_scaffold_teardown();
 
 	TEST_EXPECT(err == 0, "expected success");
@@ -250,7 +250,7 @@ test_walk_deleted_dir_trees(void)
 
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap/clone failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	VERIFY0(rt_dir_lookup(d.rtd_os, d.rtd_root, "ddel", &dir));
 	VERIFY0(rt_remove_entry(d.rtd_os, dir, "one"));
 	VERIFY0(rt_remove_entry(d.rtd_os, dir, "two"));
@@ -260,14 +260,14 @@ test_walk_deleted_dir_trees(void)
 	VERIFY0(rt_remove_entry(d.rtd_os, d.rtd_root, "dboth"));
 	rt_close(&d);
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	VERIFY0(rt_dir_lookup(d.rtd_os, d.rtd_root, "dboth", &dir));
 	VERIFY0(rt_remove_entry(d.rtd_os, dir, "z"));
 	VERIFY0(rt_remove_entry(d.rtd_os, d.rtd_root, "dboth"));
 	rt_close(&d);
 
 	rt_sync_pool();
-	err = dsl_rebase(RT_DS_LEFT, RT_DS_RIGHT, NULL);
+	err = dsl_rebase(RT_DS_OFFOF, RT_DS_ONTO, NULL);
 	rt_scaffold_teardown();
 
 	TEST_EXPECT(err == 0, "expected success");
@@ -302,7 +302,7 @@ test_walk_deep_nesting(void)
 
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap/clone failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	dir = d.rtd_root;
 	{
 		const char *levels[] = { "a", "b", "c", "d", "e", "f" };
@@ -315,7 +315,7 @@ test_walk_deep_nesting(void)
 	rt_close(&d);
 
 	rt_sync_pool();
-	err = dsl_rebase(RT_DS_LEFT, RT_DS_RIGHT, NULL);
+	err = dsl_rebase(RT_DS_OFFOF, RT_DS_ONTO, NULL);
 	rt_scaffold_teardown();
 
 	TEST_EXPECT(err == 0, "expected success");
@@ -336,7 +336,7 @@ test_walk_empty_filesystems(void)
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap/clone failed");
 
 	rt_sync_pool();
-	err = dsl_rebase(RT_DS_LEFT, RT_DS_RIGHT, NULL);
+	err = dsl_rebase(RT_DS_OFFOF, RT_DS_ONTO, NULL);
 	rt_scaffold_teardown();
 
 	TEST_EXPECT(err == 0, "expected success");
@@ -370,7 +370,7 @@ test_walk_orphan_skipped(void)
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap/clone failed");
 
 	rt_sync_pool();
-	err = dsl_rebase(RT_DS_LEFT, RT_DS_RIGHT, NULL);
+	err = dsl_rebase(RT_DS_OFFOF, RT_DS_ONTO, NULL);
 	rt_scaffold_teardown();
 
 	TEST_EXPECT(err == 0, "expected success");
@@ -394,13 +394,13 @@ test_walk_dangling_dirent(void)
 	TEST_START("walk: dangling dirent -> EIO");
 	RT_CHECK(rt_scaffold_basic(), "scaffold failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_add_dangling_entry(d.rtd_os, d.rtd_root, "ghost");
 	rt_close(&d);
 	RT_CHECK(err, "add dangling entry");
 
 	rt_sync_pool();
-	err = dsl_rebase(RT_DS_LEFT, RT_DS_RIGHT, NULL);
+	err = dsl_rebase(RT_DS_OFFOF, RT_DS_ONTO, NULL);
 	rt_scaffold_teardown();
 
 	TEST_EXPECT(err == EIO, "expected EIO");
@@ -440,7 +440,7 @@ test_walk_hardlinked_specials(void)
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
 	rt_sync_pool();
-	err = dsl_rebase(RT_DS_LEFT, RT_DS_RIGHT, NULL);
+	err = dsl_rebase(RT_DS_OFFOF, RT_DS_ONTO, NULL);
 	rt_scaffold_teardown();
 
 	TEST_EXPECT(err == 0, "expected success");

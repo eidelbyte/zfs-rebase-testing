@@ -132,7 +132,7 @@ rt_run_rebase(nvlist_t **nvlp)
 	nvlist_t *nvl;
 	int err;
 
-	err = rt_rebase_snaps(RT_DS_LEFT, RT_DS_RIGHT, offof, onto,
+	err = rt_rebase_snaps(RT_DS_OFFOF, RT_DS_ONTO, offof, onto,
 	    sizeof (offof));
 	if (err != 0)
 		return (err);
@@ -232,6 +232,18 @@ rt_rebase_diag(void)
  * the classification observable defined by the H matrix preamble.
  * Returns ENOENT if no run has logged a summary (the walk only
  * logs on success).
+ */
+/*
+ * REVISION-2 DEBUG SCRAPERS BELOW.
+ *
+ * Everything from here to rt_apply_inject() parses dbgmsg lines the
+ * revision-2 engine emitted, and those lines spell "left" and
+ * "right" because revision 2 did.  The strings are quoted exactly,
+ * so they cannot be modernized: they are a record of text that no
+ * longer exists anywhere else.  The v3 engine says onto and off-of,
+ * and none of these functions is reachable from m1_smoke -- they
+ * serve the parked 265-test battery only, and go when the v3 test
+ * epic replaces it.  Same reasoning as RT_LEGACY_FENCE_SUFFIX.
  */
 int
 rt_walk_stats(rt_walk_stats_t *ws)
@@ -675,7 +687,7 @@ rt_fence_exists(void)
 {
 	objset_t *os;
 
-	if (dmu_objset_hold(RT_DS_LEFT "@" RT_LEGACY_FENCE_SUFFIX,
+	if (dmu_objset_hold(RT_DS_OFFOF "@" RT_LEGACY_FENCE_SUFFIX,
 	    FTAG, &os) != 0)
 		return (B_FALSE);
 	dmu_objset_rele(os, FTAG);
@@ -686,7 +698,7 @@ int
 rt_destroy_fence(void)
 {
 	return (dsl_destroy_snapshot(
-	    RT_DS_LEFT "@" RT_LEGACY_FENCE_SUFFIX, B_FALSE));
+	    RT_DS_OFFOF "@" RT_LEGACY_FENCE_SUFFIX, B_FALSE));
 }
 
 /*
@@ -700,8 +712,8 @@ rt_rollback_to_fence(void)
 	nvlist_t *rnvl = fnvlist_alloc();
 	int err;
 
-	err = dsl_dataset_rollback(RT_DS_LEFT,
-	    RT_DS_LEFT "@" RT_LEGACY_FENCE_SUFFIX, NULL, rnvl);
+	err = dsl_dataset_rollback(RT_DS_OFFOF,
+	    RT_DS_OFFOF "@" RT_LEGACY_FENCE_SUFFIX, NULL, rnvl);
 	nvlist_free(rnvl);
 	return (err);
 }

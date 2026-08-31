@@ -72,7 +72,7 @@ test_linkpool_discovery_matrix(void)
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap/clone failed");
 
 	rt_sync_pool();
-	err = dsl_rebase(RT_DS_LEFT, RT_DS_RIGHT, NULL);
+	err = dsl_rebase(RT_DS_OFFOF, RT_DS_ONTO, NULL);
 	rt_scaffold_teardown();
 
 	TEST_EXPECT(err == 0, "expected success");
@@ -108,19 +108,19 @@ test_linkpool_membership_ops(void)
 
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap/clone failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	VERIFY0(rt_dir_lookup(d.rtd_os, d.rtd_root, "m1", &obj));
 	VERIFY0(rt_add_hardlink(d.rtd_os, d.rtd_root, "m4", obj));
 	VERIFY0(rt_remove_entry(d.rtd_os, d.rtd_root, "d1"));
 	VERIFY0(rt_remove_entry(d.rtd_os, d.rtd_root, "d2"));
 	rt_close(&d);
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	VERIFY0(rt_remove_entry(d.rtd_os, d.rtd_root, "m3"));
 	rt_close(&d);
 
 	rt_sync_pool();
-	err = dsl_rebase(RT_DS_LEFT, RT_DS_RIGHT, NULL);
+	err = dsl_rebase(RT_DS_OFFOF, RT_DS_ONTO, NULL);
 	rt_scaffold_teardown();
 
 	TEST_EXPECT(err == 0, "expected success");
@@ -169,7 +169,7 @@ lv_corrupt_and_expect_eio(const char *dsname, uint64_t nlink)
 	RT_CHECK(err, "set nlink");
 
 	rt_sync_pool();
-	err = dsl_rebase(RT_DS_LEFT, RT_DS_RIGHT, NULL);
+	err = dsl_rebase(RT_DS_OFFOF, RT_DS_ONTO, NULL);
 	rt_scaffold_teardown();
 
 	TEST_EXPECT(err == EIO, "expected EIO (incomplete linkpool)");
@@ -186,7 +186,7 @@ test_linkpool_nlink_over_left(void)
 {
 	TEST_START("linkpool: nlink > entries on left -> EIO");
 	RT_CHECK(lv_scaffold(), "scaffold failed");
-	return (lv_corrupt_and_expect_eio(RT_DS_LEFT, 5));
+	return (lv_corrupt_and_expect_eio(RT_DS_OFFOF, 5));
 }
 
 /*
@@ -216,7 +216,7 @@ test_linkpool_nlink_over_base(void)
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap/clone failed");
 
 	rt_sync_pool();
-	err = dsl_rebase(RT_DS_LEFT, RT_DS_RIGHT, NULL);
+	err = dsl_rebase(RT_DS_OFFOF, RT_DS_ONTO, NULL);
 	rt_scaffold_teardown();
 
 	TEST_EXPECT(err == EIO, "expected EIO (incomplete linkpool)");
@@ -231,7 +231,7 @@ test_linkpool_nlink_over_right(void)
 {
 	TEST_START("linkpool: nlink > entries on right -> EIO");
 	RT_CHECK(lv_scaffold(), "scaffold failed");
-	return (lv_corrupt_and_expect_eio(RT_DS_RIGHT, 5));
+	return (lv_corrupt_and_expect_eio(RT_DS_ONTO, 5));
 }
 
 /*
@@ -259,7 +259,7 @@ test_linkpool_nlink_under(void)
 	rt_close(&d);
 
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap/clone failed");
-	return (lv_corrupt_and_expect_eio(RT_DS_LEFT, 2));
+	return (lv_corrupt_and_expect_eio(RT_DS_OFFOF, 2));
 }
 
 /*
@@ -276,14 +276,14 @@ test_left_hardlink(void)
 	TEST_START("left adds a hardlink");
 	RT_CHECK(rt_scaffold_basic(), "scaffold failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	VERIFY0(rt_dir_lookup(d.rtd_os, d.rtd_root, "hello", &obj));
 	err = rt_add_hardlink(d.rtd_os, d.rtd_root, "hello_link", obj);
 	rt_close(&d);
 	RT_CHECK(err, "add hardlink");
 
 	rt_sync_pool();
-	err = dsl_rebase(RT_DS_LEFT, RT_DS_RIGHT, NULL);
+	err = dsl_rebase(RT_DS_OFFOF, RT_DS_ONTO, NULL);
 	rt_scaffold_teardown();
 
 	TEST_EXPECT(err == 0, "expected success");
@@ -318,14 +318,14 @@ test_edge_hardlink_edit_both_sides(void)
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap/clone failed");
 
 	/* Left edits the dnode (via hello). */
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	VERIFY0(rt_dir_lookup(d.rtd_os, d.rtd_root, "hello", &obj));
 	err = rt_edit_file(d.rtd_os, obj, "left-edit\n", 10);
 	rt_close(&d);
 	RT_CHECK(err, "edit left");
 
 	/* Right edits the same dnode (via hello_link, same obj). */
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	VERIFY0(rt_dir_lookup(d.rtd_os, d.rtd_root, "hello_link",
 	    &obj));
 	err = rt_edit_file(d.rtd_os, obj, "right-edit\n", 11);
@@ -377,7 +377,7 @@ test_edge_hardlink_delete_no_conflict(void)
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap/clone failed");
 
 	/* Left removes the hardlink (original "hello" remains). */
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_remove_entry(d.rtd_os, d.rtd_root, "hello_link");
 	rt_close(&d);
 	RT_CHECK(err, "remove hardlink");
@@ -423,13 +423,13 @@ test_edge_hardlink_delete_vs_edit(void)
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap/clone failed");
 
 	/* Left removes the hardlink. */
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_remove_entry(d.rtd_os, d.rtd_root, "hello_link");
 	rt_close(&d);
 	RT_CHECK(err, "remove hardlink");
 
 	/* Right edits the dnode (visible at both paths). */
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	VERIFY0(rt_dir_lookup(d.rtd_os, d.rtd_root, "hello_link",
 	    &obj));
 	err = rt_edit_file(d.rtd_os, obj, "right-edit\n", 11);

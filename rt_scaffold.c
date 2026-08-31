@@ -4,7 +4,7 @@
  *
  * Pool and dataset scaffolding: file-vdev pool lifecycle, ZPL
  * dataset creation, snapshots, clones, and the standard three-way
- * scaffold (src populated, src@base snapshotted, left and right
+ * scaffold (src populated, src@base snapshotted, off-of and onto
  * cloned from it).
  */
 
@@ -99,7 +99,7 @@ rt_create_zvol_dataset(const char *dsname)
 }
 
 /*
- * Snapshot src as @base and clone it to left and right. Syncs the
+ * Snapshot src as @base and clone it to the two sides. Syncs the
  * pool first so the snapshot captures everything.
  */
 int
@@ -112,11 +112,11 @@ rt_scaffold_snap_and_clone(void)
 	err = rt_snapshot(RT_DS_SRC, "base");
 	VERIFY_OK(err, "snapshot src@base");
 
-	err = rt_clone(RT_DS_LEFT, RT_DS_SRC "@base");
-	VERIFY_OK(err, "clone left");
+	err = rt_clone(RT_DS_OFFOF, RT_DS_SRC "@base");
+	VERIFY_OK(err, "clone off-of");
 
-	err = rt_clone(RT_DS_RIGHT, RT_DS_SRC "@base");
-	VERIFY_OK(err, "clone right");
+	err = rt_clone(RT_DS_ONTO, RT_DS_SRC "@base");
+	VERIFY_OK(err, "clone onto");
 
 	return (0);
 }
@@ -145,7 +145,7 @@ rt_scaffold_empty_base(void)
 /*
  * The standard scaffold: a base dataset with one file ("hello"),
  * one subdirectory ("subdir") containing one file ("inner"),
- * snapshotted and cloned to left + right.
+ * snapshotted and cloned to off-of + onto.
  */
 int
 rt_scaffold_basic(void)

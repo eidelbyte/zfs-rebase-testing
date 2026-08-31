@@ -111,7 +111,7 @@ test_hysteria_neighbor_churn(void)
 	RT_CHECK(err, "populate src");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_dir_lookup(d.rtd_os, d.rtd_root, "fb", &obj);
 	if (err == 0)
 		err = rt_edit_file(d.rtd_os, obj, "BBBB", 4);
@@ -138,7 +138,7 @@ test_hysteria_touch_only(void)
 	TEST_START("H3: touch(1)-style timestamp-only update");
 	RT_CHECK(rt_scaffold_basic(), "scaffold failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_dir_lookup(d.rtd_os, d.rtd_root, "hello", &obj);
 	if (err == 0)
 		err = rt_touch(d.rtd_os, obj);
@@ -176,7 +176,7 @@ test_hysteria_sa_identity(void)
 	RT_CHECK(err, "populate src");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	for (int i = 0; i < 5 && err == 0; i++)
 		err = rt_dir_lookup(d.rtd_os, d.rtd_root, names[i],
 		    &objs[i]);
@@ -220,7 +220,7 @@ test_hysteria_acl(void)
 	RT_CHECK(err, "populate src");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_dir_lookup(d.rtd_os, d.rtd_root, "f", &obj);
 	if (err == 0)
 		err = rt_set_sa_blob(d.rtd_os, obj, ZPL_DACL_ACES,
@@ -249,7 +249,7 @@ test_hysteria_recycled_gen(void)
 	TEST_START("H7: gen flip = recycled slot, never an edit");
 	RT_CHECK(rt_scaffold_basic(), "scaffold failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_dir_lookup(d.rtd_os, d.rtd_root, "hello", &obj);
 	if (err == 0)
 		err = rt_set_sa_u64(d.rtd_os, obj, ZPL_GEN, 424242);
@@ -274,7 +274,7 @@ test_hysteria_rename_on_save(void)
 	TEST_START("H8: rename-on-save, content unchanged");
 	RT_CHECK(rt_scaffold_basic(), "scaffold failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_hysterical_edit(d.rtd_os, d.rtd_root, "hello",
 	    "world\n", 6, NULL);
 	rt_close(&d);
@@ -298,7 +298,7 @@ test_hysteria_recreate_differs(void)
 	TEST_START("H9: recreate with different content");
 	RT_CHECK(rt_scaffold_basic(), "scaffold failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_hysterical_edit(d.rtd_os, d.rtd_root, "hello",
 	    "different!\n", 11, NULL);
 	rt_close(&d);
@@ -324,7 +324,7 @@ test_hysteria_rewrite_identical(void)
 	TEST_START("H10: in-place rewrite, identical bytes");
 	RT_CHECK(rt_scaffold_basic(), "scaffold failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_dir_lookup(d.rtd_os, d.rtd_root, "hello", &obj);
 	if (err == 0)
 		err = rt_edit_file(d.rtd_os, obj, "world\n", 6);
@@ -350,7 +350,7 @@ test_hysteria_rewrite_differs(void)
 	TEST_START("H11: in-place rewrite, different bytes");
 	RT_CHECK(rt_scaffold_basic(), "scaffold failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_dir_lookup(d.rtd_os, d.rtd_root, "hello", &obj);
 	if (err == 0)
 		err = rt_edit_file(d.rtd_os, obj, "WORLD\n", 6);
@@ -384,7 +384,7 @@ test_hysteria_empty_files(void)
 	RT_CHECK(err, "populate src");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_dir_lookup(d.rtd_os, d.rtd_root, "empty", &obj);
 	if (err == 0)
 		err = rt_touch(d.rtd_os, obj);
@@ -410,7 +410,7 @@ test_hysteria_append(void)
 	TEST_START("H13: append (size differs)");
 	RT_CHECK(rt_scaffold_basic(), "scaffold failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_dir_lookup(d.rtd_os, d.rtd_root, "hello", &obj);
 	if (err == 0)
 		err = rt_edit_file(d.rtd_os, obj, "world\nplus\n", 11);
@@ -457,7 +457,7 @@ test_hysteria_multiblock(void)
 	if (err == 0)
 		err = rt_scaffold_snap_and_clone();
 	if (err == 0)
-		err = rt_open(RT_DS_LEFT, &d);
+		err = rt_open(RT_DS_OFFOF, &d);
 	if (err == 0) {
 		err = rt_dir_lookup(d.rtd_os, d.rtd_root, "big", &obj);
 		if (err == 0)
@@ -516,7 +516,7 @@ test_hysteria_hole_vs_zeros(void)
 	if (err == 0)
 		err = rt_scaffold_snap_and_clone();
 	if (err == 0)
-		err = rt_open(RT_DS_LEFT, &d);
+		err = rt_open(RT_DS_OFFOF, &d);
 	if (err == 0) {
 		err = rt_dir_lookup(d.rtd_os, d.rtd_root, "sparse",
 		    &obj);
@@ -584,7 +584,7 @@ test_hysteria_dir_entries(void)
 	RT_CHECK(err, "populate src");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_dir_lookup(d.rtd_os, d.rtd_root, "d", &dobj);
 	if (err == 0)
 		err = rt_create_file(d.rtd_os, dobj, "f2", "y", 1,
@@ -622,7 +622,7 @@ test_hysteria_dir_chmod(void)
 	RT_CHECK(err, "populate src");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_dir_lookup(d.rtd_os, d.rtd_root, "d", &dobj);
 	if (err == 0)
 		err = rt_set_sa_u64(d.rtd_os, dobj, ZPL_MODE,
@@ -680,7 +680,7 @@ test_hysteria_xattr_sa_equal(void)
 	RT_CHECK(err, "populate src");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_dir_lookup(d.rtd_os, d.rtd_root, "f", &obj);
 	if (err == 0) {
 		nvl = hyst_xattrs("user.b", "2", "user.a", "1");
@@ -720,7 +720,7 @@ test_hysteria_xattr_value(void)
 	RT_CHECK(err, "populate src");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_dir_lookup(d.rtd_os, d.rtd_root, "f", &obj);
 	if (err == 0) {
 		nvl = hyst_xattrs("user.a", "2", NULL, NULL);
@@ -755,7 +755,7 @@ test_hysteria_xattr_added(void)
 	RT_CHECK(err, "populate src");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_dir_lookup(d.rtd_os, d.rtd_root, "f", &obj);
 	if (err == 0) {
 		nvl = hyst_xattrs("user.a", "1", NULL, NULL);
@@ -797,7 +797,7 @@ test_hysteria_xattr_repr_flip(void)
 	RT_CHECK(err, "populate src");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_dir_lookup(d.rtd_os, d.rtd_root, "f", &obj);
 	if (err == 0)
 		err = rt_remove_sa_attr(d.rtd_os, obj, ZPL_DXATTR);
@@ -836,7 +836,7 @@ test_hysteria_xattr_dir_equal(void)
 	RT_CHECK(err, "populate src");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_dir_lookup(d.rtd_os, d.rtd_root, "f", &obj);
 	if (err == 0)
 		err = rt_touch(d.rtd_os, obj);
@@ -869,7 +869,7 @@ test_hysteria_symlink_same(void)
 	RT_CHECK(err, "populate src");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_remove_entry(d.rtd_os, d.rtd_root, "lnk");
 	if (err == 0)
 		err = rt_create_symlink(d.rtd_os, d.rtd_root, "lnk",
@@ -902,7 +902,7 @@ test_hysteria_symlink_differs(void)
 	RT_CHECK(err, "populate src");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_remove_entry(d.rtd_os, d.rtd_root, "lnk");
 	if (err == 0)
 		err = rt_create_symlink(d.rtd_os, d.rtd_root, "lnk",
@@ -935,7 +935,7 @@ test_hysteria_device_same(void)
 	RT_CHECK(err, "populate src");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_remove_entry(d.rtd_os, d.rtd_root, "dev");
 	if (err == 0)
 		err = rt_create_device(d.rtd_os, d.rtd_root, "dev",
@@ -967,7 +967,7 @@ test_hysteria_device_differs(void)
 	RT_CHECK(err, "populate src");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_remove_entry(d.rtd_os, d.rtd_root, "dev");
 	if (err == 0)
 		err = rt_create_device(d.rtd_os, d.rtd_root, "dev",
@@ -999,7 +999,7 @@ test_hysteria_type_flip(void)
 	RT_CHECK(err, "populate src");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_remove_entry(d.rtd_os, d.rtd_root, "x");
 	if (err == 0)
 		err = rt_create_dir(d.rtd_os, d.rtd_root, "x", NULL);
@@ -1038,7 +1038,7 @@ test_hysteria_linkpool_axis(void)
 	RT_CHECK(err, "populate src");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_remove_entry(d.rtd_os, d.rtd_root, "B");
 	rt_close(&d);
 	RT_CHECK(err, "unlink B");
@@ -1070,7 +1070,7 @@ test_hysteria_gen_missing(void)
 	RT_CHECK(err, "populate src");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_dir_lookup(d.rtd_os, d.rtd_root, "f", &obj);
 	if (err == 0)
 		err = rt_remove_sa_attr(d.rtd_os, obj, ZPL_GEN);
@@ -1107,7 +1107,7 @@ test_hysteria_dxattr_corrupt(void)
 	TEST_START("H36: corrupt DXATTR blob is EIO, not EINVAL");
 	RT_CHECK(rt_scaffold_basic(), "scaffold failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_dir_lookup(d.rtd_os, d.rtd_root, "hello", &obj);
 	if (err == 0)
 		err = rt_set_sa_blob(d.rtd_os, obj, ZPL_DXATTR,
@@ -1136,7 +1136,7 @@ test_hysteria_right_side(void)
 	TEST_START("H35: right-side counter symmetry");
 	RT_CHECK(rt_scaffold_basic(), "scaffold failed");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_dir_lookup(d.rtd_os, d.rtd_root, "hello", &obj);
 	if (err == 0)
 		err = rt_edit_file(d.rtd_os, obj, "WORLD\n", 6);
@@ -1171,13 +1171,13 @@ test_suppress_both_edit_identical(void)
 	TEST_START("suppress: both EDIT identical content");
 	RT_CHECK(rt_scaffold_basic(), "scaffold failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	VERIFY0(rt_dir_lookup(d.rtd_os, d.rtd_root, "hello", &obj));
 	err = rt_edit_file(d.rtd_os, obj, "same-fix\n", 9);
 	rt_close(&d);
 	RT_CHECK(err, "edit left");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	VERIFY0(rt_dir_lookup(d.rtd_os, d.rtd_root, "hello", &obj));
 	err = rt_edit_file(d.rtd_os, obj, "same-fix\n", 9);
 	rt_close(&d);
@@ -1206,13 +1206,13 @@ test_suppress_both_add_identical(void)
 	TEST_START("suppress: both ADD identical content");
 	RT_CHECK(rt_scaffold_basic(), "scaffold failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_create_file(d.rtd_os, d.rtd_root, "shared",
 	    "identical\n", 10, NULL);
 	rt_close(&d);
 	RT_CHECK(err, "create left");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_create_file(d.rtd_os, d.rtd_root, "shared",
 	    "identical\n", 10, NULL);
 	rt_close(&d);
@@ -1243,7 +1243,7 @@ test_suppress_both_move_edit_identical(void)
 	TEST_START("suppress: both MOVE_EDIT identical");
 	RT_CHECK(rt_scaffold_basic(), "scaffold failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	VERIFY0(rt_dir_lookup(d.rtd_os, d.rtd_root, "hello", &obj));
 	VERIFY0(rt_rename_file(d.rtd_os, d.rtd_root, "hello",
 	    d.rtd_root, "hello2"));
@@ -1251,7 +1251,7 @@ test_suppress_both_move_edit_identical(void)
 	rt_close(&d);
 	RT_CHECK(err, "move+edit left");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	VERIFY0(rt_dir_lookup(d.rtd_os, d.rtd_root, "hello", &obj));
 	VERIFY0(rt_rename_file(d.rtd_os, d.rtd_root, "hello",
 	    d.rtd_root, "hello2"));
@@ -1284,13 +1284,13 @@ test_edge_hysterical_both_same_content(void)
 	TEST_START("edge: both hysterical, same base content");
 	RT_CHECK(rt_scaffold_basic(), "scaffold failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_hysterical_edit(d.rtd_os, d.rtd_root, "hello",
 	    "world\n", 6, NULL);
 	rt_close(&d);
 	RT_CHECK(err, "hysterical left");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_hysterical_edit(d.rtd_os, d.rtd_root, "hello",
 	    "world\n", 6, NULL);
 	rt_close(&d);
@@ -1321,13 +1321,13 @@ test_edge_hysterical_both_identical_new(void)
 	TEST_START("edge: both hysterical, identical new content");
 	RT_CHECK(rt_scaffold_basic(), "scaffold failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_hysterical_edit(d.rtd_os, d.rtd_root, "hello",
 	    "new-content\n", 12, NULL);
 	rt_close(&d);
 	RT_CHECK(err, "hysterical left");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_hysterical_edit(d.rtd_os, d.rtd_root, "hello",
 	    "new-content\n", 12, NULL);
 	rt_close(&d);
@@ -1357,13 +1357,13 @@ test_edge_hysterical_both_different(void)
 	TEST_START("edge: both hysterical, different new content");
 	RT_CHECK(rt_scaffold_basic(), "scaffold failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_hysterical_edit(d.rtd_os, d.rtd_root, "hello",
 	    "left-new\n", 9, NULL);
 	rt_close(&d);
 	RT_CHECK(err, "hysterical left");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_hysterical_edit(d.rtd_os, d.rtd_root, "hello",
 	    "right-new\n", 10, NULL);
 	rt_close(&d);
@@ -1397,13 +1397,13 @@ test_edge_delete_and_recreate(void)
 	TEST_START("edge: delete + recreate both sides (diff)");
 	RT_CHECK(rt_scaffold_basic(), "scaffold failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_hysterical_edit(d.rtd_os, d.rtd_root, "hello",
 	    "left-recreated\n", 15, NULL);
 	rt_close(&d);
 	RT_CHECK(err, "recreate left");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_hysterical_edit(d.rtd_os, d.rtd_root, "hello",
 	    "right-recreated\n", 16, NULL);
 	rt_close(&d);

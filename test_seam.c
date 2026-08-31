@@ -91,13 +91,13 @@ test_seam_create_vs_pool(void)
 	RT_CHECK(rt_scaffold_empty_base(), "scaffold failed");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_create_file(d.rtd_os, d.rtd_root, "P", "mine", 4,
 	    NULL);
 	rt_close(&d);
 	RT_CHECK(err, "left create");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_create_file(d.rtd_os, d.rtd_root, "Q", "theirs", 6,
 	    &obj);
 	if (err == 0)
@@ -141,7 +141,7 @@ test_seam_create_vs_pool_mirror(void)
 	RT_CHECK(rt_scaffold_empty_base(), "scaffold failed");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_create_file(d.rtd_os, d.rtd_root, "Q", "mine", 4,
 	    &obj);
 	if (err == 0)
@@ -149,7 +149,7 @@ test_seam_create_vs_pool_mirror(void)
 	rt_close(&d);
 	RT_CHECK(err, "left pool create");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_create_file(d.rtd_os, d.rtd_root, "P", "theirs", 6,
 	    NULL);
 	rt_close(&d);
@@ -196,13 +196,13 @@ test_seam_create_convergent(void)
 	RT_CHECK(err, "base file");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_create_file(d.rtd_os, d.rtd_root, "P", "vv", 2,
 	    NULL);
 	rt_close(&d);
 	RT_CHECK(err, "left create");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_add_hardlink(d.rtd_os, d.rtd_root, "P", obj);
 	rt_close(&d);
 	RT_CHECK(err, "right link");
@@ -248,12 +248,12 @@ test_seam_edit_vs_repoint(void)
 	RT_CHECK(err, "base files");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_edit_file(d.rtd_os, mobj, "m2", 2);
 	rt_close(&d);
 	RT_CHECK(err, "left edit");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_remove_entry(d.rtd_os, d.rtd_root, "P");
 	if (err == 0)
 		err = rt_add_hardlink(d.rtd_os, d.rtd_root, "P",
@@ -302,13 +302,13 @@ test_seam_replace_vs_grow(void)
 	RT_CHECK(err, "base file");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_hysterical_edit(d.rtd_os, d.rtd_root, "P", "L2", 2,
 	    NULL);
 	rt_close(&d);
 	RT_CHECK(err, "left replace");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_add_hardlink(d.rtd_os, d.rtd_root, "P2", mobj);
 	rt_close(&d);
 	RT_CHECK(err, "right grow");
@@ -354,7 +354,7 @@ test_seam_edit_vs_repoint_mirror(void)
 	RT_CHECK(err, "base files");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_remove_entry(d.rtd_os, d.rtd_root, "P");
 	if (err == 0)
 		err = rt_add_hardlink(d.rtd_os, d.rtd_root, "P",
@@ -362,7 +362,7 @@ test_seam_edit_vs_repoint_mirror(void)
 	rt_close(&d);
 	RT_CHECK(err, "left repoint");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_edit_file(d.rtd_os, mobj, "m2", 2);
 	rt_close(&d);
 	RT_CHECK(err, "right edit");
@@ -410,12 +410,12 @@ test_seam_edit_convergent(void)
 	RT_CHECK(err, "base files");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_edit_file(d.rtd_os, mobj, "vv", 2);
 	rt_close(&d);
 	RT_CHECK(err, "left edit");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_remove_entry(d.rtd_os, d.rtd_root, "P");
 	if (err == 0)
 		err = rt_add_hardlink(d.rtd_os, d.rtd_root, "P",
@@ -464,13 +464,13 @@ test_seam_move_vs_grow(void)
 	RT_CHECK(err, "base file");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_rename_file(d.rtd_os, d.rtd_root, "P", d.rtd_root,
 	    "P2");
 	rt_close(&d);
 	RT_CHECK(err, "left rename");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_add_hardlink(d.rtd_os, d.rtd_root, "P3", mobj);
 	rt_close(&d);
 	RT_CHECK(err, "right grow");
@@ -524,13 +524,13 @@ test_seam_move_vs_repoint(void)
 	RT_CHECK(err, "base pool + file");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_rename_file(d.rtd_os, d.rtd_root, "P", d.rtd_root,
 	    "P2");
 	rt_close(&d);
 	RT_CHECK(err, "left rename");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_remove_entry(d.rtd_os, d.rtd_root, "P");
 	if (err == 0)
 		err = rt_add_hardlink(d.rtd_os, d.rtd_root, "P",
@@ -577,12 +577,12 @@ test_seam_move_vs_grow_mirror(void)
 	RT_CHECK(err, "base file");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_add_hardlink(d.rtd_os, d.rtd_root, "P3", mobj);
 	rt_close(&d);
 	RT_CHECK(err, "left grow");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_rename_file(d.rtd_os, d.rtd_root, "P", d.rtd_root,
 	    "P2");
 	rt_close(&d);
@@ -633,13 +633,13 @@ test_seam_move_dest_vs_pool(void)
 	RT_CHECK(err, "base files");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_rename_file(d.rtd_os, d.rtd_root, "P", d.rtd_root,
 	    "P2");
 	rt_close(&d);
 	RT_CHECK(err, "left rename");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_add_hardlink(d.rtd_os, d.rtd_root, "P2", qobj);
 	rt_close(&d);
 	RT_CHECK(err, "right link at destination");
@@ -685,12 +685,12 @@ test_seam_move_dest_vs_pool_mirror(void)
 	RT_CHECK(err, "base files");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_add_hardlink(d.rtd_os, d.rtd_root, "P2", qobj);
 	rt_close(&d);
 	RT_CHECK(err, "left link at destination");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_rename_file(d.rtd_os, d.rtd_root, "P", d.rtd_root,
 	    "P2");
 	rt_close(&d);
@@ -739,13 +739,13 @@ test_seam_move_dest_convergent(void)
 	RT_CHECK(err, "base files");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_rename_file(d.rtd_os, d.rtd_root, "P", d.rtd_root,
 	    "P2");
 	rt_close(&d);
 	RT_CHECK(err, "left rename");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_add_hardlink(d.rtd_os, d.rtd_root, "P2", qobj);
 	rt_close(&d);
 	RT_CHECK(err, "right link at destination");
@@ -792,7 +792,7 @@ test_seam_pool_around_moved(void)
 	RT_CHECK(err, "base file");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_rename_file(d.rtd_os, d.rtd_root, "P", d.rtd_root,
 	    "P2");
 	if (err == 0)
@@ -800,7 +800,7 @@ test_seam_pool_around_moved(void)
 	rt_close(&d);
 	RT_CHECK(err, "left move+edit");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_add_hardlink(d.rtd_os, d.rtd_root, "P3", mobj);
 	rt_close(&d);
 	RT_CHECK(err, "right grow");
@@ -847,12 +847,12 @@ test_seam_ctl_grow(void)
 	RT_CHECK(err, "base file");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_edit_file(d.rtd_os, mobj, "m2", 2);
 	rt_close(&d);
 	RT_CHECK(err, "left edit");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_add_hardlink(d.rtd_os, d.rtd_root, "P3", mobj);
 	rt_close(&d);
 	RT_CHECK(err, "right grow");
@@ -893,7 +893,7 @@ test_seam_ctl_dual(void)
 	RT_CHECK(rt_scaffold_empty_base(), "scaffold failed");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_create_file(d.rtd_os, d.rtd_root, "Z1", "aa", 2,
 	    &obj);
 	if (err == 0)
@@ -901,7 +901,7 @@ test_seam_ctl_dual(void)
 	rt_close(&d);
 	RT_CHECK(err, "left pool");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_create_file(d.rtd_os, d.rtd_root, "Z2", "bb", 2,
 	    &obj);
 	if (err == 0)
@@ -967,12 +967,12 @@ test_seam_ctl_basepool(void)
 	RT_CHECK(err, "base pool + file");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_edit_file(d.rtd_os, nobj, "n2", 2);
 	rt_close(&d);
 	RT_CHECK(err, "left pool edit");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_remove_entry(d.rtd_os, d.rtd_root, "P");
 	if (err == 0)
 		err = rt_add_hardlink(d.rtd_os, d.rtd_root, "P",
@@ -1022,7 +1022,7 @@ test_seam_reg_standalone_move(void)
 	RT_CHECK(err, "base file");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_rename_file(d.rtd_os, d.rtd_root, "P", d.rtd_root,
 	    "P2");
 	rt_close(&d);
@@ -1083,13 +1083,13 @@ test_seam_fragment_winner(void)
 	RT_CHECK(err, "base pool");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_create_file(d.rtd_os, d.rtd_root, "P4", "L1", 2,
 	    NULL);
 	rt_close(&d);
 	RT_CHECK(err, "left create");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_remove_entry(d.rtd_os, d.rtd_root, "B");
 	if (err == 0)
 		err = rt_remove_entry(d.rtd_os, d.rtd_root, "C");

@@ -48,7 +48,7 @@ test_emit_phantom_dissolution(void)
 	rt_close(&d);
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	VERIFY0(rt_edit_file(d.rtd_os, obj, "v2", 2));
 	VERIFY0(rt_hysterical_edit(d.rtd_os, d.rtd_root, "X", "v1",
 	    2, NULL));
@@ -57,7 +57,7 @@ test_emit_phantom_dissolution(void)
 	rt_close(&d);
 	RT_CHECK(err, "left edit + severs");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	VERIFY0(rt_edit_file(d.rtd_os, obj, "v2", 2));
 	VERIFY0(rt_hysterical_edit(d.rtd_os, d.rtd_root, "A", "v1",
 	    2, NULL));
@@ -104,11 +104,11 @@ test_emit_convergent_pool(void)
 	rt_close(&d);
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_edit_file(d.rtd_os, obj, "same!", 5);
 	rt_close(&d);
 	RT_CHECK(err, "left edit");
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_edit_file(d.rtd_os, obj, "same!", 5);
 	rt_close(&d);
 	RT_CHECK(err, "right edit");
@@ -150,7 +150,7 @@ test_emit_right_pool_edit(void)
 	rt_close(&d);
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_edit_file(d.rtd_os, obj, "edited!", 7);
 	rt_close(&d);
 	RT_CHECK(err, "right edit");
@@ -200,7 +200,7 @@ test_emit_fragment_three_way(void)
 	rt_close(&d);
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	VERIFY0(rt_remove_entry(d.rtd_os, d.rtd_root, "c"));
 	VERIFY0(rt_remove_entry(d.rtd_os, d.rtd_root, "d"));
 	VERIFY0(rt_create_file(d.rtd_os, d.rtd_root, "c", "x", 1,
@@ -209,7 +209,7 @@ test_emit_fragment_three_way(void)
 	rt_close(&d);
 	RT_CHECK(err, "left split");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_edit_file(d.rtd_os, obj, "newdata", 7);
 	rt_close(&d);
 	RT_CHECK(err, "right edit");
@@ -253,13 +253,13 @@ test_emit_shrunk_warning(void)
 	rt_close(&d);
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_hysterical_edit(d.rtd_os, d.rtd_root, "A", "x", 1,
 	    NULL);
 	rt_close(&d);
 	RT_CHECK(err, "left sever");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_edit_file(d.rtd_os, obj, "edited!", 7);
 	rt_close(&d);
 	RT_CHECK(err, "right edit");
@@ -294,7 +294,7 @@ test_emit_standalone_actions(void)
 	TEST_START("F3: right standalone changes = 3 actions");
 	RT_CHECK(rt_scaffold_basic(), "scaffold failed");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	VERIFY0(rt_create_file(d.rtd_os, d.rtd_root, "r1", "n\n", 2,
 	    NULL));
 	VERIFY0(rt_dir_lookup(d.rtd_os, d.rtd_root, "hello", &obj));
@@ -332,7 +332,7 @@ test_emit_left_no_actions(void)
 	TEST_START("F4: left changes compile no actions");
 	RT_CHECK(rt_scaffold_basic(), "scaffold failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	VERIFY0(rt_create_file(d.rtd_os, d.rtd_root, "l1", "n\n", 2,
 	    NULL));
 	VERIFY0(rt_dir_lookup(d.rtd_os, d.rtd_root, "hello", &obj));
@@ -370,13 +370,13 @@ test_emit_dangling_symlink(void)
 	TEST_START("F5+F8: merge-caused dangling symlink");
 	RT_CHECK(rt_scaffold_basic(), "scaffold failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_rename_file(d.rtd_os, d.rtd_root, "hello",
 	    d.rtd_root, "hello2");
 	rt_close(&d);
 	RT_CHECK(err, "left rename");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	VERIFY0(rt_create_symlink(d.rtd_os, d.rtd_root, "ln",
 	    "hello", NULL));
 	err = rt_create_symlink(d.rtd_os, d.rtd_root, "ln2",
@@ -457,7 +457,7 @@ test_emit_dangling_relative(void)
 	RT_CHECK(err, "populate src");
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap+clone");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_remove_entry(d.rtd_os, d.rtd_root, "hello");
 	rt_close(&d);
 	RT_CHECK(err, "left delete");

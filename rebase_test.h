@@ -68,8 +68,16 @@
 #define	VDEV_PATH	"/tmp/rtest_vdev"
 
 #define	RT_DS_SRC	POOL_NAME "/src"
-#define	RT_DS_LEFT	POOL_NAME "/left"
-#define	RT_DS_RIGHT	POOL_NAME "/right"
+/*
+ * The two sides, named by the ROLE each plays, never by a side of a
+ * screen.  "left" and "right" carry no direction of their own: a
+ * reader supplies whichever mapping they happen to hold, two readers
+ * holding opposite mappings both find the fixture plausible, and a
+ * mirrored fixture survives review.  Renamed 2026-08-31; the roles
+ * did not move, so every census in the suite is unchanged.
+ */
+#define	RT_DS_OFFOF	POOL_NAME "/offof"
+#define	RT_DS_ONTO	POOL_NAME "/onto"
 
 #define	ZFS_DIRENT_MAKE(type, obj)	((uint64_t)(obj) | \
 	    ((uint64_t)(type) << 60))

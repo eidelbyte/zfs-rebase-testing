@@ -125,12 +125,12 @@ main(void)
 	 * cleanly.
 	 */
 	check("substrate reaches the emit boundary (ENOSYS)",
-	    m1_rebase(RT_DS_LEFT, RT_DS_RIGHT), ENOSYS);
+	    m1_rebase(RT_DS_OFFOF, RT_DS_ONTO), ENOSYS);
 
 	/*
 	 * M2: the model built from that run.  rt_scaffold_basic()
 	 * makes exactly four objects per tree -- the root, hello,
-	 * subdir, and subdir/inner -- and left and right are clones
+	 * subdir, and subdir/inner -- and the two sides are clones
 	 * of one snapshot, so all three trees hold the same four
 	 * names and the shared universe is four names wide.
 	 */
@@ -153,7 +153,7 @@ main(void)
 		char offof[ZFS_MAX_DATASET_NAME_LEN];
 		char onto[ZFS_MAX_DATASET_NAME_LEN];
 
-		err = rt_rebase_snaps(RT_DS_LEFT, RT_DS_RIGHT, offof,
+		err = rt_rebase_snaps(RT_DS_OFFOF, RT_DS_ONTO, offof,
 		    onto, sizeof (offof));
 		if (err != 0) {
 			(void) printf("FAIL  snapshot the pair: %d\n", err);
@@ -175,7 +175,7 @@ main(void)
 	 * off-of clone's chain, so there is nothing to rebase.
 	 */
 	check("onto already in off-of's chain (EINVAL)",
-	    m1_rebase(RT_DS_LEFT, RT_DS_SRC "@base"), EINVAL);
+	    m1_rebase(RT_DS_OFFOF, RT_DS_SRC "@base"), EINVAL);
 
 	/*
 	 * 3b. A live head is not an input.  The engine reads
@@ -190,7 +190,7 @@ main(void)
 		char offof[ZFS_MAX_DATASET_NAME_LEN];
 		char onto[ZFS_MAX_DATASET_NAME_LEN];
 
-		err = rt_rebase_snaps(RT_DS_LEFT, RT_DS_RIGHT, offof,
+		err = rt_rebase_snaps(RT_DS_OFFOF, RT_DS_ONTO, offof,
 		    onto, sizeof (offof));
 		if (err != 0) {
 			(void) printf("FAIL  snapshot the pair: %d\n", err);
@@ -198,9 +198,9 @@ main(void)
 			m1_failures++;
 		} else {
 			check("a live head is refused as off-of (EINVAL)",
-			    dsl_rebase(RT_DS_LEFT, onto, NULL), EINVAL);
+			    dsl_rebase(RT_DS_OFFOF, onto, NULL), EINVAL);
 			check("a live head is refused as onto (EINVAL)",
-			    dsl_rebase(offof, RT_DS_RIGHT, NULL), EINVAL);
+			    dsl_rebase(offof, RT_DS_ONTO, NULL), EINVAL);
 		}
 	}
 
@@ -214,7 +214,7 @@ main(void)
 	 * a pool per name, or that missed the second link, cannot
 	 * produce these numbers.
 	 */
-	err = rt_open(RT_DS_LEFT, &d);
+	err = rt_open(RT_DS_OFFOF, &d);
 	if (err == 0) {
 		uint64_t hello = 0, subdir = 0, inner = 0;
 
@@ -245,7 +245,7 @@ main(void)
 		rt_close(&d);
 	}
 	if (err == 0) {
-		err = rt_open(RT_DS_RIGHT, &d);
+		err = rt_open(RT_DS_ONTO, &d);
 		if (err == 0) {
 			err = rt_create_file(d.rtd_os, d.rtd_root,
 			    "extra", "x\n", 2, NULL);
@@ -259,7 +259,7 @@ main(void)
 	} else {
 		rt_sync_pool();
 		check("asymmetric trees reach the boundary (ENOSYS)",
-		    m1_rebase(RT_DS_LEFT, RT_DS_RIGHT), ENOSYS);
+		    m1_rebase(RT_DS_OFFOF, RT_DS_ONTO), ENOSYS);
 		check_line("a hardlink adds a name, not a pool",
 		    "rebase: walk pools",
 		    "base 4 onto 5 off-of 4, distinct names 6");
@@ -429,7 +429,7 @@ main(void)
 	 * quarantine then holds exactly that component back, so
 	 * off-of's edit is not silently discarded.
 	 */
-	err = rt_open(RT_DS_RIGHT, &d);
+	err = rt_open(RT_DS_ONTO, &d);
 	if (err == 0) {
 		uint64_t subdir = 0;
 
@@ -446,7 +446,7 @@ main(void)
 	} else {
 		rt_sync_pool();
 		check("a conflicting merge still decides (ENOSYS)",
-		    m1_rebase(RT_DS_LEFT, RT_DS_RIGHT), ENOSYS);
+		    m1_rebase(RT_DS_OFFOF, RT_DS_ONTO), ENOSYS);
 		check_line("pass 0 sees the modify/delete pass 1 cannot",
 		    "rebase: lineage",
 		    "onto 3/0/1/0/0, offof 2/2/0/0/0, conflicts 1");
@@ -471,7 +471,7 @@ main(void)
 	} else {
 		rt_sync_pool();
 		check("unrelated datasets find no ancestor (ENOENT)",
-		    m1_rebase(RT_DS_LEFT, POOL_NAME "/other"), ENOENT);
+		    m1_rebase(RT_DS_OFFOF, POOL_NAME "/other"), ENOENT);
 	}
 
 	rt_scaffold_teardown();

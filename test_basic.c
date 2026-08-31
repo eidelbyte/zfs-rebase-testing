@@ -23,7 +23,7 @@ test_smoke_no_changes(void)
 	TEST_START("smoke: no changes on either side");
 	RT_CHECK(rt_scaffold_basic(), "scaffold failed");
 
-	err = dsl_rebase(RT_DS_LEFT, RT_DS_RIGHT, NULL);
+	err = dsl_rebase(RT_DS_OFFOF, RT_DS_ONTO, NULL);
 	if (err != 0)
 		rt_rebase_diag();
 	rt_scaffold_teardown();
@@ -42,14 +42,14 @@ test_left_add(void)
 	TEST_START("left adds a file, right unchanged");
 	RT_CHECK(rt_scaffold_basic(), "scaffold failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_create_file(d.rtd_os, d.rtd_root, "newfile",
 	    "added\n", 6, NULL);
 	rt_close(&d);
 	RT_CHECK(err, "create newfile");
 
 	rt_sync_pool();
-	err = dsl_rebase(RT_DS_LEFT, RT_DS_RIGHT, NULL);
+	err = dsl_rebase(RT_DS_OFFOF, RT_DS_ONTO, NULL);
 	if (err != 0)
 		rt_rebase_diag();
 	rt_scaffold_teardown();
@@ -67,14 +67,14 @@ test_right_add(void)
 	TEST_START("right adds a file, left unchanged");
 	RT_CHECK(rt_scaffold_basic(), "scaffold failed");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_create_file(d.rtd_os, d.rtd_root, "rightfile",
 	    "from-right\n", 11, NULL);
 	rt_close(&d);
 	RT_CHECK(err, "create rightfile");
 
 	rt_sync_pool();
-	err = dsl_rebase(RT_DS_LEFT, RT_DS_RIGHT, NULL);
+	err = dsl_rebase(RT_DS_OFFOF, RT_DS_ONTO, NULL);
 	if (err != 0)
 		rt_rebase_diag();
 	rt_scaffold_teardown();
@@ -92,13 +92,13 @@ test_left_delete(void)
 	TEST_START("left deletes a file");
 	RT_CHECK(rt_scaffold_basic(), "scaffold failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_remove_entry(d.rtd_os, d.rtd_root, "hello");
 	rt_close(&d);
 	RT_CHECK(err, "remove hello");
 
 	rt_sync_pool();
-	err = dsl_rebase(RT_DS_LEFT, RT_DS_RIGHT, NULL);
+	err = dsl_rebase(RT_DS_OFFOF, RT_DS_ONTO, NULL);
 	if (err != 0)
 		rt_rebase_diag();
 	rt_scaffold_teardown();
@@ -121,14 +121,14 @@ test_left_edit(void)
 	TEST_START("left edits a file in-place");
 	RT_CHECK(rt_scaffold_basic(), "scaffold failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	VERIFY0(rt_dir_lookup(d.rtd_os, d.rtd_root, "hello", &obj));
 	err = rt_edit_file(d.rtd_os, obj, "edited\n", 7);
 	rt_close(&d);
 	RT_CHECK(err, "edit hello");
 
 	rt_sync_pool();
-	err = dsl_rebase(RT_DS_LEFT, RT_DS_RIGHT, NULL);
+	err = dsl_rebase(RT_DS_OFFOF, RT_DS_ONTO, NULL);
 	if (err != 0)
 		rt_rebase_diag();
 	rt_scaffold_teardown();
@@ -146,20 +146,20 @@ test_both_add_different(void)
 	TEST_START("both sides add different files");
 	RT_CHECK(rt_scaffold_basic(), "scaffold failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_create_file(d.rtd_os, d.rtd_root, "leftfile",
 	    "left\n", 5, NULL);
 	rt_close(&d);
 	RT_CHECK(err, "create leftfile");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	err = rt_create_file(d.rtd_os, d.rtd_root, "rightfile",
 	    "right\n", 6, NULL);
 	rt_close(&d);
 	RT_CHECK(err, "create rightfile");
 
 	rt_sync_pool();
-	err = dsl_rebase(RT_DS_LEFT, RT_DS_RIGHT, NULL);
+	err = dsl_rebase(RT_DS_OFFOF, RT_DS_ONTO, NULL);
 	if (err != 0)
 		rt_rebase_diag();
 	rt_scaffold_teardown();
@@ -183,20 +183,20 @@ test_both_edit(void)
 	TEST_START("both sides edit same file");
 	RT_CHECK(rt_scaffold_basic(), "scaffold failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	VERIFY0(rt_dir_lookup(d.rtd_os, d.rtd_root, "hello", &obj));
 	err = rt_edit_file(d.rtd_os, obj, "left-edit\n", 10);
 	rt_close(&d);
 	RT_CHECK(err, "edit left");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	VERIFY0(rt_dir_lookup(d.rtd_os, d.rtd_root, "hello", &obj));
 	err = rt_edit_file(d.rtd_os, obj, "right-edit\n", 11);
 	rt_close(&d);
 	RT_CHECK(err, "edit right");
 
 	rt_sync_pool();
-	err = dsl_rebase(RT_DS_LEFT, RT_DS_RIGHT, NULL);
+	err = dsl_rebase(RT_DS_OFFOF, RT_DS_ONTO, NULL);
 	if (err != 0)
 		rt_rebase_diag();
 	rt_scaffold_teardown();
@@ -215,7 +215,7 @@ test_nested_edit(void)
 	TEST_START("nested: edit file inside subdirectory");
 	RT_CHECK(rt_scaffold_basic(), "scaffold failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	VERIFY0(rt_dir_lookup(d.rtd_os, d.rtd_root, "subdir", &subdir));
 	VERIFY0(rt_dir_lookup(d.rtd_os, subdir, "inner", &obj));
 	err = rt_edit_file(d.rtd_os, obj, "modified-inner\n", 15);
@@ -223,7 +223,7 @@ test_nested_edit(void)
 	RT_CHECK(err, "edit inner");
 
 	rt_sync_pool();
-	err = dsl_rebase(RT_DS_LEFT, RT_DS_RIGHT, NULL);
+	err = dsl_rebase(RT_DS_OFFOF, RT_DS_ONTO, NULL);
 	if (err != 0)
 		rt_rebase_diag();
 	rt_scaffold_teardown();
@@ -245,7 +245,7 @@ test_mixed_operations(void)
 	TEST_START("mixed: add + delete + edit on left");
 	RT_CHECK(rt_scaffold_basic(), "scaffold failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	err = rt_create_file(d.rtd_os, d.rtd_root, "brand_new",
 	    "new content\n", 12, NULL);
 	if (err == 0)
@@ -260,7 +260,7 @@ test_mixed_operations(void)
 	RT_CHECK(err, "mutate left");
 
 	rt_sync_pool();
-	err = dsl_rebase(RT_DS_LEFT, RT_DS_RIGHT, NULL);
+	err = dsl_rebase(RT_DS_OFFOF, RT_DS_ONTO, NULL);
 	if (err != 0)
 		rt_rebase_diag();
 	rt_scaffold_teardown();
@@ -293,7 +293,7 @@ test_edge_deep_nested_both_edit(void)
 
 	RT_CHECK(rt_scaffold_snap_and_clone(), "snap/clone failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	VERIFY0(rt_dir_lookup(d.rtd_os, d.rtd_root, "a", &d1));
 	VERIFY0(rt_dir_lookup(d.rtd_os, d1, "b", &d2));
 	VERIFY0(rt_dir_lookup(d.rtd_os, d2, "c.txt", &obj));
@@ -301,7 +301,7 @@ test_edge_deep_nested_both_edit(void)
 	rt_close(&d);
 	RT_CHECK(err, "edit left");
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	VERIFY0(rt_dir_lookup(d.rtd_os, d.rtd_root, "a", &d1));
 	VERIFY0(rt_dir_lookup(d.rtd_os, d1, "b", &d2));
 	VERIFY0(rt_dir_lookup(d.rtd_os, d2, "c.txt", &obj));
@@ -336,14 +336,14 @@ test_edge_changelist_counts(void)
 	TEST_START("edge: changelist counts in manifest");
 	RT_CHECK(rt_scaffold_basic(), "scaffold failed");
 
-	RT_CHECK(rt_open(RT_DS_LEFT, &d), "hold left");
+	RT_CHECK(rt_open(RT_DS_OFFOF, &d), "hold left");
 	VERIFY0(rt_create_file(d.rtd_os, d.rtd_root, "l1",
 	    "one\n", 4, NULL));
 	VERIFY0(rt_create_file(d.rtd_os, d.rtd_root, "l2",
 	    "two\n", 4, NULL));
 	rt_close(&d);
 
-	RT_CHECK(rt_open(RT_DS_RIGHT, &d), "hold right");
+	RT_CHECK(rt_open(RT_DS_ONTO, &d), "hold right");
 	VERIFY0(rt_create_file(d.rtd_os, d.rtd_root, "r1",
 	    "three\n", 6, NULL));
 	rt_close(&d);
@@ -371,7 +371,7 @@ test_error_same_dataset(void)
 	TEST_START("error: left == right (same dataset)");
 	RT_CHECK(rt_scaffold_basic(), "scaffold failed");
 
-	err = dsl_rebase(RT_DS_LEFT, RT_DS_LEFT, NULL);
+	err = dsl_rebase(RT_DS_OFFOF, RT_DS_OFFOF, NULL);
 	rt_scaffold_teardown();
 
 	TEST_EXPECT(err == EINVAL, "expected EINVAL");
@@ -386,9 +386,9 @@ test_error_left_is_snapshot(void)
 	TEST_START("error: left is a snapshot");
 	RT_CHECK(rt_scaffold_basic(), "scaffold failed");
 
-	RT_CHECK(rt_snapshot(RT_DS_LEFT, "snap1"), "snapshot left");
+	RT_CHECK(rt_snapshot(RT_DS_OFFOF, "snap1"), "snapshot left");
 
-	err = dsl_rebase(RT_DS_LEFT "@snap1", RT_DS_RIGHT, NULL);
+	err = dsl_rebase(RT_DS_OFFOF "@snap1", RT_DS_ONTO, NULL);
 	rt_scaffold_teardown();
 
 	TEST_EXPECT(err == EINVAL, "expected EINVAL");
