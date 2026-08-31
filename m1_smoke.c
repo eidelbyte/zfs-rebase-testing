@@ -240,6 +240,20 @@ main(void)
 		check_line("components gather each object's three copies",
 		    "rebase: components",
 		    "components 5 over 13 pools");
+		/*
+		 * Succession.  Off-of's pool gained /hello2 and lost
+		 * nothing, so there is no rename to witness and the
+		 * new name is an ATTACHMENT -- material joined to the
+		 * pool, standing in for no base name.  Nothing was
+		 * renamed anywhere, so no antecedents, nothing moved
+		 * on both faces, and no conflict.  A rule that read
+		 * any gain as a rename would report an antecedent
+		 * here.
+		 */
+		check_line("a new link attaches, it does not succeed",
+		    "rebase: succession",
+		    "antecedents 0 0, attachments 0 1, moved-both 0, "
+		    "conflicts 0");
 	}
 
 	/*
