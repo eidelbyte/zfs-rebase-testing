@@ -123,6 +123,16 @@ const rt_tree_pool_t *rt_tree_by_key(const rt_tree_t *t,
 const char *rt_tree_slot_name(int slot);
 
 /*
+ * Shapes a fixture knows about itself, which the engine's walk census
+ * restates: how many names one tree holds, and how many distinct
+ * names the three INPUT trees hold between them.  Kept here, with the
+ * parser, because they are arithmetic over parsed text and belong
+ * where they can be run rather than only compiled.
+ */
+int rt_tree_nnames(const rt_tree_t *t);
+int rt_spec_union_names(const rt_spec_t *sp);
+
+/*
  * Allocation that aborts rather than returning NULL, shared with the
  * materializer.  A test binary that cannot get a few kilobytes has
  * nothing useful left to report, and every call site would otherwise

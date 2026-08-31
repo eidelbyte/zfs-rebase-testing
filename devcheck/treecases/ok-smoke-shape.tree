@@ -1,0 +1,41 @@
+title the m1_smoke fixture, written as a tree
+
+# This is the smoke's asymmetric fixture in .tree form: base holds
+# /hello and /subdir/inner, onto adds /extra, off-of hard-links
+# /hello2 onto /hello and edits the inner file.
+#
+# It exists to check the SUITE's arithmetic against numbers a real
+# engine actually printed. The box reported, for exactly this shape:
+#
+#   walk pools base 4 onto 5 off-of 4, distinct names 6
+#   name table 6 names, held base 4 onto 5 off-of 5
+#   components 5 over 13 pools
+#
+# "treedump -c" prints what the suite would predict, so the input
+# census can be verified here rather than only on a box. That matters
+# because those predictions are what the first box run will use to
+# decide whether the MATERIALIZER built the fixture correctly, and a
+# prediction nobody has checked is not a check.
+#
+# No gold: the suite would skip this one, and the arithmetic is the
+# whole point of it.
+
+tree base
+  1-1: /
+    2-100: hello = world
+    3-100: subdir/
+      4-100: inner = nested
+
+tree onto
+  1-1: /
+    2-100: hello = world
+    3-100: subdir/
+      4-100: inner = nested
+    5-200: extra = x
+
+tree offof
+  1-1: /
+    2-100: hello = world
+    2-100: hello2
+    3-100: subdir/
+      4-100: inner = edited

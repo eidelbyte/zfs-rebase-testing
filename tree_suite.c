@@ -158,6 +158,79 @@ gold_shape(const rt_spec_t *sp, int *nnamesp, int *npoolsp, int *nfreshp)
 }
 
 /*
+ * ------------------------------------------------------------------
+ * The input census: did the materializer build what the fixture says?
+ * ------------------------------------------------------------------
+ *
+ * These numbers describe the three INPUT trees, not the decision, so
+ * the fixture predicts them on its own and gold is not involved.
+ * That matters for two reasons.
+ *
+ * They apply to every fixture, conflicted ones included, where the
+ * gold-derived counts below only work on clean runs.  And they check
+ * the MATERIALIZER, which is the part of this suite that has never
+ * run: if the engine sees four base pools where the fixture describes
+ * five, the fixture was built wrong and nothing downstream of that
+ * means anything.  A first box run wants to answer that question
+ * before any other.
+ */
+
+/* Assert one census field against a number the fixture knows. */
+static void
+census_is(rt_check_result_t *res, const char *needle, const char *field,
+    int want, const char *what)
+{
+	uint64_t got;
+	int err = census_u64(needle, field, &got);
+
+	if (err != 0) {
+		rt_check(res, 0, "no census line for %s (stale build?)", what);
+		return;
+	}
+	rt_check(res, got == (uint64_t)want, "%s: fixture says %d, engine "
+	    "saw %llu", what, want, (unsigned long long)got);
+}
+
+void
+rt_tree_check_inputs(const rt_spec_t *sp, rt_check_result_t *res)
+{
+	const rt_tree_t *b = &sp->rts_trees[RT_TREE_BASE];
+	const rt_tree_t *o = &sp->rts_trees[RT_TREE_ONTO];
+	const rt_tree_t *f = &sp->rts_trees[RT_TREE_OFFOF];
+	int names = rt_spec_union_names(sp);
+
+	census_is(res, "rebase: walk pools", "pools base", b->rtt_npools,
+	    "base pools");
+	census_is(res, "rebase: walk pools", "onto", o->rtt_npools,
+	    "onto pools");
+	census_is(res, "rebase: walk pools", "off-of", f->rtt_npools,
+	    "off-of pools");
+	census_is(res, "rebase: walk pools", "distinct names", names,
+	    "distinct names");
+
+	/*
+	 * The name table's count restates the walk's distinct names
+	 * from a different structure, so asserting both catches an
+	 * engine that disagrees with itself as well as a fixture that
+	 * was built wrong.
+	 */
+	census_is(res, "rebase: name table", "name table", names,
+	    "name table size");
+	census_is(res, "rebase: name table", "held base",
+	    rt_tree_nnames(b), "names held in base");
+	census_is(res, "rebase: name table", "onto", rt_tree_nnames(o),
+	    "names held in onto");
+	census_is(res, "rebase: name table", "off-of", rt_tree_nnames(f),
+	    "names held in off-of");
+
+	census_is(res, "rebase: content", "base pools", b->rtt_npools,
+	    "base pools reaching the content tier");
+	census_is(res, "rebase: components", "over",
+	    b->rtt_npools + o->rtt_npools + f->rtt_npools,
+	    "pools entering components");
+}
+
+/*
  * The weak tier.  What it CAN establish: that the passes reported the
  * conflict kinds gold claims and no others when gold says clean, and
  * -- only for a clean fixture -- that the number of survivors, output
@@ -336,6 +409,12 @@ run_fixture(const char *path)
 		ts_failed++;
 		goto out;
 	}
+	/*
+	 * Inputs first.  If the fixture was not built as described,
+	 * every later complaint is downstream of that and reading them
+	 * is a waste of a box run.
+	 */
+	rt_tree_check_inputs(&spec, &res);
 	rt_tree_check_census(&spec, &res);
 
 	ts_checks += res.rcr_checks;

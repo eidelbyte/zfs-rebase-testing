@@ -180,6 +180,17 @@ int rt_tree_materialize(const rt_spec_t *sp, char *errbuf, size_t errlen);
  */
 void rt_tree_check_census(const rt_spec_t *sp, rt_check_result_t *res);
 
+/*
+ * The input census: the three trees the engine walked, against the
+ * three the fixture describes.  Gold is not involved -- these numbers
+ * come from the inputs -- so it runs on every fixture, conflicted
+ * ones included, and it is the check that tests the MATERIALIZER
+ * rather than the engine.  A first box run wants this answered before
+ * anything else, because a fixture built wrong makes every later
+ * complaint meaningless.
+ */
+void rt_tree_check_inputs(const rt_spec_t *sp, rt_check_result_t *res);
+
 #ifdef	__cplusplus
 }
 #endif

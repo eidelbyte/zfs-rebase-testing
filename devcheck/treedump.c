@@ -28,13 +28,20 @@ main(int argc, char **argv)
 {
 	int i;
 	int failures = 0;
+	int census = 0;
+	int first = 1;
 
-	if (argc < 2) {
-		(void) fprintf(stderr, "usage: treedump <file.tree>...\n");
+	if (argc > 1 && strcmp(argv[1], "-c") == 0) {
+		census = 1;
+		first = 2;
+	}
+	if (argc <= first) {
+		(void) fprintf(stderr,
+		    "usage: treedump [-c] <file.tree>...\n");
 		return (2);
 	}
 
-	for (i = 1; i < argc; i++) {
+	for (i = first; i < argc; i++) {
 		rt_spec_t spec;
 		const char *base;
 		int rc;
@@ -56,6 +63,31 @@ main(int argc, char **argv)
 		base = base != NULL ? base + 1 : argv[i];
 		(void) printf("spec %s\n", base);
 		rt_spec_dump(&spec, stdout);
+
+		/*
+		 * The input census the suite predicts, printed so it can
+		 * be checked here rather than only on a box.  Not part
+		 * of the cross-parser diff -- the reference engine has
+		 * no such notion -- so it goes behind a flag.
+		 */
+		if (census) {
+			(void) printf("census walk pools base %d onto %d "
+			    "off-of %d, distinct names %d\n",
+			    spec.rts_trees[RT_TREE_BASE].rtt_npools,
+			    spec.rts_trees[RT_TREE_ONTO].rtt_npools,
+			    spec.rts_trees[RT_TREE_OFFOF].rtt_npools,
+			    rt_spec_union_names(&spec));
+			(void) printf("census name table %d names, held "
+			    "base %d onto %d off-of %d\n",
+			    rt_spec_union_names(&spec),
+			    rt_tree_nnames(&spec.rts_trees[RT_TREE_BASE]),
+			    rt_tree_nnames(&spec.rts_trees[RT_TREE_ONTO]),
+			    rt_tree_nnames(&spec.rts_trees[RT_TREE_OFFOF]));
+			(void) printf("census components over %d pools\n",
+			    spec.rts_trees[RT_TREE_BASE].rtt_npools +
+			    spec.rts_trees[RT_TREE_ONTO].rtt_npools +
+			    spec.rts_trees[RT_TREE_OFFOF].rtt_npools);
+		}
 
 		rt_spec_free(&spec);
 	}

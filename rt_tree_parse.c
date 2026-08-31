@@ -1243,6 +1243,54 @@ rt_tree_by_key(const rt_tree_t *t, const char *key)
 	return (NULL);
 }
 
+int
+rt_tree_nnames(const rt_tree_t *t)
+{
+	int n = 0;
+	int i;
+
+	if (t == NULL)
+		return (0);
+	for (i = 0; i < t->rtt_npools; i++)
+		n += t->rtt_pools[i].rtp_nnames;
+	return (n);
+}
+
+/*
+ * Names across the three INPUT trees, counted once each.  Within one
+ * tree a name is unique already (the parser rejects two pools holding
+ * one name), so de-duplication only has to look at earlier trees.
+ * The expected tree is gold rather than input and takes no part.
+ */
+int
+rt_spec_union_names(const rt_spec_t *sp)
+{
+	int n = 0;
+	int t, i, j, u;
+
+	for (t = RT_TREE_BASE; t <= RT_TREE_OFFOF; t++) {
+		const rt_tree_t *tr = &sp->rts_trees[t];
+
+		for (i = 0; i < tr->rtt_npools; i++) {
+			for (j = 0; j < tr->rtt_pools[i].rtp_nnames; j++) {
+				const char *nm = tr->rtt_pools[i].rtp_names[j];
+				int seen = 0;
+
+				for (u = RT_TREE_BASE; u < t; u++) {
+					if (rt_tree_by_name(&sp->rts_trees[u],
+					    nm) != NULL) {
+						seen = 1;
+						break;
+					}
+				}
+				if (!seen)
+					n++;
+			}
+		}
+	}
+	return (n);
+}
+
 const char *
 rt_tree_slot_name(int slot)
 {
