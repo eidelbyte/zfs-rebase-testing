@@ -1,0 +1,85 @@
+title op3: correspondence across the cut composes through base
+
+# VD24, and the first fixture in the set where BOTH sides are active.
+# Every other one keeps onto quiet, which buys gold that is easy to
+# read and leaves the composition rule completely untested.
+#
+# ONTO rebuilds /box as /crate: the directory is severed, both files
+# keep their dnodes.
+# OFF-OF leaves the directory alone and saves a.txt the way an editor
+# saves it -- through a temporary file renamed over the target -- so
+# a.txt is edited AND loses its dnode, while its leaf survives.
+#
+# Neither side did anything to the other's change, so this decides
+# cleanly.  The question is what has to be true for it to.
+#
+# THE TWO FACES.
+#   base to onto:    /box -> /crate is BELIEVED.  Both children vote
+#                    by red, /crate is the unique target.
+#   base to off-of:  /box is corresponded by green, dnode and path
+#                    both intact.  a.txt is severed but its leaf
+#                    survives inside the pair, which is relativized
+#                    green -- the row that survives an edit and a
+#                    sever at once.
+#
+# THE CUT IS WHERE THIS FIXTURE EARNS ITS PLACE.  Onto's a.txt is at
+# /crate/a.txt on dnode 3; off-of's is at /box/a.txt on dnode 50-300.
+# No red joins them -- off-of severed it.  No green joins them --
+# the paths differ.  The ONLY thing that says these are the same name
+# is the composition: base to onto by belief, base to off-of by
+# green, joined through base, exactly as derived red composes in
+# Definition 2.5.  Raw cross-side belief is never asserted, and here
+# there is nothing to assert it about; the relation is derived or it
+# does not exist.
+#
+# Get the composition wrong and the failure is not a crash.  Off-of's
+# edit is read as a delete plus an unrelated create, onto's a.txt
+# looks untouched, and the result is a clean-looking tree holding the
+# WRONG BYTES at /crate/a.txt with a stranger's dnode.  Silent, and
+# the sort of silent this project has already been bitten by once.
+#
+# WORKED OUTCOME (by hand, before any implementation ran)
+#   believed moves:  /box -> /crate on the base-to-onto face.  None
+#                    on the base-to-off-of face; green corresponds
+#                    /box to itself
+#   deltas:          none.  Relative to its own pair neither side
+#                    changed a leaf: onto moved the container, off-of
+#                    moved nothing
+#   decisions:       the output is onto's /crate on dnode 10-200.
+#                    a.txt takes off-of's bytes while REUSING onto's
+#                    dnode 3 -- relink and write, not materialize --
+#                    which is what the composed correspondence buys.
+#                    b.txt keeps, on dnode 4
+#   conflicts:       none.  One side moved a directory, the other
+#                    edited a file inside it, and under the
+#                    relativized reading those do not collide
+#   emission:        no rename at all -- the output starts as a clone
+#                    of onto, which already holds /crate -- and one
+#                    write to a.txt inside /crate's scope
+
+tree base
+  1-1: /
+    2-100: box/
+      3-100: a.txt = av0
+      4-100: b.txt = bv0
+
+tree onto
+  1-1: /
+    10-200: crate/
+      3-100: a.txt = av0
+      4-100: b.txt = bv0
+
+tree offof
+  1-1: /
+    2-100: box/
+      50-300: a.txt = av1
+      4-100: b.txt = bv0
+
+# --- expected result, worked by hand 2026-08-31 ---
+expect clean
+
+tree expected
+  1-1: /
+    10-200: crate
+      3-100: a.txt = av1
+      4-100: b.txt = bv0

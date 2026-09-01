@@ -25,6 +25,15 @@ title op6: both links renamed, the other side quiet
 # nothing else has claimed it, and the type matches -- so pool 10 is
 # the answer and the dnode is kept.
 #
+# SO THIS FIXTURE ALSO FAILS AGAINST THE CURRENT ENGINE, and it is
+# the more important of the two that do.  op6-fragment-multi carries
+# the verdict change, conflict to clean, which is easy to see.  This
+# one carries the REALIZATION change, and its tree shape is identical
+# before and after -- same names, same pool, same bytes.  Only the
+# dnode differs.  That is precisely the shape of the defect: nothing
+# about the output looks wrong, and a checker reading names alone
+# reports success while onto-side links and open handles are gone.
+#
 # WORKED OUTCOME (by hand, before any implementation ran)
 #   believed moves:  none; no directory changed, /shared is green
 #   deltas:          pool 10 lost {x, y}, gained {aa, bb}

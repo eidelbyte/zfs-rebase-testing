@@ -1,0 +1,85 @@
+title op3: an inner belief is what carries the outer one
+
+# VD7, and the deliberate twin of op3-nested-recreated.  That fixture
+# blocks the inner belief and therefore never lets a directory child
+# vote at all; this one lets the inner belief succeed, so the fourth
+# row of the vote triad -- a directory child accounted for by a
+# believed move OF ITS OWN -- is the only thing holding the outer
+# move up.
+#
+# Off-of rebuilds /top as /peak and, inside it, /top/inner as
+# /peak/core.  Both directories are severed; the file underneath
+# keeps its dnode.  Onto is quiet.
+#
+# PHASE 2 RUNS BOTTOM-UP BY HEIGHT, and here the order is load
+# bearing rather than decorative.
+#
+#   height 0: f's red edge nominates (base /top/inner, /peak/core),
+#     and it is the only candidate -- there is no rival for the
+#     sibling generator to find, which is the single difference from
+#     op3-nested-recreated.  f votes by red, unanimously, into a
+#     unique target.  /top/inner is BELIEVED to have moved to
+#     /peak/core.
+#
+#   height 1: /top's only child is the directory inner.  Red is dead
+#     for it.  Yellow is not available to a directory at all.  A NAME
+#     MATCH FAILS TOO, deliberately -- the leaf is inner on one side
+#     and core on the other, so the row that rescued the directory
+#     child in op3-dir-yellow-abstain cannot rescue this one.  What
+#     is left is the fourth row: inner has a believed move, and its
+#     target sits inside /peak, so it votes there.  /top is BELIEVED
+#     to have moved to /peak.
+#
+# Reverse the order and nothing works: at height 1 the inner belief
+# would not exist yet, /top would have no voter, and fullness would
+# be vacuous.  Proposition 16.4's induction is well founded precisely
+# because a directory's vote as a child was decided at a strictly
+# smaller height, and this is the smallest fixture where that
+# sentence does any work.
+#
+# The two leaf names differ on purpose.  If core were called inner,
+# the name-match row would carry the vote and the fourth row would
+# never be reached -- which is exactly how this cell stayed empty
+# through the first sixteen fixtures.
+#
+# WORKED OUTCOME (by hand, before any implementation ran)
+#   believed moves:  /top/inner -> /peak/core at height 0, on f's red
+#                    vote; then /top -> /peak at height 1, on inner's
+#                    believed move and nothing else
+#   deltas:          none.  Relative to the believed pairs every leaf
+#                    is unchanged
+#   decisions:       /peak reuses onto's dnode 2, /peak/core reuses
+#                    dnode 3, f keeps dnode 4.  With the inner belief
+#                    refused, all three would materialize
+#   conflicts:       none, onto is quiet
+#   emission:        rename top to peak in the root's scope, then
+#                    rename inner to core inside it, ordered after by
+#                    the parent-first arrow.  f needs no edit: its
+#                    relativized name never changed
+
+tree base
+  1-1: /
+    2-100: top/
+      3-100: inner/
+        4-100: f = fv0
+
+tree onto
+  1-1: /
+    2-100: top/
+      3-100: inner/
+        4-100: f = fv0
+
+tree offof
+  1-1: /
+    20-300: peak/
+      30-300: core/
+        4-100: f = fv0
+
+# --- expected result, worked by hand 2026-08-31 ---
+expect clean
+
+tree expected
+  1-1: /
+    2-100: peak
+      3-100: core
+        4-100: f = fv0

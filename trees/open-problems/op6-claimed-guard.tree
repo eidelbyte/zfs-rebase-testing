@@ -1,0 +1,90 @@
+title op6: a surviving name's claim beats a lost set's
+
+# The realization case the kernel lane found a real bug in, and the
+# only fixture in the set that separates THREE implementations
+# instead of two.
+#
+# Base holds one file under two names, x and y.  Onto does nothing.
+# Off-of un-shares them: y stays on the original dnode and x becomes
+# a separate object renamed to aa.  So the decision produces two
+# output pools -- P1 holding {y}, and P2 holding {aa} with a delta of
+# lost {x}, gained {aa}.
+#
+# Both pools want onto's dnode 10-100.  P1 wants it because y is a
+# name onto still holds.  P2 wants it because its lost name x was on
+# it.  They cannot both have it: two output pools reusing one onto
+# dnode is what materialize exists to prevent, and an applier cannot
+# make one inode be two files.
+#
+# THE SETTLED RULE, and why it needs two passes rather than a guard
+# bolted onto one.  Realization resolves every NAME-DRIVEN answer
+# first and claims as it goes, then runs the lost-set fallback -- with
+# the type filter and the claimed check, both of which the fallback
+# path needs exactly as much as the primary path does -- over
+# whatever is still unresolved.  A pool holding a SURVIVING name has
+# the better claim, and it must win regardless of where the two pools
+# fall in the order the loop happens to walk.
+#
+# THREE IMPLEMENTATIONS, THREE DIFFERENT GOLD SECTIONS, which is what
+# makes this fixture worth its size:
+#
+#   Two passes, guarded (settled, and the gold below).  y resolves to
+#     10-100 and claims it.  aa falls to the fallback, finds 10-100
+#     claimed, and materializes.  aa is the new object, which is what
+#     the user did.
+#
+#   One pass in name order, guarded.  Names sort aa before y.  aa is
+#     visited first, has no name-driven answer, takes 10-100 by the
+#     lost-set route, and claims it.  y then finds it claimed and
+#     materializes.  THE WRONG POOL MATERIALIZES -- the file that
+#     never moved gets a new dnode, and the one that was split off
+#     inherits the old one.  Same tree shape, inverted identity.
+#
+#   Unguarded.  Both take 10-100, so the split does not happen at all
+#     and the output is one pool holding aa and y.  A different tree
+#     shape, which is the only one of the three failures a gold
+#     section reading names alone would catch.
+#
+# The middle case is the interesting one and the reason the loop
+# changes shape in wave 2 rather than growing a condition: a guard
+# alone makes the outcome depend on sort order, and sort order is not
+# a fact about what the user did.
+#
+# WORKED OUTCOME (by hand, before any implementation ran)
+#   believed moves:  none; no directory changed, /shared is green
+#   deltas:          P2 lost {x}, gained {aa}.  P1 lost nothing --
+#                    y survived, so it is not in any delta
+#   decisions:       P1 {y} reuses onto's 10-100 by name-driven
+#                    lookup, in pass one.  P2 {aa} materializes:
+#                    pass two's lost-set route reaches 10-100 and
+#                    the claimed guard refuses it
+#   conflicts:       none.  Onto is quiet, so nothing is opposed;
+#                    this is entirely a realization question
+#   emission:        materialize aa, link it, unlink x
+
+tree base
+  1-1: /
+    2-100: shared/
+      10-100: x = v0
+      10-100: y
+
+tree onto
+  1-1: /
+    2-100: shared/
+      10-100: x = v0
+      10-100: y
+
+tree offof
+  1-1: /
+    2-100: shared/
+      40-300: aa = v0
+      10-100: y = v0
+
+# --- expected result, worked by hand 2026-08-31 ---
+expect clean
+
+tree expected
+  1-1: /
+    2-100: shared
+      40-300: aa = v0
+      10-100: y = v0

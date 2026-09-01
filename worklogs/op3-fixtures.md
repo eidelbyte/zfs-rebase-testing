@@ -51,12 +51,22 @@ is deliberate and should not be treated as a break:
 op6-fragment-multi is EXPECTED TO FAIL against the current engine and
 turns green when wave 2 lands set-valued succession.
 
-THE OTHER THREE op6 SHAPES CANNOT CARRY THAT EVIDENCE.
-op6-wholesale-quiet and op6-singleton-vs-split decide identically
-before and after, and op6-straddle-split conflicts both ways for
-different reasons.  So the gold tier can observe the OP6 settlement
-arrive at exactly one fixture.  Worth knowing before anyone counts
-four fixtures as four pieces of evidence.
+TWO OF THE FOUR op6 SHAPES CARRY SETTLEMENT EVIDENCE, corrected
+after the theory lane challenged the first count.  op6-fragment-multi
+carries the VERDICT change, conflict to clean.  op6-wholesale-quiet
+carries the REALIZATION change: identical tree shape before and
+after, different dnode, because the old degrade found no contributor
+and materialized -- which is the silent-materialize defect itself and
+so the more important of the two.  op6-singleton-vs-split is a true
+control and op6-straddle-split conflicts both ways.
+
+The error is worth recording because of its shape, not its size.  The
+tally was derived for an EARLIER set of four that contained a
+genuinely inert control, and was carried forward unchanged when the
+assignment replaced that control with the wholesale-rename case.  The
+fixture's own comment described the materialize correctly the whole
+time; the summary contradicted the file it summarised.  A claim about
+a set survived the set being swapped.
 
 ## Verification, and what was deferred
 
@@ -118,22 +128,23 @@ should survive belongs to whoever owns the demo.
 
 ## Gotchas for the issues that follow
 
-TWO MATRIX HOLES ARE REAL AND NAMED (TEST-MATRIX.md, the new VD
-section).  VD7, a directory child voting by its own believed move, is
-the recursive case of the triad's fourth row and nothing in the
-sixteen reaches it -- op3-nested-recreated comes closest and
-deliberately BLOCKS the inner belief.  VD24, the composition of
-believed moves through base, is unexercised because every fixture
-here keeps one side quiet.
+THE THREE HOLES ARE NOW FILLED, and the reason they existed is the
+gotcha worth carrying forward.  VD7 (a directory child voting by its
+own believed move), VD24 (composition through base) and the
+claimed-guard realization case were all missing for one reason: every
+fixture in the first sixteen was built to isolate ONE rule, and
+isolating a rule means quieting everything that could interact with
+it.  A corpus of clean single-purpose fixtures does not reach its own
+composition rules by accident.  Expect the same gap shape in whatever
+matrix comes next -- the interaction cells will be the empty ones,
+and they will look covered because every neighbouring cell is.
 
-THE CLAIMED-GUARD SHAPE HAS NO FIXTURE.  op6-set-succession.md's
-second-round amendment describes a real bug the kernel lane found:
-onto D holds {x, y}, the decision gives P1 {y} and P2 {aa} with lost
-set {x}, P1's surviving name claims D, and an unguarded lost-set
-route hands D to P2 as well.  It is a realization question, so this
-suite's gold checker CAN see it.  It is not among the four assigned
-op6 shapes and was not added unasked; the shape is worked out and
-one file away.
+op3-nested-believed, op3-compose-through-base and op6-claimed-guard
+close them, all three authorized by the theory lane.  The last is the
+only fixture in the set that separates THREE implementations rather
+than two: unguarded, one-pass-guarded and two-pass-guarded each
+produce a different gold section, and the middle one inverts which
+pool materializes purely because names sort aa before y.
 
 S1 IS DECIDABLE FROM op3-emigrant.  Its two arms separate all three
 policies: unanimity blocks both folders, emigrants-abstain believes

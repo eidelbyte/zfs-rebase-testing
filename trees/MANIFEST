@@ -15,6 +15,7 @@
 1328876429-2722 trees/open-problems/7-quarantine-minimality.tree
 509782795-2339 trees/open-problems/op3-carried-child-rename.tree
 3611757639-2610 trees/open-problems/op3-carried-subtree.tree
+3798593030-3564 trees/open-problems/op3-compose-through-base.tree
 1231799160-2246 trees/open-problems/op3-cross-rename-childop.tree
 1798210016-2937 trees/open-problems/op3-dir-merge-fanin.tree
 2685332244-3638 trees/open-problems/op3-dir-yellow-abstain.tree
@@ -22,10 +23,12 @@
 4029133834-4733 trees/open-problems/op3-emigrant.tree
 525709969-2410 trees/open-problems/op3-empty-dir.tree
 640672646-2295 trees/open-problems/op3-hardpair-under-rename.tree
+1693426420-3369 trees/open-problems/op3-nested-believed.tree
 669532104-6352 trees/open-problems/op3-nested-recreated.tree
 3395065006-3505 trees/open-problems/op3-recreated-move-edited-stayer.tree
 2511098208-3427 trees/open-problems/op3-severed-cross-parent.tree
-487366260-2867 trees/open-problems/op6-fragment-multi.tree
+1180054803-3629 trees/open-problems/op6-claimed-guard.tree
+2361059725-3453 trees/open-problems/op6-fragment-multi.tree
 693329892-2017 trees/open-problems/op6-singleton-vs-split.tree
 3466978906-3081 trees/open-problems/op6-straddle-split.tree
-2640859112-2454 trees/open-problems/op6-wholesale-quiet.tree
+3317053217-3000 trees/open-problems/op6-wholesale-quiet.tree

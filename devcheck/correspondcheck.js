@@ -54,7 +54,11 @@ var EXPECT = {
 	"op3-empty-dir.tree": { onto: [], offof: ["/full -> /filled"] },
 	"op3-nested-recreated.tree": { onto: [], offof: [] },
 	"op3-severed-cross-parent.tree": { onto: [], offof: [] },
-	"op3-dir-yellow-abstain.tree": { onto: [], offof: ["/proj -> /work"] }
+	"op3-dir-yellow-abstain.tree": { onto: [], offof: ["/proj -> /work"] },
+	"op3-nested-believed.tree":
+	    { onto: [], offof: ["/top -> /peak", "/top/inner -> /peak/core"] },
+	"op3-compose-through-base.tree":
+	    { onto: ["/box -> /crate"], offof: [] }
 };
 
 function basename(p) {

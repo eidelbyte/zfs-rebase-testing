@@ -989,7 +989,7 @@ one-to-one); and which generator put the candidate on the docket.
 | VD4 | recreated directory, child votes by RED | covered (op3-empty-dir, /full) |
 | VD5 | child votes by YELLOW (severed and leaf-renamed) | covered (op3-dup-content-ambig) |
 | VD6 | a DIRECTORY child votes by name match | covered (op3-dir-yellow-abstain) |
-| VD7 | a directory child votes by its own believed move | planned: needs a two-level recreated move where the inner move is believed |
+| VD7 | a directory child votes by its own believed move | covered (op3-nested-believed, where the leaves differ so the name-match row cannot carry it) |
 | VD8 | directory child abstains: severed, leaf-renamed, childless | covered (op3-dir-yellow-abstain) |
 | VD9 | yellow refused to a directory child (no attribute vote) | covered (op3-dir-yellow-abstain) |
 | VD10 | triple-hit child abstains (renamed, edited and severed) | planned |
@@ -1006,16 +1006,45 @@ one-to-one); and which generator put the candidate on the docket.
 | VD21 | the sibling generator needs iterating to a fixed point | covered (op3-nested-recreated) |
 | VD22 | two-phase hazard: a rival reachable only after the parent pair is on the docket | covered (op3-nested-recreated) |
 | VD23 | NO candidate is ever nominated (severed move across parents) | covered (op3-severed-cross-parent) |
-| VD24 | believed moves compose through base; raw cross-side belief is never asserted | planned: wants a recreated move on BOTH faces |
+| VD24 | believed moves compose through base; raw cross-side belief is never asserted | covered (op3-compose-through-base, the only fixture with both sides active) |
 | VD25 | relativized green feeds pairing: a severed same-leaf child reuses onto's dnode | covered in gold only (op3-dir-yellow-abstain); correspond.js does not model pairing |
 
-TWO HOLES WORTH NAMING rather than leaving to the table.  VD7 is the
-recursive case of the triad's fourth row, and nothing in the sixteen
-reaches it: op3-nested-recreated comes closest and deliberately
-BLOCKS the inner belief, so the outer directory never sees a
-directory child that can vote.  VD24 is the cut, and every fixture
-here keeps one side quiet, which is what makes their gold readable
-and also what leaves the composition rule unexercised.
+VD7 AND VD24 WERE HOLES until the theory lane authorized two more
+fixtures for them, and both were holes for the same reason: the
+sixteen were each built to isolate one rule, and isolating a rule
+means quieting everything that could interact with it.  VD7 needed a
+nested recreation whose INNER belief succeeds, where
+op3-nested-recreated deliberately blocks it; VD24 needed both sides
+active, where every other fixture keeps onto quiet to buy readable
+gold.  A corpus of clean single-purpose fixtures does not reach its
+own composition rules by accident.
+
+## VR -- realization under set-delta succession (open problem 6)
+
+Plotted 2026-08-31 with the VD section.  Realization is where the OP6
+defect lived, and it is the one thing about set-delta succession this
+suite's gold tier can actually observe: the checker asks whether an
+output pool took onto's dnode or minted a fresh one.
+
+| cell | scenario | disposition |
+|------|----------|-------------|
+| VR1 | wholesale rename against a quiet side; the lost-set route keeps the dnode | covered (op6-wholesale-quiet) |
+| VR2 | singleton delta against a split; pairing forced by the sets | covered (op6-singleton-vs-split) |
+| VR3 | multi-delta whose lost names lie in one fragment; routes wholesale | covered (op6-fragment-multi) |
+| VR4 | delta whose lost set straddles fragments; conflicts | covered (op6-straddle-split) |
+| VR5 | claimed guard: a surviving name's claim beats a lost set's | covered (op6-claimed-guard) |
+| VR6 | two-pass precedence: name-driven answers resolve before the fallback runs | covered (op6-claimed-guard, where a one-pass loop in name order inverts which pool materializes) |
+| VR7 | type filter on the fallback: a lost name whose onto holder is a directory cannot supply a file pool's dnode | planned |
+| VR8 | one-move rule on deltas: a name lost on both sides with disagreeing gains | planned |
+| VR9 | a name lost on both sides with agreeing gains is the identical merge | planned |
+| VR10 | an attachment with no loss at all (the link count simply grew) | planned |
+
+WHAT THIS TIER CANNOT SEE, recorded because VR4 makes it concrete:
+the settlement changes op6-straddle-split's REPORT and not its
+verdict, and no row above can tell an honest lost/gained report from
+"could not pair two renames."  Loudness lives in text the gold
+checker does not read.  Proving the report improved needs an
+assertion vocabulary this suite does not have.
 
 ## VP -- pairing
 
