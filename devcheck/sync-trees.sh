@@ -14,6 +14,20 @@
 # artifacts that happen to look alike, which is the failure this
 # exists to make loud.
 #
+# Drift runs in two directions, and this script only used to watch
+# one. It walked the demo's fixtures, so it saw a fixture that had
+# changed and a fixture the harness was missing, and was blind to one
+# that exists only here -- reporting "byte-identical" while this side
+# held fourteen fixtures the demo had never heard of. The reverse
+# scan below closes that.
+#
+# One stale premise, corrected: the note above used to say the demo
+# directory is not version controlled at all. As of 2026-08-31 the
+# parent repository whitelists zfs-rebase-theory/, so it is. That was
+# the whole reason for keeping two copies, so whether this script
+# should still exist is now a real question -- for whoever owns the
+# demo, not for this lane to decide by deleting it.
+#
 #   devcheck/sync-trees.sh --check    # verify (no writes)
 #   devcheck/sync-trees.sh            # show what would change
 #   devcheck/sync-trees.sh --write    # copy from the demo, remanifest
@@ -85,8 +99,28 @@ if [ -d "$DEMO/examples" ]; then
 			[ "$mode" = write ] && cp "$src" "$dst"
 		fi
 	done
-	if [ "$diffs" -eq 0 ]; then
+	# Fixtures that exist only on this side. Announced on every run
+	# and deliberately NOT a failure: the op3 and op6 worked examples
+	# are authored here because this is the repository this lane can
+	# commit to, and the copy owed to the demo is somebody else's
+	# write. Loud and un-forgettable is the right treatment for an
+	# owed copy; red is not, because nothing here can turn it green.
+	only=0
+	for dst in trees/*.tree trees/*/*.tree; do
+		[ -e "$dst" ] || continue
+		rel=${dst#trees/}
+		[ -f "$DEMO/examples/$rel" ] && continue
+		echo "HARNESS-ONLY: $rel is not in the demo corpus"
+		only=$((only + 1))
+	done
+	if [ "$only" -gt 0 ]; then
+		echo "$only fixture(s) authored here, copy owed to the demo"
+	fi
+
+	if [ "$diffs" -eq 0 ] && [ "$only" -eq 0 ]; then
 		echo "demo OK (corpus is byte-identical to the demo's)"
+	elif [ "$diffs" -eq 0 ]; then
+		echo "demo OK for the shared fixtures; see HARNESS-ONLY above"
 	elif [ "$mode" = check ]; then
 		echo "the two copies of the corpus have drifted"
 		fail=1
