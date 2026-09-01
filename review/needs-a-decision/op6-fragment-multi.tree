@@ -1,0 +1,85 @@
+title op6: a multi-name delta whose losses sit in one fragment
+
+# The case the old machinery got WRONG, and the one op6 shape whose
+# VERDICT the settlement changes.  Gold is the settled answer; the
+# engine is behind it until wave 2, and that is the point of writing
+# the fixture now.
+#
+# Onto un-shares z.  Off-of renames two names, x to aa and y to bb.
+# The delta is lost {x, y}, gained {aa, bb}, and both lost names lie
+# in the SAME fragment -- the one onto left holding x and y.
+#
+# OLD BEHAVIOUR.  Two lost and two gained fell to the degrade branch,
+# the gains became attachments, the attachment links met the split's
+# exclusions, and pass 2 reported a pooling conflict.  The two sides
+# had not disagreed about anything: off-of renamed two names, onto
+# un-shared a third, and no name was claimed twice.  The conflict was
+# a statement about what the algorithm could not do.
+#
+# SETTLED BEHAVIOUR.  There is nothing to pair.  The delta routes
+# WHOLESALE to the fragment holding its lost names, which is
+# determined precisely because the lost set does not straddle the
+# split.  Realization pass one finds no decided name in onto -- aa
+# and bb are both new -- and pass two takes the lost-set route to
+# pool 10, which the z fragment has not claimed and whose type
+# matches.  Clean, and the fragment keeps its dnode.
+#
+# WORKED OUTCOME (by hand, before any implementation ran)
+#   believed moves:  none; no directory changed
+#   deltas:          pool 10 lost {x, y}, gained {aa, bb}; the lost
+#                    set lies wholly inside onto's fragment 10-100
+#   decisions:       output pool {aa, bb} reuses onto's 10-100 by the
+#                    lost-set route; output pool {z} reuses 30-200 by
+#                    its surviving name.  No conflict, no quarantine
+#   conflicts:       none.  Under the OLD rule: conflict pooling,
+#                    with /shared/x, /shared/y and /shared/z
+#                    quarantined and the region falling back to onto
+#   emission:        two renames inside /shared's scope
+#
+# So this fixture is expected to FAIL against the current engine, and
+# failing is what it is for.  When wave 2 lands set-valued
+# succession, it turns green and that is the evidence the change
+# arrived.
+#
+# TWO of the four op6 shapes carry that evidence, not one.  This is
+# the verdict half -- conflict becomes clean.  op6-wholesale-quiet is
+# the realization half: its tree shape is identical before and after
+# and its DNODE is not, because the old degrade found no contributor
+# and materialized.  An earlier draft of this comment claimed only
+# one fixture could carry evidence.  That tally was computed for an
+# earlier set of four, which contained a genuinely inert control, and
+# was not recomputed when the set changed -- the file it contradicted
+# was sitting next to it, describing the materialize correctly.  The
+# remaining two are honest: op6-singleton-vs-split decides the same
+# way before and after, and op6-straddle-split conflicts both ways.
+
+tree base
+  1-1: /
+    2-100: shared/
+      10-100: x = v0
+      10-100: y
+      10-100: z
+
+tree onto
+  1-1: /
+    2-100: shared/
+      10-100: x = v0
+      10-100: y
+      30-200: z = v0
+
+tree offof
+  1-1: /
+    2-100: shared/
+      10-100: aa = v0
+      10-100: bb
+      10-100: z
+
+# --- expected result, worked by hand 2026-08-31 ---
+expect clean
+
+tree expected
+  1-1: /
+    2-100: shared
+      10-100: aa = v0
+      10-100: bb
+      30-200: z = v0

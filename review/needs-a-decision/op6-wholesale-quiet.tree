@@ -1,0 +1,76 @@
+title op6: both links renamed, the other side quiet
+
+# The defect op6-set-succession.md exists to fix, in the smallest
+# tree that shows it.  Settled by the lead 2026-08-31, so the gold
+# below is the SETTLED answer and not what the engine does today --
+# the engine is behind, and this fixture is what says so.
+#
+# Pool 10 holds two names, x and y.  Off-of renames both.  Onto does
+# nothing whatever.
+#
+# OLD BEHAVIOUR.  Definition 9.3 pairs a gained name with a lost one
+# only when there is exactly one of each; two lost and two gained
+# fell to the degrade branch, the gains became attachments, and with
+# no opposition from onto the pool MATERIALIZED.  A hard-linked pair
+# quietly became a different object -- onto-side links and open
+# handles dropped -- because somebody renamed two files.  Nothing in
+# the report said so, which is why "at least it fails loudly" was not
+# true.
+#
+# SETTLED BEHAVIOUR.  Succession is set-valued: the pool lost {x, y}
+# and gained {aa, bb}, with no antecedent labels and no degrade.
+# Realization runs two passes.  Pass one is name-driven and resolves
+# nothing here, since neither aa nor bb exists in onto.  Pass two
+# routes by the delta's LOST set: x and y both lie in onto's pool 10,
+# nothing else has claimed it, and the type matches -- so pool 10 is
+# the answer and the dnode is kept.
+#
+# SO THIS FIXTURE ALSO FAILS AGAINST THE CURRENT ENGINE, and it is
+# the more important of the two that do.  op6-fragment-multi carries
+# the verdict change, conflict to clean, which is easy to see.  This
+# one carries the REALIZATION change, and its tree shape is identical
+# before and after -- same names, same pool, same bytes.  Only the
+# dnode differs.  That is precisely the shape of the defect: nothing
+# about the output looks wrong, and a checker reading names alone
+# reports success while onto-side links and open handles are gone.
+#
+# WORKED OUTCOME (by hand, before any implementation ran)
+#   believed moves:  none; no directory changed, /shared is green
+#   deltas:          pool 10 lost {x, y}, gained {aa, bb}
+#   decisions:       one output pool holding aa and bb, reusing
+#                    onto's dnode 10-100.  No materialize, no unlink
+#   conflicts:       none.  Nothing opposed anything
+#   emission:        two renames inside /shared's scope; the pool is
+#                    the same object throughout, so no link or
+#                    unlink appears
+#
+# devcheck/treecases/ok-wholesale-rename.tree is this shape three
+# times over with pools that keep a name; this one keeps none, which
+# is what removes the name-driven route and forces the fallback.
+
+tree base
+  1-1: /
+    2-100: shared/
+      10-100: x = v0
+      10-100: y
+
+tree onto
+  1-1: /
+    2-100: shared/
+      10-100: x = v0
+      10-100: y
+
+tree offof
+  1-1: /
+    2-100: shared/
+      10-100: aa = v0
+      10-100: bb
+
+# --- expected result, worked by hand 2026-08-31 ---
+expect clean
+
+tree expected
+  1-1: /
+    2-100: shared
+      10-100: aa = v0
+      10-100: bb

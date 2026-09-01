@@ -1,0 +1,88 @@
+title op3: a severed directory moved under a different parent decays
+
+# The one shape Section 16 gives up, asserted so that giving it up
+# stays a decision rather than a surprise.
+#
+# Off-of moves box out of /src and into /dst, rebuilding it rather
+# than renaming: the directory and its file both get fresh dnodes.
+# The LEAF is unchanged -- it is box before and box after -- and the
+# file's bytes are unchanged too.  Onto is quiet.
+#
+# A person reads this instantly.  Section 16 does not, and the reason
+# is precise.  Candidates come from two generators.  The red anchor is
+# dead, because nothing under the new box kept a dnode.  The sibling
+# generator works INSIDE a corresponded pair, and box left its pair:
+# under (/src, /src) there is a deletion and no addition, under
+# (/dst, /dst) an addition and no deletion, and neither half can see
+# the other.  So (base /src/box, off-of /dst/box) is never nominated,
+# and what is never nominated is never judged.
+#
+# Yellow would have found it.  The file's bytes sit in both trees, so
+# under the first draft of Definition 16.3 its yellow anchor would
+# have nominated /dst/box and the move would have been believed.  The
+# kernel lane removed yellow as a generator, because a nomination is
+# the inverted question -- what, anywhere, is yellow to this child --
+# and answering it needs a content index over the whole tree that the
+# lazy pairwise oracle is designed not to be.  The theory names this
+# exact shape as the price.
+#
+# It is worth being clear about what the price IS.  Not correctness:
+# the decay is death plus birth, which is what happens today and what
+# happened before Section 16.  The price is that a directory identity
+# is not carried across, so the new box is a fresh dnode.  A cheaper
+# generator that could see across corresponded pairs would recover
+# it; none is proposed, and the shape is asserted here so that the
+# day someone proposes one, the fixture is already written.
+#
+# Note the failure MODE, because it is not the one the other blocked
+# fixtures show.  op3-emigrant and op3-nested-recreated have
+# candidates and refuse them.  Here there is nothing to refuse.  A
+# diagnostic that counts blocked beliefs would report zero for this
+# tree and be telling the truth.
+#
+# WORKED OUTCOME (by hand, before any implementation ran)
+#   believed moves:  none, and NO CANDIDATE was ever nominated for
+#                    /src/box -- an unnominated belief, not a blocked
+#                    one
+#   deltas:          none; no pool changes its name set relative to
+#                    any corresponded pair
+#   decisions:       /src/box and its f die; /dst/box and its f are
+#                    born; /src survives, empty
+#   conflicts:       none, onto is quiet
+#   emission:        unlink f then unlink box (children first), and
+#                    link box then link f under /dst (parent first)
+
+tree base
+  1-1: /
+    2-100: src/
+      3-100: box/
+        4-100: f = fv0
+    5-100: dst/
+      6-100: .keep = kv0
+
+tree onto
+  1-1: /
+    2-100: src/
+      3-100: box/
+        4-100: f = fv0
+    5-100: dst/
+      6-100: .keep = kv0
+
+tree offof
+  1-1: /
+    2-100: src/
+    5-100: dst/
+      6-100: .keep = kv0
+      10-300: box/
+        11-300: f = fv0
+
+# --- expected result, worked by hand 2026-08-31 ---
+expect clean
+
+tree expected
+  1-1: /
+    5-100: dst
+      6-100: .keep = kv0
+      10-300: box
+        11-300: f = fv0
+    2-100: src/

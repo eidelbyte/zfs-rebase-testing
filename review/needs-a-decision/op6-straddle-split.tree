@@ -1,0 +1,83 @@
+title op6: a delta whose lost names straddle the split
+
+# The residual conflict the settlement keeps DELIBERATELY, with the
+# impossibility on the record as the reason it is correct rather than
+# provisional.
+#
+# Onto un-shares z into its own dnode.  Off-of renames x to aa and z
+# to cc, so the delta is lost {x, z} gained {aa, cc} -- and the two
+# lost names now sit in DIFFERENT fragments of onto's split.
+#
+# The gains cannot be partitioned to follow.  Content and position
+# evidence cannot say whether aa succeeds x or z, and the document's
+# impossibility argument stands: nothing observable distinguishes the
+# labels.  So this conflicts, and it should.
+#
+# The verdict is the same before and after the settlement, and so is
+# the gold.  What changes is the REASON and the report.  Today the
+# engine says it could not pair two renames.  Under set-valued
+# succession it says a group lost {x, z} and gained {aa, cc} across a
+# split -- a true statement about what happened rather than a
+# statement about what the algorithm could not do.
+#
+# THAT DISTINCTION IS INVISIBLE TO THIS SUITE, and saying so is half
+# the reason the fixture exists.  The gold tier checks the decided
+# tree and the conflict kinds; it does not read the report's wording.
+# So no fixture can tell the old reason from the new one.  That
+# matters more than it sounds, because "at least it fails loudly" was
+# the defence of the old behaviour, and loudness lives entirely in
+# text this tier cannot see.  Proving the report improved needs a
+# census-tier or manifest assertion, and that is owed work, not
+# covered work.
+#
+# WORKED OUTCOME (by hand, before any implementation ran)
+#   believed moves:  none; no directory changed
+#   deltas:          pool 10 lost {x, z}, gained {aa, cc}; the lost
+#                    set straddles onto's fragments 10-100 and 30-200
+#   decisions:       none for the region.  It is quarantined and
+#                    falls back to onto: x and y on 10-100, z on
+#                    30-200
+#   conflicts:       one, kind pooling
+#   emission:        nothing; a quarantined region emits no edits
+#
+# CONFIDENCE.  The conflict KIND and the quarantine set are the least
+# certain lines here.  Both are taken by analogy with the
+# two-renames/ arm of 6-ambiguous-succession.tree, which is the same
+# straddling shape inside a larger fixture and which the engine has
+# actually run, rather than reasoned from the rules directly.  If the
+# engine reports differently, read that fixture before assuming this
+# one is wrong.
+
+tree base
+  1-1: /
+    2-100: shared/
+      10-100: x = v0
+      10-100: y
+      10-100: z
+
+tree onto
+  1-1: /
+    2-100: shared/
+      10-100: x = v0
+      10-100: y
+      30-200: z = v0
+
+tree offof
+  1-1: /
+    2-100: shared/
+      10-100: aa = v0
+      10-100: cc
+      10-100: y
+
+# --- expected result, worked by hand 2026-08-31 ---
+expect conflict pooling
+expect quarantined /shared/x
+expect quarantined /shared/y
+expect quarantined /shared/z
+
+tree expected
+  1-1: /
+    2-100: shared
+      10-100: x = v0
+      10-100: y
+      30-200: z = v0

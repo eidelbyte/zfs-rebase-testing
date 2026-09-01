@@ -1,0 +1,76 @@
+title op3: two directories merging into one
+
+# Remark 16.6: for directories, names matter and identity does not,
+# so two directories fully moving into one is a merge and not a
+# conflict.  Both beliefs stand.  Nothing has to decide which side
+# "is" the target, because a directory cannot be hard-linked and
+# there is nothing about it a user can observe except its name.
+#
+# Off-of empties /a and /c into a rebuilt /d.  The two files keep
+# their dnodes -- they were moved, not copied -- and the directory
+# does not.  Onto is quiet.
+#
+# Phase 1: p's red edge lands under /d, nominating (base /a,
+# off-of /d); q's does the same for (base /c, off-of /d).  The
+# sibling generator finds both pairs as well, since /a and /c are
+# deletions and /d an addition under the green root.
+#
+# Phase 2: /a's only voter votes into /d, and /d is /a's unique
+# target, so /a moved.  Independently, /c's only voter votes into /d,
+# so /c moved too.  Belief requires a unique TARGET and deliberately
+# does not require a unique CLAIMANT, which is exactly what lets both
+# stand -- and the reason it can afford to is Remark 16.6.  Under a
+# unique-claimant rule this would be an ambiguity to report, and the
+# report would be about a distinction no user can see.
+#
+# OPEN, and this fixture is the probe.  Which of onto's two directory
+# dnodes the merged output reuses is emission freedom pinned only for
+# determinism: successor question S3, "manifest order for now."  The
+# gold below takes the lower-sorted base name, so /a's dnode 2
+# survives and /c's dnode 4 does not.  An engine that picks 4 has
+# implemented the other pin.  That is a finding about S3, not a
+# defect, and this fixture is what would settle it.
+
+tree base
+  1-1: /
+    2-100: a/
+      3-100: p = pv0
+    4-100: c/
+      5-100: q = qv0
+
+tree onto
+  1-1: /
+    2-100: a/
+      3-100: p = pv0
+    4-100: c/
+      5-100: q = qv0
+
+tree offof
+  1-1: /
+    10-300: d/
+      3-100: p = pv0
+      5-100: q = qv0
+
+#
+# WORKED OUTCOME (by hand, before any implementation ran)
+#   believed moves:  /a -> /d AND /c -> /d.  Both stand: a unique
+#                    target is required and a unique claimant is not
+#   deltas:          none; p and q keep their leaves relative to
+#                    their pairs
+#   decisions:       one output directory named d, reusing ONE of
+#                    onto's two dnodes -- the gold takes 2, the
+#                    lower-sorted base name, which is successor
+#                    question S3.  The other shell is removed.  p and
+#                    q keep their dnodes
+#   conflicts:       none.  Remark 16.6 forbids manufacturing one
+#                    over which side "is" d
+#   emission:        rename one directory to d, move the other's
+#                    entry in, unlink the emptied shell
+# --- expected result, worked by hand 2026-08-31 ---
+expect clean
+
+tree expected
+  1-1: /
+    2-100: d
+      3-100: p = pv0
+      5-100: q = qv0
