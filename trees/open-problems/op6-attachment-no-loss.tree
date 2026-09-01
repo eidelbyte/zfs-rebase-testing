@@ -1,0 +1,66 @@
+title op6: a gain with no loss is still an attachment
+
+# VR10, and the boundary of the settlement: the one case where the
+# word "attachment" survives.
+#
+# Base holds one file under one name, x.  Onto is quiet.  Off-of adds
+# a hard link: the same dnode now also answers to z.  The delta is
+# lost NOTHING, gained {z}.
+#
+# Under the old machinery a gain became an attachment whenever it
+# could not be paired with a loss, and there were two ways to get
+# there: a genuine new link like this one, and the DEGRADE -- a
+# multi-name rename that the pairing step could not read.  The second
+# was the defect.  It classified renames as attachments, and an
+# attachment carries no antecedent, so realization had nothing to
+# look up and the pool materialized.
+#
+# Set succession deletes the degrade and keeps the genuine case.
+# After the settlement an attachment means exactly what its name
+# says: the link count grew.  Here nothing was lost, so nothing had
+# to be paired, and the pool keeps its dnode because a decided name
+# it already holds resolves in pass one -- x is still x.
+#
+# The fixture is small on purpose.  It is the control that says the
+# settlement removed a branch rather than a concept, and it is worth
+# having because "no degrade branch" is easy to read as "no
+# attachments," which would be wrong and would break every hard link
+# anyone adds.
+#
+# WORKED OUTCOME (by hand, before any implementation ran)
+#   believed moves:  none; no directory changed
+#   deltas:          pool 10 lost {}, gained {z}.  An empty lost set
+#                    is what makes this an attachment rather than a
+#                    rename, and it is the only thing that does
+#   decisions:       the pool keeps dnode 10-100 and holds x and z.
+#                    Realization resolves in pass one on the name x,
+#                    so the lost-set fallback is never reached -- an
+#                    empty lost set could not route anywhere anyway
+#   conflicts:       none, onto is quiet
+#   emission:        one link, hung off x, which the clone already
+#                    holds
+
+tree base
+  1-1: /
+    2-100: shared/
+      10-100: x = v0
+
+tree onto
+  1-1: /
+    2-100: shared/
+      10-100: x = v0
+
+tree offof
+  1-1: /
+    2-100: shared/
+      10-100: x = v0
+      10-100: z
+
+# --- expected result, worked by hand 2026-08-31 ---
+expect clean
+
+tree expected
+  1-1: /
+    2-100: shared
+      10-100: x = v0
+      10-100: z

@@ -50,6 +50,26 @@ title op6: a surviving name's claim beats a lost set's
 # alone makes the outcome depend on sort order, and sort order is not
 # a fact about what the user did.
 #
+# THE NAMES HERE ARE LOAD BEARING, and this fixture ALONE does not
+# prove what it looks like it proves.  The realization walk assigns
+# output pools ids in ascending first-name order and walks them in
+# that order (source-verified by the kernel lane).  The one-pass
+# failure above happens because /aa sorts BEFORE /y, so the pool
+# routing through a lost set is reached first.  Flip the names and a
+# one-pass loop gets the right answer by luck -- which is exactly
+# op6-claimed-guard-mirror, built for that purpose.
+#
+# Read the two together.  Their shared gold is the invariant: the
+# dnode goes to the pool holding the SURVIVING name, whichever way
+# the names sort.  Two passes satisfy that on both; one pass
+# satisfies it on the mirror only.  "The answer does not depend on
+# sort order" is an independence claim and independence needs two
+# points; one fixture is a point, and a point is consistent with any
+# slope.  If you rename anything here, rename it in the mirror too,
+# keep the sort relation, and check the two still disagree about
+# which one a one-pass loop gets right.  That disagreement is the
+# test.
+#
 # WORKED OUTCOME (by hand, before any implementation ran)
 #   believed moves:  none; no directory changed, /shared is green
 #   deltas:          P2 lost {x}, gained {aa}.  P1 lost nothing --

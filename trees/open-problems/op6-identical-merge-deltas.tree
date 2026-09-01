@@ -1,0 +1,68 @@
+title op6: one name lost on both sides, with gains that agree
+
+# VR9, and op6-one-move-deltas' twin.  Same shape, same rule, one
+# character different in off-of, opposite verdict.
+#
+# Base holds one file under two names, x and y.  Both sides rename x
+# and both rename it to the SAME thing:
+#
+#   onto    x -> p     delta: lost {x}, gained {p}
+#   off-of  x -> p     delta: lost {x}, gained {p}
+#
+# The name x is lost on both sides and the gains agree, so this is
+# the identical merge and it decides clean.  Two people made the same
+# rename; there is nothing to reconcile.
+#
+# The rule restated on deltas has to get BOTH of these right, and it
+# is easy to write one that gets only the conflict right -- a rule
+# that reports whenever a name leaves both deltas would conflict
+# here too, and would be wrong in the direction users notice, since
+# it refuses work that agrees with itself.  That is why the pair
+# exists rather than just the conflict.
+#
+# No antecedents are consulted in either.  The rule reads two lost
+# sets and two gained sets and compares them; it never asks what
+# succeeded x on either side, which is the whole point of the
+# settlement.
+#
+# WORKED OUTCOME (by hand, before any implementation ran)
+#   believed moves:  none; no directory changed
+#   deltas:          onto lost {x} gained {p}; off-of lost {x} gained
+#                    {p}; identical, so they merge
+#   decisions:       the pool keeps dnode 10-100 and holds p and y.
+#                    Realization never leaves pass one: both decided
+#                    names, p and y, are names onto holds
+#   conflicts:       none
+#   emission:        nothing at all.  Onto already renamed x to p, the
+#                    output starts as a clone of onto, and off-of
+#                    asked for the same thing -- the fourth line of
+#                    Section 12's table, a name that stays put in the
+#                    same pool, which is the case a compiler must
+#                    emit no work for
+
+tree base
+  1-1: /
+    2-100: shared/
+      10-100: x = v0
+      10-100: y
+
+tree onto
+  1-1: /
+    2-100: shared/
+      10-100: p = v0
+      10-100: y
+
+tree offof
+  1-1: /
+    2-100: shared/
+      10-100: p = v0
+      10-100: y
+
+# --- expected result, worked by hand 2026-08-31 ---
+expect clean
+
+tree expected
+  1-1: /
+    2-100: shared
+      10-100: p = v0
+      10-100: y

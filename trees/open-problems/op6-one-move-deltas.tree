@@ -1,0 +1,75 @@
+title op6: one name lost on both sides, with gains that disagree
+
+# VR8: the one-move rule of Definition 9.3, restated on deltas.  Set
+# succession removes the antecedent labels, so the rule has to be
+# expressible without them, and this is the shape that tests whether
+# it still is.
+#
+# Base holds one file under two names, x and y.  Both sides rename x
+# and neither touches y:
+#
+#   onto    x -> p     delta: lost {x}, gained {p}
+#   off-of  x -> q     delta: lost {x}, gained {q}
+#
+# The name x is lost on BOTH sides and the gains disagree, so this
+# conflicts.  Two people renamed the same link to two different
+# things and no evidence anywhere says which they meant.
+#
+# What matters for the settlement is that the rule needs no
+# antecedents to say so.  It does not ask "what succeeded x" on
+# either side; it observes that one name left both deltas and that
+# the two gained sets cannot be reconciled.  The old machinery
+# reached the same verdict here through a pairing step it happened to
+# be able to perform -- one lost, one gained on each side -- and the
+# point of the fixture is that the verdict survives the pairing step
+# being deleted.
+#
+# The verdict is the same before and after the settlement, like
+# op6-straddle-split.  That is the intended result: a settlement that
+# changed every verdict it touched would be a rewrite, and this rule
+# was never the broken part.
+#
+# WORKED OUTCOME (by hand, before any implementation ran)
+#   believed moves:  none; no directory changed
+#   deltas:          onto lost {x} gained {p}; off-of lost {x} gained
+#                    {q}; y is in neither delta
+#   decisions:       none for the region.  It is quarantined and
+#                    falls back to onto, so the pool keeps dnode
+#                    10-100 under onto's names p and y
+#   conflicts:       one, kind name
+#   emission:        nothing; a quarantined region emits no edits
+#
+# CONFIDENCE.  The conflict KIND follows 5-rename-rename.tree, which
+# is the same collision on a pool holding one name and which the
+# engine has run.  The quarantine set follows the convention visible
+# in that fixture and in 6-ambiguous-succession.tree: the paths named
+# are the FALLBACK names, which is to say onto's.
+
+tree base
+  1-1: /
+    2-100: shared/
+      10-100: x = v0
+      10-100: y
+
+tree onto
+  1-1: /
+    2-100: shared/
+      10-100: p = v0
+      10-100: y
+
+tree offof
+  1-1: /
+    2-100: shared/
+      10-100: q = v0
+      10-100: y
+
+# --- expected result, worked by hand 2026-08-31 ---
+expect conflict name
+expect quarantined /shared/p
+expect quarantined /shared/y
+
+tree expected
+  1-1: /
+    2-100: shared
+      10-100: p = v0
+      10-100: y

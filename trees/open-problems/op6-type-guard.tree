@@ -1,0 +1,91 @@
+title op6: a lost name held by a directory cannot supply a file's dnode
+
+# VR7, and the symmetric twin of op6-claimed-guard.  The kernel lane
+# named two guards that the lost-set fallback needs exactly as much
+# as the primary name-driven path does.  The claimed guard now has an
+# executable witness; this is the other one.
+#
+# Base holds one file under two names, x and y, beside an empty
+# directory d.
+#
+# ONTO frees the name x and gives it to the directory: it unlinks x
+# from the file, and renames d to x.  The file keeps y and keeps its
+# dnode; the directory keeps its dnode too.  Nothing is destroyed --
+# this is an ordinary reorganisation, and the name x simply changes
+# hands.
+#
+# OFF-OF renames the file wholesale: x becomes aa and y becomes bb.
+# Its delta is lost {x, y}, gained {aa, bb}, and no gained name
+# exists anywhere in onto.
+#
+# So realization for the output file pool falls to pass two, and the
+# lost-set route asks where {x, y} live in onto.  The answer is two
+# different places:
+#
+#   y -> pool 10-100, the file.  Type matches.
+#   x -> pool 20-100, a DIRECTORY.  Type does not.
+#
+# WITH THE TYPE FILTER the second is struck out before the route is
+# read, one fragment remains, and the file keeps dnode 10-100.
+# Clean, and correct: the user renamed two links and moved a folder,
+# and neither of those is an event.
+#
+# WITHOUT IT the pool appears to straddle two holders, and the two
+# ways that goes are both wrong.  Report a straddle and the fixture
+# conflicts over nothing -- a spurious conflict of exactly the kind
+# Section 16 was written to delete.  Take the directory's dnode and a
+# file pool is realized onto a directory, which is worse than a
+# conflict because an applier will try it.
+#
+# The guard is not symmetry for its own sake.  A lost name is a name
+# in BASE, and the thing standing at that name in onto need have
+# nothing to do with the pool that used to hold it.  That is exactly
+# what makes the fallback riskier than the name-driven path it backs
+# up: a decided name is a name the output pool actually has, while a
+# lost name is only a name it used to have.
+#
+# WORKED OUTCOME (by hand, before any implementation ran)
+#   believed moves:  none.  /shared is green; d and x are the same
+#                    directory pool, corresponded by red
+#   deltas:          the file pool lost {x, y} and gained {aa, bb}.
+#                    The directory pool lost {d} and gained {x} on
+#                    the onto face
+#   decisions:       the file pool reuses onto's dnode 10-100 by the
+#                    lost-set route, after the type filter strikes
+#                    out x's directory holder.  The directory keeps
+#                    dnode 20-100 under its new name x
+#   conflicts:       none.  Off-of vacated x and onto occupied it, so
+#                    the two changes compose rather than collide
+#   emission:        two renames on the file inside /shared's scope;
+#                    the directory's rename is onto's and is already
+#                    in the clone, so it emits nothing
+
+tree base
+  1-1: /
+    2-100: shared/
+      10-100: x = v0
+      10-100: y
+      20-100: d/
+
+tree onto
+  1-1: /
+    2-100: shared/
+      10-100: y = v0
+      20-100: x/
+
+tree offof
+  1-1: /
+    2-100: shared/
+      10-100: aa = v0
+      10-100: bb
+      20-100: d/
+
+# --- expected result, worked by hand 2026-08-31 ---
+expect clean
+
+tree expected
+  1-1: /
+    2-100: shared
+      10-100: aa = v0
+      10-100: bb
+      20-100: x/

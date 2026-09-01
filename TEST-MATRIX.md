@@ -1032,12 +1032,23 @@ output pool took onto's dnode or minted a fresh one.
 | VR2 | singleton delta against a split; pairing forced by the sets | covered (op6-singleton-vs-split) |
 | VR3 | multi-delta whose lost names lie in one fragment; routes wholesale | covered (op6-fragment-multi) |
 | VR4 | delta whose lost set straddles fragments; conflicts | covered (op6-straddle-split) |
-| VR5 | claimed guard: a surviving name's claim beats a lost set's | covered (op6-claimed-guard) |
+| VR5 | claimed guard: a surviving name's claim beats a lost set's | covered (op6-claimed-guard AND op6-claimed-guard-mirror -- the pair, never one alone) |
 | VR6 | two-pass precedence: name-driven answers resolve before the fallback runs | covered (op6-claimed-guard, where a one-pass loop in name order inverts which pool materializes) |
-| VR7 | type filter on the fallback: a lost name whose onto holder is a directory cannot supply a file pool's dnode | planned |
-| VR8 | one-move rule on deltas: a name lost on both sides with disagreeing gains | planned |
-| VR9 | a name lost on both sides with agreeing gains is the identical merge | planned |
-| VR10 | an attachment with no loss at all (the link count simply grew) | planned |
+| VR6b | the precedence is INDEPENDENT of sort order | covered (the claimed-guard pair; a single fixture cannot state an independence claim) |
+| VR7 | type filter on the fallback: a lost name whose onto holder is a directory cannot supply a file pool's dnode | covered (op6-type-guard) |
+| VR8 | one-move rule on deltas: a name lost on both sides with disagreeing gains | covered (op6-one-move-deltas) |
+| VR9 | a name lost on both sides with agreeing gains is the identical merge | covered (op6-identical-merge-deltas) |
+| VR10 | an attachment with no loss at all (the link count simply grew) | covered (op6-attachment-no-loss) |
+
+THREE OF THESE ROWS COME IN PAIRS, and the pairing is the
+disposition, not a convenience.  VR5 and VR6b need op6-claimed-guard
+AND its mirror, because a single fixture cannot state that an answer
+is INDEPENDENT of sort order -- one point is consistent with any
+slope, and the kernel lane found that the original discriminates only
+because /aa happens to sort before /y.  VR8 and VR9 need each other
+for a plainer reason: a rule that conflicts whenever a name leaves
+both deltas passes VR8 and fails VR9, and fails it in the direction
+users notice.  Never cite one of a pair as covering its cell.
 
 WHAT THIS TIER CANNOT SEE, recorded because VR4 makes it concrete:
 the settlement changes op6-straddle-split's REPORT and not its

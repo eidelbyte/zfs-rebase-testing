@@ -1,0 +1,88 @@
+title op6: the claimed guard again, with the sort order flipped
+
+# op6-claimed-guard's twin, and the reason it is a PAIR rather than a
+# fixture.  Read them together or neither says what it means.
+#
+# THE NAMES HERE ARE LOAD BEARING.  The realization walk assigns
+# output pools ids in ascending first-name order and walks them in
+# that order (source-verified by the kernel lane).  So whether a
+# one-pass loop gets the right answer depends entirely on which pool
+# sorts first, and the two fixtures put the same shape on either side
+# of that line:
+#
+#   op6-claimed-guard   P2 /aa (lost-set route) sorts BEFORE
+#                       P1 /y  (surviving name).  A one-pass loop
+#                       lets P2 take the dnode first, and P1 -- the
+#                       pool with the better claim -- materializes.
+#                       WRONG.
+#
+#   this fixture        P1 /a  (surviving name) sorts BEFORE
+#                       P2 /zz (lost-set route).  A one-pass loop
+#                       reaches P1 first, so it claims the dnode and
+#                       P2 materializes.  RIGHT, and right BY LUCK:
+#                       sort order happened to agree with precedence.
+#
+# The shared gold is the invariant: THE DNODE GOES TO THE POOL
+# HOLDING THE SURVIVING NAME, in both fixtures, whichever way the
+# names sort.  Two passes satisfy that on both.  One pass satisfies
+# it on exactly one, and the one it satisfies is the one where the
+# accident falls its way.
+#
+# A single fixture cannot state this.  "The answer does not depend on
+# sort order" is an independence claim, and independence needs at
+# least two points -- one fixture is a point, and a point is
+# consistent with any slope.  op6-claimed-guard alone would pass
+# under a one-pass implementation the moment somebody tidied /aa and
+# /y into friendlier names, and it would still look like it was
+# testing the guard.
+#
+# So: if you rename anything in either file, rename it in both, keep
+# the sort relation, and check that the two fixtures still disagree
+# about which one a one-pass loop gets right.  That disagreement is
+# the test.
+#
+# THE SHAPE, identical to its twin.  Base holds one file under two
+# names, a and x.  Onto does nothing.  Off-of un-shares them: a stays
+# on the original dnode, and x becomes a separate object renamed to
+# zz.  Two output pools want onto's dnode 10-100 -- P1 because a is a
+# name onto still holds, P2 because its lost name x was on it -- and
+# they cannot both have it.
+#
+# WORKED OUTCOME (by hand, before any implementation ran)
+#   believed moves:  none; no directory changed, /shared is green
+#   deltas:          P2 lost {x}, gained {zz}.  P1 lost nothing; a
+#                    survived, so it is in no delta
+#   decisions:       P1 {a} reuses onto's 10-100 by name-driven
+#                    lookup in pass one.  P2 {zz} materializes: pass
+#                    two's lost-set route reaches 10-100 and the
+#                    claimed guard refuses it
+#   conflicts:       none.  Onto is quiet; this is purely a
+#                    realization question
+#   emission:        materialize zz, link it, unlink x
+
+tree base
+  1-1: /
+    2-100: shared/
+      10-100: a = v0
+      10-100: x
+
+tree onto
+  1-1: /
+    2-100: shared/
+      10-100: a = v0
+      10-100: x
+
+tree offof
+  1-1: /
+    2-100: shared/
+      10-100: a = v0
+      40-300: zz = v0
+
+# --- expected result, worked by hand 2026-08-31 ---
+expect clean
+
+tree expected
+  1-1: /
+    2-100: shared
+      10-100: a = v0
+      40-300: zz = v0
