@@ -968,6 +968,55 @@ exercised only on agreement.
 | VF10 | derived red absent where only one base face matched | planned |
 | VF11 | raw cross-side identity is NEVER consulted | planned: clone-lockstep fixture where onto and off-of allocate the same fresh idx; must NOT pair |
 
+## VD -- directory correspondence (theory Section 16)
+
+Plotted 2026-08-31, BEFORE the C phase exists, as the methodology
+requires.  Covered rows name a .tree fixture under
+trees/open-problems/; the correspondence half of each is executed by
+devcheck/correspondcheck.sh against correspond.js, and the rest of
+each row rests on the fixture's gold, which no engine has run yet.
+
+The dimensions crossed here: where correspondence comes from (red,
+green, belief, nothing); which row of the vote triad accounts for a
+child; which guard fires (unique target, emigrant, vacuity,
+one-to-one); and which generator put the candidate on the docket.
+
+| cell | scenario | disposition |
+|------|----------|-------------|
+| VD1 | red corresponds a renamed directory; no belief needed | covered (op3-carried-subtree) |
+| VD2 | green corresponds an unmoved directory; no belief needed | covered (every fixture's onto face) |
+| VD3 | recreated directory, children vote by NAME MATCH | covered (op3-recreated-move-edited-stayer) |
+| VD4 | recreated directory, child votes by RED | covered (op3-empty-dir, /full) |
+| VD5 | child votes by YELLOW (severed and leaf-renamed) | covered (op3-dup-content-ambig) |
+| VD6 | a DIRECTORY child votes by name match | covered (op3-dir-yellow-abstain) |
+| VD7 | a directory child votes by its own believed move | planned: needs a two-level recreated move where the inner move is believed |
+| VD8 | directory child abstains: severed, leaf-renamed, childless | covered (op3-dir-yellow-abstain) |
+| VD9 | yellow refused to a directory child (no attribute vote) | covered (op3-dir-yellow-abstain) |
+| VD10 | triple-hit child abstains (renamed, edited and severed) | planned |
+| VD11 | deleted child abstains; abstention does not block | planned |
+| VD12 | vacuous fullness: an empty directory concludes nothing | covered (op3-empty-dir, /empty) |
+| VD13 | a directory whose children all died concludes nothing | planned |
+| VD14 | one emigrant blocks belief under v1 unanimity | covered (op3-emigrant, one-out) |
+| VD15 | two emigrants to different places; no majority either | covered (op3-emigrant, two-out) |
+| VD16 | unique-TARGET guard blocks on duplicate content | covered (op3-dup-content-ambig) |
+| VD17 | unique CLAIMANT deliberately not required: fan-in | covered (op3-dir-merge-fanin) |
+| VD18 | votes admit no one-to-one reading, so belief is refused | planned: wants two voters whose only accounting lands on one entry |
+| VD19 | candidate nominated by a red anchor | covered (op3-dir-merge-fanin) |
+| VD20 | candidate nominated by scoped siblings | covered (op3-recreated-move-edited-stayer, where it is the ONLY route) |
+| VD21 | the sibling generator needs iterating to a fixed point | covered (op3-nested-recreated) |
+| VD22 | two-phase hazard: a rival reachable only after the parent pair is on the docket | covered (op3-nested-recreated) |
+| VD23 | NO candidate is ever nominated (severed move across parents) | covered (op3-severed-cross-parent) |
+| VD24 | believed moves compose through base; raw cross-side belief is never asserted | planned: wants a recreated move on BOTH faces |
+| VD25 | relativized green feeds pairing: a severed same-leaf child reuses onto's dnode | covered in gold only (op3-dir-yellow-abstain); correspond.js does not model pairing |
+
+TWO HOLES WORTH NAMING rather than leaving to the table.  VD7 is the
+recursive case of the triad's fourth row, and nothing in the sixteen
+reaches it: op3-nested-recreated comes closest and deliberately
+BLOCKS the inner belief, so the outer directory never sees a
+directory child that can vote.  VD24 is the cut, and every fixture
+here keeps one side quiet, which is what makes their gold readable
+and also what leaves the composition rule unexercised.
+
 ## VP -- pairing
 
 | cell | scenario | disposition |
