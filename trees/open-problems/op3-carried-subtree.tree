@@ -45,6 +45,20 @@ tree offof
       3-100: f = fv0
       4-100: g = gv0
 
+#
+# WORKED OUTCOME (by hand, before any implementation ran)
+#   believed moves:  none needed.  (base /d, off-of /e) is
+#                    corresponded by RED, and belief exists only for
+#                    the case red cannot see
+#   deltas:          none.  Relative to the pair f and g keep their
+#                    leaves, so no pool has a lost or gained set
+#   decisions:       the directory renames d to e; f and g keep, and
+#                    every dnode is reused
+#   conflicts:       none, onto is quiet
+#   emission:        ONE rename, of the directory, in the root's
+#                    scope.  The descendants compile to no edit at
+#                    all (Remark 16.5) -- under full-path coordinates
+#                    both compilers emitted two more
 # --- expected result, worked by hand 2026-08-31 ---
 expect clean
 

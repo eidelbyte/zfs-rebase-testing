@@ -47,6 +47,17 @@ tree offof
     11-300: filled/
       4-100: f = fv0
 
+#
+# WORKED OUTCOME (by hand, before any implementation ran)
+#   believed moves:  /full -> /filled, on its one child's red vote.
+#                    NONE for /empty: no voters, so fullness is
+#                    vacuous and asserts nothing
+#   deltas:          none
+#   decisions:       /filled reuses onto's dnode 3 and keeps its
+#                    child; /empty dies and /emptied is born fresh
+#   conflicts:       none, onto is quiet
+#   emission:        rename full to filled; unlink empty; link
+#                    emptied
 # --- expected result, worked by hand 2026-08-31 ---
 expect clean
 

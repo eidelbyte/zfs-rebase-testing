@@ -60,6 +60,20 @@ tree offof
       11-300: keep.txt = kv1
       12-300: other.txt = ov0
 
+#
+# WORKED OUTCOME (by hand, before any implementation ran)
+#   believed moves:  /old -> /new, on both children voting by name
+#                    match.  Nominated by the sibling generator alone
+#   deltas:          none.  Relative to the believed pair both leaves
+#                    are unchanged
+#   decisions:       the directory renames old to new reusing onto's
+#                    dnode 2; keep.txt takes off-of's bytes reusing
+#                    dnode 3; other.txt keeps, reusing dnode 4.
+#                    Without the belief all three materialize, which
+#                    is the only difference the gold can see
+#   conflicts:       none, onto is quiet
+#   emission:        one directory rename, and one write to keep.txt
+#                    inside its scope
 # --- expected result, worked by hand 2026-08-31 ---
 expect clean
 

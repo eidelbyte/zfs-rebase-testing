@@ -1,0 +1,63 @@
+title op6: a rename of one name against a split
+
+# The case set-valued succession keeps exactly as it was, included
+# because a settlement that changes everything it touches is not a
+# settlement, it is a rewrite.
+#
+# Onto un-shares z into its own dnode.  Off-of renames one name, x to
+# aa.  The delta is lost {x}, gained {aa}.
+#
+# With one lost and one gained the pairing is forced BY THE SETS
+# THEMSELVES -- there is nothing to recognise and nothing to guess --
+# so the rename routes to the fragment holding x.  That was true
+# under Definition 9.3's antecedent machinery and it is true under
+# deltas; the two rules agree here and the reasoning gets shorter.
+#
+# Realization never reaches the fallback.  Pass one is name-driven
+# and the output pool holding aa also holds y, a name onto still has
+# on pool 10, so y resolves and claims that dnode.  The split
+# fragment's z resolves to 30-200 the same way.
+#
+# WORKED OUTCOME (by hand, before any implementation ran)
+#   believed moves:  none; no directory changed
+#   deltas:          pool 10 lost {x}, gained {aa}; z is not in the
+#                    delta, it is onto's split
+#   decisions:       output pool {aa, y} reuses onto's 10-100 by the
+#                    surviving name y; output pool {z} reuses 30-200
+#   conflicts:       none
+#   emission:        one rename, x to aa, inside /shared's scope
+#
+# The corpus already holds this shape as the one-rename/ arm of
+# 6-ambiguous-succession.tree.  It is repeated alone so a change to
+# it cannot hide inside a fixture that also covers something else.
+
+tree base
+  1-1: /
+    2-100: shared/
+      10-100: x = v0
+      10-100: y
+      10-100: z
+
+tree onto
+  1-1: /
+    2-100: shared/
+      10-100: x = v0
+      10-100: y
+      30-200: z = v0
+
+tree offof
+  1-1: /
+    2-100: shared/
+      10-100: aa = v0
+      10-100: y
+      10-100: z
+
+# --- expected result, worked by hand 2026-08-31 ---
+expect clean
+
+tree expected
+  1-1: /
+    2-100: shared
+      10-100: aa = v0
+      10-100: y
+      30-200: z = v0

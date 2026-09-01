@@ -40,6 +40,19 @@ tree offof
     2-100: e/
       3-100: g = fv0
 
+#
+# WORKED OUTCOME (by hand, before any implementation ran)
+#   believed moves:  none needed; red corresponds (base /d, /e)
+#   deltas:          relative to the pair the child's leaf goes from
+#                    f to g -- one lost, one gained, on pool 3
+#   decisions:       the directory renames d to e and the child f to
+#                    g, both reusing their dnodes
+#   conflicts:       none, onto is quiet
+#   emission:        rename the directory in the root's scope, then
+#                    ONE leaf rename f to g INSIDE that directory's
+#                    scope, ordered after it by the parent-first
+#                    arrow.  The intermediate path is never written,
+#                    which is the whole point
 # --- expected result, worked by hand 2026-08-31 ---
 expect clean
 

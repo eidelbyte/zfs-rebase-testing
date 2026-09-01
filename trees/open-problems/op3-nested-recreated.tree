@@ -107,6 +107,25 @@ tree offof
         41-300: f = fv9
         42-300: g = gv9
 
+#
+# WORKED OUTCOME (by hand, before any implementation ran)
+#   believed moves:  NONE.  /top/inner has two candidates -- alpha by
+#                    red anchor, beta by the sibling generator -- and
+#                    its voters are accounted for in both, red into
+#                    alpha and name match into beta, so the
+#                    unique-target guard blocks.  /top then has no
+#                    voter at all, its only child being a directory
+#                    with no believed move of its own
+#   deltas:          none
+#   decisions:       /top and /top/inner die; /peak, /alpha and /beta
+#                    are born fresh; f and g keep their dnodes and
+#                    are relinked under /peak/alpha.  A ONE-PHASE
+#                    engine instead reuses dnode 2 for /peak and
+#                    dnode 3 for /alpha
+#   conflicts:       none, onto is quiet
+#   emission:        link the three new directories parent-first,
+#                    rename f and g into alpha, link beta's two
+#                    files, then unlink inner and top children-first
 # --- expected result, worked by hand 2026-08-31 ---
 expect clean
 

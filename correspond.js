@@ -245,15 +245,24 @@ function accountedBy(A, B, ent, bPath, believed) {
 		}
 
 		/*
-		 * A directory child votes only through a believed move
-		 * of its own, decided at strictly smaller height.  Its
-		 * dnode case is the red line above; nothing else about a
-		 * directory is evidence, by Remark 16.6.
+		 * A directory child also votes through a believed move
+		 * of its own, decided at strictly smaller height.
+		 *
+		 * It votes by NAME MATCH too, and the first draft of
+		 * this file wrongly denied it that.  Definition 16.3
+		 * restricts exactly one row to non-directories -- yellow,
+		 * because Definition 2.8 compares directories by
+		 * attributes and a default-attributed directory is yellow
+		 * to nearly every other one.  The name-match row carries
+		 * no such restriction, and it should not: a leaf is
+		 * unique inside a directory whatever it names.  The
+		 * explicit restriction on one row and its absence on the
+		 * next is the whole argument.
 		 */
-		if (apool.type === "dir") {
-			if (hasOwn(believed, ent.path) &&
-			    believed[ent.path] === bents[i].path)
-				out.push(bents[i]);
+		if (apool.type === "dir" &&
+		    hasOwn(believed, ent.path) &&
+		    believed[ent.path] === bents[i].path) {
+			out.push(bents[i]);
 			continue;
 		}
 

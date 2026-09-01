@@ -1,0 +1,87 @@
+title op3: a directory child votes by its leaf or not at all
+
+# What a DIRECTORY can say when it is asked to vote for its parent,
+# and the fixture that separates the two halves of the answer.
+#
+# Off-of rebuilds /proj as /work.  Everything below is severed, and
+# both children are childless directories, so neither can be believed
+# to have moved on its own -- an empty directory has no voters and
+# concludes nothing.  That strips the case down to one question: what
+# is left for a directory to vote WITH?  Onto is quiet.
+#
+#   cfg -> conf   the leaf changed.  Red is dead, it has no believed
+#                 move of its own, and yellow is not available to a
+#                 directory at all: Definition 2.8 compares
+#                 directories by attributes, so a default-attributed
+#                 directory is yellow to nearly every other one and
+#                 the vote would assert nothing.  Nothing reaches it.
+#                 It ABSTAINS.
+#
+#   data -> data  the leaf did not change.  Inside the candidate pair
+#                 (/proj, /work) the leaf data is equal on both sides,
+#                 which is a NAME MATCH -- relativized green -- and
+#                 nothing in Definition 16.3 restricts that row to
+#                 files.  It VOTES.
+#
+# The asymmetry is the point.  Exactly one row of the triad is
+# restricted to non-directories, and it says so; the name-match row
+# says no such thing, and it should not, because a leaf is unique
+# inside a directory whatever it happens to name.
+#
+# THE FIXTURE IS BUILT SO THAT ROW DECIDES THE OUTCOME.  cfg abstains
+# and abstentions do not block, so data is the ONLY voter /proj has.
+# If a directory child may vote by name match, /proj has one
+# unanimous voter, /work is its unique target, and the move is
+# believed.  If it may not, /proj has no voters at all, fullness is
+# vacuous, and nothing is concluded.  One line of gold apart.
+#
+# That is not hypothetical.  The first draft of this lane's
+# implementation denied directories the name-match row, and every one
+# of the ten fixtures written before this one agreed with it anyway,
+# because in each of them a file was doing the voting.  A bug that no
+# fixture can see is a bug that ships.
+#
+# WORKED OUTCOME (by hand, before any implementation ran)
+#   believed moves:  /proj -> /work, on data's vote alone.  Neither
+#                    subdirectory is believed to have moved itself:
+#                    both are childless, so both are vacuous
+#   deltas:          relative to (/proj, /work), data and its
+#                    neighbours keep their leaves; no pool has a lost
+#                    or gained set
+#   decisions:       /work reuses onto's dnode 2.  /work/data reuses
+#                    onto's dnode 5 -- the pairing amendment pairs a
+#                    severed child whose leaf survives under a
+#                    corresponded pair.  /work/conf materializes,
+#                    because cfg's leaf did not survive and so nothing
+#                    pairs it
+#   conflicts:       none, onto is quiet
+#   emission:        rename /proj to /work; inside that scope, unlink
+#                    conf's predecessor and link conf; data needs no
+#                    edit, its relativized name never changed
+
+tree base
+  1-1: /
+    2-100: proj/
+      3-100: cfg/
+      5-100: data/
+
+tree onto
+  1-1: /
+    2-100: proj/
+      3-100: cfg/
+      5-100: data/
+
+tree offof
+  1-1: /
+    10-300: work/
+      11-300: conf/
+      13-300: data/
+
+# --- expected result, worked by hand 2026-08-31 ---
+expect clean
+
+tree expected
+  1-1: /
+    2-100: work
+      11-300: conf/
+      5-100: data/

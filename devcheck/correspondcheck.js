@@ -52,7 +52,9 @@ var EXPECT = {
 	"op3-dup-content-ambig.tree": { onto: [], offof: [] },
 	"op3-emigrant.tree": { onto: [], offof: [] },
 	"op3-empty-dir.tree": { onto: [], offof: ["/full -> /filled"] },
-	"op3-nested-recreated.tree": { onto: [], offof: [] }
+	"op3-nested-recreated.tree": { onto: [], offof: [] },
+	"op3-severed-cross-parent.tree": { onto: [], offof: [] },
+	"op3-dir-yellow-abstain.tree": { onto: [], offof: ["/proj -> /work"] }
 };
 
 function basename(p) {

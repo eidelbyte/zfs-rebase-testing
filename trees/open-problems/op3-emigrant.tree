@@ -1,68 +1,131 @@
-title op3: one child that left blocks the move
+title op3: children that left, under all three emigrant policies
 
-# The emigrant rule, adopted at v1 as unanimity among voters, and
-# successor question S1's discriminator.
+# Successor question S1, built so the three policies on the table
+# produce three different pictures rather than three descriptions of
+# one.  A fixture that documents a question is worth less than one
+# that answers it, and S1 is a decision the lead has to make.
 #
-# Off-of rebuilds /proj as /work but does not take everything: b is
-# moved out to /attic instead.  Both files keep their dnodes; the
-# directory does not.  Onto is quiet.
+# Two folders, both rebuilt rather than renamed, both losing children
+# to somewhere else.  Every file keeps its dnode, so red says exactly
+# where each one went; only the directories are severed.  Onto is
+# quiet throughout, so nothing here is about conflict.
 #
-# Phase 1: a's red edge nominates (base /proj, off-of /work), b's red
-# edge nominates (base /proj, /attic), and the sibling generator adds
-# the first pair again from the root.
+#   one-out/   three children, ONE leaves.  p and q land in the
+#              rebuilt one-in; r moves to /attic.
+#   two-out/   three children, TWO leave, and to DIFFERENT places.
+#              s lands in the rebuilt two-in; t moves to /attic and
+#              u to /shed.
 #
-# Phase 2: /proj's voters are a and b.  a votes into /work.  b's
-# evidence points OUTSIDE /work, so under unanimity it blocks, and
-# /proj is not believed to have moved.  /attic fails too, for the
-# mirror reason -- only b votes into it, and a does not.
+# THE THREE POLICIES.
 #
-# What a blocked belief costs is worth being exact about, because it
-# is smaller than it sounds.  Red still pairs both file pools, so no
-# FILE materializes and no content is lost; a and b are relinked
-# where red says they went.  The whole cost is the directory's own
-# dnode: /proj is removed and /work is minted.  A blocked belief
-# degrades to the answer we had before Section 16, never to worse.
+#   Unanimity among voters (v1, adopted, and what the gold below
+#   records).  An emigrant blocks.  Both folders are blocked, so both
+#   directories die and are reborn.  The two files that stayed are
+#   relinked under a fresh directory dnode.
 #
-# S1 IS VISIBLE HERE, which is the reason to keep the fixture even
-# after the dial is set.  Under the recorded alternative -- emigrants
-# abstain, which is git's spirit rather than its letter -- a would be
-# the only voter, /work would be the unique target, the move would be
-# believed, and the output would reuse dnode 2 for /work instead of
-# minting 10-300.  The gold below is v1 unanimity.  An engine that
-# produces dnode 2 has implemented the other dial; that is a finding
-# about S1, not a defect, and this is the fixture that settles it.
+#   Emigrants abstain (git's spirit).  An emigrant is simply not
+#   counted.  one-out has voters p and q, both for one-in: believed.
+#   two-out has one voter, s, for two-in: believed.  BOTH move, and
+#   both directories keep onto's dnode.
+#
+#   Majority (git's letter).  one-out: two of three for one-in, so
+#   believed.  two-out: one for two-in, one for attic, one for shed,
+#   so no target holds a majority and it is blocked.  ONE moves.
+#
+# So the three policies give blocked/blocked, moved/moved, and
+# moved/blocked.  No two agree on this fixture, which is the whole
+# reason it has two folders instead of one.
+#
+# WHAT THE CHOICE COSTS is small and worth stating so the decision is
+# not made on fear.  Red pairs every file pool whatever is decided,
+# so no file materializes and no content moves anywhere unexpected
+# under any of the three.  The entire difference is whether a
+# DIRECTORY keeps its dnode.  Unanimity is the conservative reading
+# and it is the one the document's exact-evidence character argues
+# for; it is also the one that throws away a directory identity
+# because somebody moved one file out of a folder they were
+# reorganising, which is not a rare thing to do.
+#
+# WORKED OUTCOME (by hand, before any implementation ran)
+#   believed moves:  none, under v1.  /one-out is blocked by r, whose
+#                    red edge points into /attic; /two-out is blocked
+#                    by t and u.  Both have candidates and refuse
+#                    them -- contrast op3-severed-cross-parent, where
+#                    there is nothing to refuse
+#   deltas:          no pool has a lost or gained set; every file
+#                    keeps its single name and changes its parent
+#   decisions:       /one-out and /two-out die; /one-in and /two-in
+#                    are born fresh; p, q, r, s, t, u all keep their
+#                    dnodes and are relinked where red says
+#   conflicts:       none, onto is quiet
+#   emission:        link the new directories, rename each file into
+#                    place (same pool, so a move, not unlink-plus-
+#                    link), then unlink the emptied directories --
+#                    children first for the removals
+#
+# UNDER THE OTHER TWO DIALS the gold changes in exactly one way per
+# folder: 30-300 becomes 4-100 when one-out is believed, and 31-300
+# becomes 5-100 when two-out is.  Nothing else in the tree moves.
 
 tree base
   1-1: /
-    2-100: proj/
-      3-100: a = av0
-      4-100: b = bv0
-    5-100: attic/
-      6-100: .keep = kv0
+    2-100: attic/
+      9-100: .keep = kv0
+    3-100: shed/
+      8-100: .keep = sv0
+    4-100: one-out/
+      10-100: p = pv0
+      11-100: q = qv0
+      12-100: r = rv0
+    5-100: two-out/
+      20-100: s = sv0
+      21-100: t = tv0
+      22-100: u = uv0
 
 tree onto
   1-1: /
-    2-100: proj/
-      3-100: a = av0
-      4-100: b = bv0
-    5-100: attic/
-      6-100: .keep = kv0
+    2-100: attic/
+      9-100: .keep = kv0
+    3-100: shed/
+      8-100: .keep = sv0
+    4-100: one-out/
+      10-100: p = pv0
+      11-100: q = qv0
+      12-100: r = rv0
+    5-100: two-out/
+      20-100: s = sv0
+      21-100: t = tv0
+      22-100: u = uv0
 
 tree offof
   1-1: /
-    5-100: attic/
-      6-100: .keep = kv0
-      4-100: b = bv0
-    10-300: work/
-      3-100: a = av0
+    2-100: attic/
+      9-100: .keep = kv0
+      12-100: r = rv0
+      21-100: t = tv0
+    3-100: shed/
+      8-100: .keep = sv0
+      22-100: u = uv0
+    30-300: one-in/
+      10-100: p = pv0
+      11-100: q = qv0
+    31-300: two-in/
+      20-100: s = sv0
 
 # --- expected result, worked by hand 2026-08-31 ---
 expect clean
 
 tree expected
   1-1: /
-    5-100: attic
-      6-100: .keep = kv0
-      4-100: b = bv0
-    10-300: work
-      3-100: a = av0
+    2-100: attic
+      9-100: .keep = kv0
+      12-100: r = rv0
+      21-100: t = tv0
+    30-300: one-in
+      10-100: p = pv0
+      11-100: q = qv0
+    3-100: shed
+      8-100: .keep = sv0
+      22-100: u = uv0
+    31-300: two-in
+      20-100: s = sv0

@@ -50,6 +50,17 @@ tree offof
     12-300: y/
       13-300: h = dup
 
+#
+# WORKED OUTCOME (by hand, before any implementation ran)
+#   believed moves:  none.  /src has TWO candidates, /x and /y, and
+#                    its single voter is accounted for in both, so
+#                    the unique-target guard blocks
+#   deltas:          none
+#   decisions:       /src and its f die; /x, /y and their files are
+#                    born.  Nothing is reused, because the same
+#                    ambiguity stops pairing adopting either file
+#   conflicts:       none, onto is quiet
+#   emission:        unlink f then unlink src; link x, g, y and h
 # --- expected result, worked by hand 2026-08-31 ---
 expect clean
 

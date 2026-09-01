@@ -51,6 +51,21 @@ tree offof
       3-100: p = pv0
       5-100: q = qv0
 
+#
+# WORKED OUTCOME (by hand, before any implementation ran)
+#   believed moves:  /a -> /d AND /c -> /d.  Both stand: a unique
+#                    target is required and a unique claimant is not
+#   deltas:          none; p and q keep their leaves relative to
+#                    their pairs
+#   decisions:       one output directory named d, reusing ONE of
+#                    onto's two dnodes -- the gold takes 2, the
+#                    lower-sorted base name, which is successor
+#                    question S3.  The other shell is removed.  p and
+#                    q keep their dnodes
+#   conflicts:       none.  Remark 16.6 forbids manufacturing one
+#                    over which side "is" d
+#   emission:        rename one directory to d, move the other's
+#                    entry in, unlink the emptied shell
 # --- expected result, worked by hand 2026-08-31 ---
 expect clean
 

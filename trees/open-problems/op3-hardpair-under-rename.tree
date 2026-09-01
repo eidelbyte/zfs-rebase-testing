@@ -43,6 +43,17 @@ tree offof
       5-100: a = v0
       5-100: b
 
+#
+# WORKED OUTCOME (by hand, before any implementation ran)
+#   believed moves:  none needed; red corresponds (base /d, /e)
+#   deltas:          pool 5 lost nothing and gained nothing relative
+#                    to the pair.  Under full-path reading it lost
+#                    {/d/a, /d/b} and gained {/e/a, /e/b} -- the
+#                    multi-loss that degraded and destroyed identity
+#   decisions:       the directory renames d to e; pool 5 keeps its
+#                    dnode and both of its names
+#   conflicts:       none, onto is quiet
+#   emission:        one rename, of the directory
 # --- expected result, worked by hand 2026-08-31 ---
 expect clean
 

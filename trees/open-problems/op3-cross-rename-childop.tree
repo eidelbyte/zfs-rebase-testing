@@ -37,6 +37,21 @@ tree offof
     2-100: e/
       3-100: f = fv0
 
+#
+# WORKED OUTCOME (by hand, before any implementation ran)
+#   believed moves:  none needed; red corresponds (base /d, off-of
+#                    /e) and green corresponds (base /d, onto /d)
+#   deltas:          onto's pool 3 lost {f} and gained {g}; off-of's
+#                    pool 3 lost nothing relative to ITS pair.  Under
+#                    full-path reading off-of lost /d/f and gained
+#                    /e/f, and that is where the false conflict came
+#                    from
+#   decisions:       the directory renames d to e (off-of) and the
+#                    child f to g (onto); both dnodes are reused
+#   conflicts:       NONE.  Under full-path naming: a conflict, by
+#                    the one-move rule of Definition 9.3
+#   emission:        one directory rename, one leaf rename inside its
+#                    scope
 # --- expected result, worked by hand 2026-08-31 ---
 expect clean
 
