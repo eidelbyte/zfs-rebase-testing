@@ -1,0 +1,53 @@
+title op3: renaming a directory over a hard-linked pair
+
+# The OP3/OP6 composition, and the one fixture of the ten whose old
+# behaviour destroys something silently.
+#
+# Pool 5 holds two names, /d/a and /d/b, both inside /d.  Off-of runs
+# one command -- mv d e -- and touches nothing else.  Onto is quiet.
+#
+# Under full-path naming the pool loses TWO names and gains TWO.
+# Definition 9.3 pairs a gained name with a lost one only in the
+# one-lost one-gained case and degrades everything else, so the gains
+# become attachments; and with the other side quiet, that degrade is
+# what makes the pool materialize instead of keeping its dnode
+# (op6-identity-cost.md).  A hard-linked pair loses its identity --
+# onto-side links and open handles with it -- because somebody
+# renamed the folder above it.  Nothing in the report says so.
+#
+# Relativized: (base /d, off-of /e) corresponds by red, and inside
+# the pair the leaves a and b are unchanged.  The pool lost nothing
+# and gained nothing, so no succession question is asked and there is
+# nothing to degrade.  Section 16 removes this source of multi-loss
+# outright; the remaining source -- a pool whose OWN links were
+# renamed together -- is what op6-set-succession.md addresses, and
+# that document is still PENDING the lead.
+#
+# Hand-worked: clean, dnode 5 kept, both names still on it.
+
+tree base
+  1-1: /
+    2-100: d/
+      5-100: a = v0
+      5-100: b
+
+tree onto
+  1-1: /
+    2-100: d/
+      5-100: a = v0
+      5-100: b
+
+tree offof
+  1-1: /
+    2-100: e/
+      5-100: a = v0
+      5-100: b
+
+# --- expected result, worked by hand 2026-08-31 ---
+expect clean
+
+tree expected
+  1-1: /
+    2-100: e
+      5-100: a = v0
+      5-100: b

@@ -1,0 +1,61 @@
+title op3: duplicate content leaves the target ambiguous
+
+# The unique-target guard, and the reason the withdrawn
+# cross-directory fingerprint search had to go.
+#
+# Off-of deletes /src and creates two directories, each holding one
+# file with the same bytes the deleted file had, under a different
+# leaf.  Onto is quiet.
+#
+# Both new directories reach the docket the same way: /src is a
+# deletion and /x and /y are additions among the siblings of the
+# green-corresponded root, and the sibling generator pairs a deletion
+# with each addition.  Note that a single deletion facing two
+# additions produces two candidates, not a choice -- the generator
+# nominates and judges nothing, which is what makes phase 1 monotone.
+#
+# The one voter, f, is severed AND leaf-renamed, so neither red nor a
+# name match is available to it and it must vote by yellow, the row
+# of the triad that survives a rename and a sever.  Its bytes sit in
+# both /x and /y, so inside each candidate pair the sole voter is
+# accounted for.  Two targets are equally good.
+#
+# Belief requires a unique target, so nothing is concluded, and the
+# decay is the honest one: /src dies, /x and /y are born.  The same
+# ambiguity stops pairing from adopting either file, so the two new
+# files keep their new dnodes.
+#
+# This is precisely the failure the fingerprint search would have
+# papered over by picking one, and picking one here would be a guess
+# presented as a decision.  The theory's own phrase for the case
+# where identity and name evidence are both dead is that the answer
+# is "novel," not a guess.
+#
+# Hand-worked: clean, both new directories present, nothing reused.
+
+tree base
+  1-1: /
+    2-100: src/
+      3-100: f = dup
+
+tree onto
+  1-1: /
+    2-100: src/
+      3-100: f = dup
+
+tree offof
+  1-1: /
+    10-300: x/
+      11-300: g = dup
+    12-300: y/
+      13-300: h = dup
+
+# --- expected result, worked by hand 2026-08-31 ---
+expect clean
+
+tree expected
+  1-1: /
+    10-300: x
+      11-300: g = dup
+    12-300: y
+      13-300: h = dup

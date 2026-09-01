@@ -1,0 +1,46 @@
+title op3: the spurious rename/rename that no user performed
+
+# The conflict the relativized reading deletes, and the only one of
+# the ten where Section 16 changes a VERDICT rather than an edit list
+# or a choice of dnode.  That makes it the sharpest.
+#
+# Onto renames the file:     /d/f becomes /d/g.
+# Off-of renames the folder: /d becomes /e, and f rides along.
+#
+# Nobody renamed the same thing twice.  But under full-path naming
+# pool 3 loses the name /d/f on BOTH sides, and gains /d/g on one
+# side and /e/f on the other, so the one-move rule of Definition 9.3
+# sees two disagreeing moves of one name and reports a conflict.  The
+# user is then asked to resolve a collision between something they
+# did to a file and something they did to its grandparent.
+#
+# Relativized: (base /d, onto /d) corresponds by green, and
+# (base /d, off-of /e) by red.  Inside the second pair the leaf f is
+# equal on both sides, so off-of changed no name below the directory
+# at all.  Only onto renamed the child, one move decides, and the two
+# changes compose.
+#
+# Hand-worked: clean, /e/g, every dnode preserved.
+
+tree base
+  1-1: /
+    2-100: d/
+      3-100: f = fv0
+
+tree onto
+  1-1: /
+    2-100: d/
+      3-100: g = fv0
+
+tree offof
+  1-1: /
+    2-100: e/
+      3-100: f = fv0
+
+# --- expected result, worked by hand 2026-08-31 ---
+expect clean
+
+tree expected
+  1-1: /
+    2-100: e
+      3-100: g = fv0

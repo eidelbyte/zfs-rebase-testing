@@ -1,0 +1,121 @@
+title op3: the rival that only appears after the parent is on the docket
+
+# Proposition 16.4's hazard, built to fire.  This is the fixture that
+# tells a one-phase implementation from a two-phase one, and it is
+# the only one of the ten where a plausible wrong implementation
+# gives a plausible wrong ANSWER instead of an error.
+#
+# Off-of rebuilds /top as /peak.  Inside it there are two
+# directories where base had one:
+#
+#   alpha holds f and g with their original dnodes -- red.
+#   beta  holds f and g at the same leaves, with fresh dnodes and
+#         DIFFERENT content.  Fresh dnodes mean no red; different
+#         bytes mean not even a yellow vote.  The only thing tying
+#         inner to beta is that the leaves match.
+#
+# The trick rests on an asymmetry in Definition 16.3 worth saying out
+# loud: a name match can VOTE but it cannot NOMINATE.  Candidates
+# come from two generators only -- a child's RED edge nominating its
+# landing place's parent, and a deletion and an addition that are
+# siblings under a parent already in the relation.  (Yellow was a
+# third generator in the first draft and was removed by the kernel
+# lane: a nomination is the inverted, whole-tree question the lazy
+# pairwise yellow oracle cannot answer.  The removal makes this
+# fixture sharper, not weaker -- beta now has exactly one route in.)
+#
+# So beta reaches the docket only through the sibling generator,
+# under the pair (base /top, off-of /peak), and a naive
+# implementation reaches that route one round too late.
+#
+# NAIVE ITERATION:
+#   round 1  f's and g's red anchors nominate (inner, alpha).  It is
+#            the only candidate, its voters are unanimous, so inner
+#            is believed to have moved to alpha.  inner can now vote
+#            as a child, so top is believed to have moved to peak.
+#   round 2  (top, peak) is now corresponded, so the sibling
+#            generator finally offers (inner, beta) -- and inner's
+#            voters are accounted for there too, by name match.  The
+#            round-1 belief was made against a docket that was
+#            missing a rival.  Correspondence only ever grows, so the
+#            iteration LOOKS monotone.  The guard it violates is
+#            uniqueness, which is evaluated against the candidate set
+#            and is not monotone in it.
+#
+# TWO PHASES:
+#   phase 1  closes candidates and judges nothing.  (top, peak) is a
+#            sibling pair under the green root, so (inner, alpha) and
+#            (inner, beta) are both in the closure before any belief
+#            is formed.
+#   phase 2  judges bottom-up.  At height 1, inner has two equally
+#            good targets, so the unique-target guard blocks and
+#            inner is not believed.  At height 2, top's only child is
+#            the directory inner, whose vote requires a believed move
+#            of its own; it has none, so it abstains, and top has no
+#            voters and concludes nothing.
+#
+# Hand-worked: clean, and NOTHING is believed.  The gold is the plain
+# decay -- /top and /inner die, /peak, /alpha and /beta are born --
+# with the two files that kept their dnodes relinked under alpha.  A
+# one-phase engine reuses dnode 2 for /peak and dnode 3 for /alpha
+# instead, which is a strictly different gold section, so the fixture
+# cannot pass both ways.
+#
+# ONE WORDING QUESTION FOR THE THEORY LANE, raised because this
+# fixture is where it bites.  Definition 16.3 says the sibling
+# generator works "under an already-CORRESPONDED parent," while
+# Proposition 16.4 says "scoped sibling pairs under pairs already
+# PRESENT."  Only the second reading makes the proposition's own
+# argument work: on the first reading (top, peak) would have to be
+# BELIEVED before (inner, beta) could be nominated, belief would have
+# to precede closure, and phase 1 would be judging -- which is the
+# hazard the proposition exists to remove.  The second reading is
+# also the only one under which phase 1 is a fixed point at all;
+# red, green and red-anchor pairs are computable in a single pass,
+# so the sibling generator is the sole reason there is anything to
+# iterate.  This fixture assumes Proposition 16.4's wording.  If
+# Definition 16.3 means what it says, this fixture's gold is wrong
+# AND the proposition is unsound, so it is worth one sentence to fix.
+#
+# Last, the uncomfortable part of the right answer, recorded because
+# it will be argued: two phases here refuse a move that a person
+# reading the trees would probably call obvious.  That is the price
+# of judging once against everything, and it is the honest price --
+# the rival is real, and the round-1 belief was luck.
+
+tree base
+  1-1: /
+    2-100: top/
+      3-100: inner/
+        4-100: f = fv0
+        5-100: g = gv0
+
+tree onto
+  1-1: /
+    2-100: top/
+      3-100: inner/
+        4-100: f = fv0
+        5-100: g = gv0
+
+tree offof
+  1-1: /
+    20-300: peak/
+      30-300: alpha/
+        4-100: f = fv0
+        5-100: g = gv0
+      31-300: beta/
+        41-300: f = fv9
+        42-300: g = gv9
+
+# --- expected result, worked by hand 2026-08-31 ---
+expect clean
+
+tree expected
+  1-1: /
+    20-300: peak
+      30-300: alpha
+        4-100: f = fv0
+        5-100: g = gv0
+      31-300: beta
+        41-300: f = fv9
+        42-300: g = gv9

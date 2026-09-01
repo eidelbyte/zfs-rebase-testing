@@ -1,0 +1,56 @@
+title op6: a split against a delta of one
+
+# Shape two of four for the PENDING set-delta proposal.  See
+# op6-split-quiet.tree for the gold policy: gold is today's answer,
+# and the comment states what the proposal would change.
+#
+# Onto un-shares z.  Off-of renames one name, x to aa, so the delta
+# is lost {x} gained {aa}.
+#
+# Today Definition 9.3 pairs the single gained name with the single
+# lost one -- the only case it can read -- and routes the rename to
+# the fragment holding x, which is pool 10.  Clean.
+#
+# Under the proposal the answer is the same and the reasoning is
+# shorter: with one lost and one gained the pairing is forced by the
+# sets themselves, so no recognition step is involved at all.  The
+# proposal keeps routing exactly where routing is determined.
+#
+# Today: clean, pool 10 holds aa and y, the split fragment holds z.
+# Under the proposal: identical.
+#
+# The corpus already contains this shape as the one-rename/ arm of
+# 6-ambiguous-succession.tree.  It is repeated here on its own so
+# that the four op6 shapes can be read as a set, and so that a change
+# to it cannot hide inside a fixture that also covers something else.
+
+tree base
+  1-1: /
+    2-100: shared/
+      10-100: x = v0
+      10-100: y
+      10-100: z
+
+tree onto
+  1-1: /
+    2-100: shared/
+      10-100: x = v0
+      10-100: y
+      30-200: z = v0
+
+tree offof
+  1-1: /
+    2-100: shared/
+      10-100: aa = v0
+      10-100: y
+      10-100: z
+
+# --- expected result, worked by hand 2026-08-31 ---
+expect clean
+
+tree expected
+  1-1: /
+    2-100: shared
+      10-100: aa = v0
+      10-100: y
+      30-200: z = v0

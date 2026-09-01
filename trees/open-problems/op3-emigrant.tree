@@ -1,0 +1,68 @@
+title op3: one child that left blocks the move
+
+# The emigrant rule, adopted at v1 as unanimity among voters, and
+# successor question S1's discriminator.
+#
+# Off-of rebuilds /proj as /work but does not take everything: b is
+# moved out to /attic instead.  Both files keep their dnodes; the
+# directory does not.  Onto is quiet.
+#
+# Phase 1: a's red edge nominates (base /proj, off-of /work), b's red
+# edge nominates (base /proj, /attic), and the sibling generator adds
+# the first pair again from the root.
+#
+# Phase 2: /proj's voters are a and b.  a votes into /work.  b's
+# evidence points OUTSIDE /work, so under unanimity it blocks, and
+# /proj is not believed to have moved.  /attic fails too, for the
+# mirror reason -- only b votes into it, and a does not.
+#
+# What a blocked belief costs is worth being exact about, because it
+# is smaller than it sounds.  Red still pairs both file pools, so no
+# FILE materializes and no content is lost; a and b are relinked
+# where red says they went.  The whole cost is the directory's own
+# dnode: /proj is removed and /work is minted.  A blocked belief
+# degrades to the answer we had before Section 16, never to worse.
+#
+# S1 IS VISIBLE HERE, which is the reason to keep the fixture even
+# after the dial is set.  Under the recorded alternative -- emigrants
+# abstain, which is git's spirit rather than its letter -- a would be
+# the only voter, /work would be the unique target, the move would be
+# believed, and the output would reuse dnode 2 for /work instead of
+# minting 10-300.  The gold below is v1 unanimity.  An engine that
+# produces dnode 2 has implemented the other dial; that is a finding
+# about S1, not a defect, and this is the fixture that settles it.
+
+tree base
+  1-1: /
+    2-100: proj/
+      3-100: a = av0
+      4-100: b = bv0
+    5-100: attic/
+      6-100: .keep = kv0
+
+tree onto
+  1-1: /
+    2-100: proj/
+      3-100: a = av0
+      4-100: b = bv0
+    5-100: attic/
+      6-100: .keep = kv0
+
+tree offof
+  1-1: /
+    5-100: attic/
+      6-100: .keep = kv0
+      4-100: b = bv0
+    10-300: work/
+      3-100: a = av0
+
+# --- expected result, worked by hand 2026-08-31 ---
+expect clean
+
+tree expected
+  1-1: /
+    5-100: attic
+      6-100: .keep = kv0
+      4-100: b = bv0
+    10-300: work
+      3-100: a = av0

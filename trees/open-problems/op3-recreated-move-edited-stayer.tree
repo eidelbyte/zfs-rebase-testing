@@ -1,0 +1,70 @@
+title op3: a recreated directory move, carrying an edit
+
+# The fullness rule of Definition 16.3 in its smallest honest form,
+# and the first fixture where the vote triad does work red cannot.
+#
+# Off-of moves /old to /new the way a tool that rebuilds rather than
+# renames does it -- cp -r then rm -r -- so the directory and both
+# files get fresh dnodes.  Then keep.txt is edited.  Onto is quiet.
+#
+# Red sees nothing: every dnode below /new is new.  Yellow refuses to
+# compare directories at all (Definition 2.8), so today this decays
+# to a death and a birth -- /old and its two files deleted, /new and
+# its two files created.  Clean, but every output object is
+# materialized, and onto-side handles and links do not survive it.
+#
+# The children vote instead.
+#
+# PHASE 1 has exactly one route to this candidate, which is worth
+# being precise about because an earlier draft of the theory had two.
+# There is no red anchor here (nothing below /new kept a dnode), and
+# yellow deliberately does not nominate -- a nomination is the
+# inverted question "what, anywhere, is yellow to this child," which
+# is a content index the pairwise yellow oracle is designed not to
+# be.  So (base /old, off-of /new) reaches the docket only as a
+# deletion and an addition among the siblings of the root, which is
+# corresponded by green.  The sibling generator carries this fixture
+# by itself.
+#
+# PHASE 2 judges at height 1.  Both children vote into /new by NAME
+# MATCH -- the same leaf inside the candidate pair.  That is the
+# relativized-green row of the triad, and the row is why an edit does
+# not silence a voter: a name match survives an edit and survives a
+# dnode sever, and keep.txt suffered both at once.  Every voter votes
+# into /new, the votes are one-to-one, /new is the unique target,
+# there are no emigrants and no abstentions.  The move is believed.
+#
+# Hand-worked: clean, and -- the whole point -- the output reuses
+# onto's dnodes 2, 3 and 4 rather than minting 10-300, 11-300 and
+# 12-300.  The VERDICT is clean either way; it is REALIZATION that
+# differs, which this suite's gold checks last and separately.  A
+# fixture whose old and new answers differ only in dnode identity is
+# the easiest kind to get wrong by eye, and the hardest to get wrong
+# by gold.
+
+tree base
+  1-1: /
+    2-100: old/
+      3-100: keep.txt = kv0
+      4-100: other.txt = ov0
+
+tree onto
+  1-1: /
+    2-100: old/
+      3-100: keep.txt = kv0
+      4-100: other.txt = ov0
+
+tree offof
+  1-1: /
+    10-300: new/
+      11-300: keep.txt = kv1
+      12-300: other.txt = ov0
+
+# --- expected result, worked by hand 2026-08-31 ---
+expect clean
+
+tree expected
+  1-1: /
+    2-100: new
+      3-100: keep.txt = kv1
+      4-100: other.txt = ov0

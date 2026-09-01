@@ -1,0 +1,55 @@
+title op3: a directory rename carries its subtree
+
+# Section 16, the mild half of the parked directory-subtree gap.
+#
+# Off-of renames /d to /e with rename(2), so the directory keeps its
+# dnode and every file underneath keeps both its dnode and its leaf.
+# Onto is quiet, so nothing conflicts and the fixture is entirely
+# about how the change is READ and what it compiles to.
+#
+# Under full-path naming three names changed: /d, /d/f and /d/g.
+# Both emission compilers therefore emitted three renames, and two of
+# them were edits that rename(2) had already performed.  That was a
+# real shared bug, found by cross-checking the two compilers against
+# each other and fixed in neither, because the fix was not writable
+# in full-path coordinates -- see op3-carried-child-rename.
+#
+# Under the relativized reading (Definition 16.1) the pair
+# (base /d, off-of /e) is corresponded by red, and inside that pair
+# the leaves f and g are equal on both sides.  Relative to the pair
+# the children did not change their names at all.  One name changed,
+# not three, and the descendants compile to NO edit (Remark 16.5).
+#
+# Hand-worked: clean, and the decided tree is base's with the
+# directory renamed.  The decision was never in doubt here; what
+# changes is the edit list, which the gold section cannot see.  That
+# is worth stating rather than hiding: this fixture passes today and
+# will pass after the rework, and it is the EDIT COUNT that has to
+# be watched.
+
+tree base
+  1-1: /
+    2-100: d/
+      3-100: f = fv0
+      4-100: g = gv0
+
+tree onto
+  1-1: /
+    2-100: d/
+      3-100: f = fv0
+      4-100: g = gv0
+
+tree offof
+  1-1: /
+    2-100: e/
+      3-100: f = fv0
+      4-100: g = gv0
+
+# --- expected result, worked by hand 2026-08-31 ---
+expect clean
+
+tree expected
+  1-1: /
+    2-100: e
+      3-100: f = fv0
+      4-100: g = gv0

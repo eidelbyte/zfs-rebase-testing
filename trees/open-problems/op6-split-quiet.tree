@@ -1,0 +1,53 @@
+title op6: a split against a quiet side
+
+# One of four shapes for the PENDING set-delta succession proposal
+# (op6-set-succession.md).  The proposal is not adopted: the lead has
+# not confirmed it, and nothing here authorizes implementing it.
+#
+# GOLD POLICY for the four op6 fixtures.  The gold section below
+# records what the engine decides TODAY, so the suite stays a true
+# regression gate while the proposal is pending.  Each fixture's
+# comment states exactly what set-delta succession would change, in
+# the form the new gold would take.  When the lead confirms, flipping
+# a fixture is a one-line edit and the fixture becomes the proof that
+# the change landed rather than a fixture that was always going to
+# agree with whatever ran.
+#
+# This one is the control.  Onto un-shares z from the hard-linked
+# triple; off-of does nothing at all.  There is no delta, so there is
+# no succession question, and nothing in the proposal touches it.
+#
+# Today: clean, onto's split stands.
+# Under the proposal: identical.  A control that changes would mean
+# the proposal had reached further than it claims to.
+
+tree base
+  1-1: /
+    2-100: shared/
+      10-100: x = v0
+      10-100: y
+      10-100: z
+
+tree onto
+  1-1: /
+    2-100: shared/
+      10-100: x = v0
+      10-100: y
+      30-200: z = v0
+
+tree offof
+  1-1: /
+    2-100: shared/
+      10-100: x = v0
+      10-100: y
+      10-100: z
+
+# --- expected result, worked by hand 2026-08-31 ---
+expect clean
+
+tree expected
+  1-1: /
+    2-100: shared
+      10-100: x = v0
+      10-100: y
+      30-200: z = v0

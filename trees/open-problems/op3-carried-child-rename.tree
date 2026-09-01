@@ -1,0 +1,49 @@
+title op3: a renamed directory whose child also renames itself
+
+# The severe half of the gap, and the case that was INEXPRESSIBLE in
+# full-path coordinates rather than merely awkward.
+#
+# Off-of renames /d to /e and, inside it, renames f to g.  Both
+# dnodes survive, so red carries the directory and red carries the
+# child.  Onto is quiet.
+#
+# In full-path coordinates the child's edit had no writable source.
+# "rename /d/f to /e/g" names a source that the directory rename has
+# already destroyed.  "rename /e/f to /e/g" names /e/f -- a path that
+# appears in NO tree, and the kernel's name table is a rank into the
+# union of the three trees, so it cannot mint one.  This is why the
+# fix was parked instead of written, on both sides.
+#
+# Remark 16.5 dissolves it.  The edit is one leaf rename, f to g,
+# written inside the moved directory's scope; the applier's position
+# supplies the prefix, so no intermediate path is ever named.  The
+# parent-first arrow of Definition 12.1 already orders it after the
+# directory's own rename -- no new arrow is needed.
+#
+# Hand-worked: clean.  The gold below is the same under either
+# coordinate system.  The difference is only whether the edit list
+# can be written down at all, which is exactly the kind of defect a
+# gold section cannot catch and a contract has to.
+
+tree base
+  1-1: /
+    2-100: d/
+      3-100: f = fv0
+
+tree onto
+  1-1: /
+    2-100: d/
+      3-100: f = fv0
+
+tree offof
+  1-1: /
+    2-100: e/
+      3-100: g = fv0
+
+# --- expected result, worked by hand 2026-08-31 ---
+expect clean
+
+tree expected
+  1-1: /
+    2-100: e
+      3-100: g = fv0

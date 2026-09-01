@@ -1,0 +1,57 @@
+title op3: an empty directory has no voters and concludes nothing
+
+# Vacuous fullness, put beside a directory that does conclude, so the
+# difference is a few lines of gold apart.
+#
+# Off-of renames both directories the way a rebuild does it, giving
+# each a fresh dnode.  /empty has no children; /full has one, and it
+# keeps its dnode.  Onto is quiet.
+#
+# /full's single voter votes into /filled by red, /filled is the
+# unique target, and the move is believed: the output keeps onto's
+# dnode 3 under the new name.
+#
+# /empty has no voting children at all.  Fullness holds toward every
+# candidate vacuously, and the distinction that matters is that this
+# does not FAIL -- it asserts nothing.  A rule that concluded from an
+# empty vote would conclude /empty moved to /filled just as readily
+# as to /emptied, since both are candidates by the sibling generator
+# and neither has a single voter to separate them.  So /empty dies
+# and /emptied is born with a fresh dnode.
+#
+# That asymmetry is successor question S4: whether the decay of empty
+# and emptied directories is acceptable in practice or wants evidence
+# of its own.  This fixture is what makes the cost concrete, and the
+# cost is small -- one directory's identity per empty directory
+# renamed, with nothing underneath to lose.
+#
+# Note the trailing slash on the empty directory in the gold block.
+# It is not decoration: with no children and no content token, the
+# slash is the only thing that says the pool is a directory.
+
+tree base
+  1-1: /
+    2-100: empty/
+    3-100: full/
+      4-100: f = fv0
+
+tree onto
+  1-1: /
+    2-100: empty/
+    3-100: full/
+      4-100: f = fv0
+
+tree offof
+  1-1: /
+    10-300: emptied/
+    11-300: filled/
+      4-100: f = fv0
+
+# --- expected result, worked by hand 2026-08-31 ---
+expect clean
+
+tree expected
+  1-1: /
+    10-300: emptied/
+    3-100: filled
+      4-100: f = fv0
